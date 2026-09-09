@@ -71,7 +71,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsPasswordModalOpen(true);
   };
 
-  const handleSaveEditUser = (
+  const handleSaveEditUser = async (
     targetUserId: string,
     updates: {
       name: string;
@@ -81,7 +81,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       isActive: boolean;
     }
   ) => {
-    const res = adminUpdateUser(currentUser, targetUserId, updates);
+    const res = await adminUpdateUser(currentUser, targetUserId, updates);
     if (res.success) {
       showNotification('success', 'REGISTRO//USUARIO ACTUALIZADO CON ÉXITO.');
       onRefreshData();
@@ -123,9 +123,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleDeleteUser = (targetUser: User) => {
+  const handleDeleteUser = async (targetUser: User) => {
     if (confirm(`¿CONFIRMAS LA PURGA DEL USUARIO "${targetUser.name}"? ESTA ACCIÓN ES IRREVERSIBLE.`)) {
-      const res = adminDeleteUser(currentUser, targetUser.id);
+      const res = await adminDeleteUser(currentUser, targetUser.id);
       if (res.success) {
         showNotification('success', `OPERADOR ${targetUser.name} PURGADO DEL SISTEMA.`);
         onRefreshData();
@@ -136,8 +136,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleToggleActive = (targetUser: User) => {
-    const res = adminUpdateUser(currentUser, targetUser.id, {
+  const handleToggleActive = async (targetUser: User) => {
+    const res = await adminUpdateUser(currentUser, targetUser.id, {
       isActive: !targetUser.isActive,
     });
     if (res.success) {

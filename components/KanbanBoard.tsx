@@ -106,18 +106,18 @@ export const KanbanBoard: React.FC = () => {
   };
 
   // Manejo de tareas
-  const handleSaveTask = (taskData: {
+  const handleSaveTask = async (taskData: {
     title: string;
     description: string;
-    status: TaskStatus;
     priority: TaskPriority;
+    status: TaskStatus;
     assignedTo: string;
     dueDate?: string;
   }) => {
     if (!sessionUser) return;
 
     if (editingTask) {
-      updateTask(editingTask.id, taskData, sessionUser);
+      await updateTask(editingTask.id, taskData, sessionUser);
       if (taskData.status === 'finalizado' && editingTask.status !== 'finalizado') {
         confetti({
           particleCount: 100,
@@ -127,7 +127,7 @@ export const KanbanBoard: React.FC = () => {
         });
       }
     } else {
-      createTask(
+      await createTask(
         {
           ...taskData,
           createdBy: sessionUser.id,
@@ -138,15 +138,15 @@ export const KanbanBoard: React.FC = () => {
     refreshData();
   };
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
     if (!sessionUser) return;
-    deleteTask(taskId, sessionUser);
+    await deleteTask(taskId, sessionUser);
     refreshData();
   };
 
-  const handleMoveStatus = (taskId: string, newStatus: TaskStatus) => {
+  const handleMoveStatus = async (taskId: string, newStatus: TaskStatus) => {
     if (!sessionUser) return;
-    updateTask(taskId, { status: newStatus }, sessionUser);
+    await updateTask(taskId, { status: newStatus }, sessionUser);
 
     if (newStatus === 'finalizado') {
       confetti({

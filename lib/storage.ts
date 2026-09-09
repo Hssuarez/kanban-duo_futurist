@@ -1,6 +1,6 @@
 import { Task, User, ActivityLog, SecurityLog, TaskStatus, UserRole } from './types';
 import { hashPassword, verifyPassword } from './auth';
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { getOrInitSupabase, getCachedSupabase } from './supabaseClient';
 
 export const DEFAULT_USERS: User[] = [
   {
@@ -154,41 +154,94 @@ const STORAGE_KEYS = {
   SECURITY_LOGS: 'kanban_duo_security_logs_v2',
 };
 
-// Broadcast Channel for live multi-tab sync
+// Broadcast Channel for live multi-tab and local in-tab sync
 let syncChannel: BroadcastChannel | null = null;
 if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
   syncChannel = new BroadcastChannel('kanban_duo_channel_v2');
 }
 
+const localListeners = new Set<(type: string) => void>();
+
 export function notifySync(type: 'tasks' | 'users' | 'logs' | 'security' | 'session') {
   if (syncChannel) {
-    syncChannel.postMessage({ type, timestamp: Date.now() });
+    try {
+      syncChannel.postMessage({ type, timestamp: Date.now() });
+    } catch {}
   }
+  localListeners.forEach((cb) => {
+    try {
+      cb(type);
+    } catch {}
+  });
 }
 
 export function subscribeToSync(callback: (type: string) => void) {
-  if (!syncChannel) return () => {};
+  localListeners.add(callback);
   const handler = (event: MessageEvent) => {
     if (event.data?.type) {
       callback(event.data.type);
     }
   };
-  syncChannel.addEventListener('message', handler);
-  return () => syncChannel?.removeEventListener('message', handler);
+  if (syncChannel) {
+    syncChannel.addEventListener('message', handler);
+  }
+  return () => {
+    localListeners.delete(callback);
+    syncChannel?.removeEventListener('message', handler);
+  };
 }
 
 // -------------------------------------------------------------
-// SUPABASE REALTIME CLOUD INTEGRATION (WHEN CONFIGURED)
+// SUPABASE REALTIME CLOUD INTEGRATION (BIDIRECTIONAL)
 // -------------------------------------------------------------
 
-export async function syncFromSupabase() {
-  if (!supabase || typeof window === 'undefined') return;
+let realtimeSubscribed = false;
+
+export async function syncCloudUsers(): Promise<User[]> {
+  const client = await getOrInitSupabase();
+  if (!client || typeof window === 'undefined') return getUsers();
 
   try {
-    // 1. Sync tasks
-    const { data: dbTasks, error: taskErr } = await supabase.from('tasks').select('*');
-    if (dbTasks && !taskErr && dbTasks.length > 0) {
-      const mappedTasks: Task[] = dbTasks.map((t) => ({
+    const { data, error } = await client.from('users').select('*');
+    if (error) {
+      console.warn('Error al consultar usuarios en Supabase:', error);
+      return getUsers();
+    }
+    if (data && data.length > 0) {
+      const mapped: User[] = data.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        avatar: u.avatar || '',
+        color: u.color || '#3b82f6',
+        role: u.role as UserRole,
+        passwordHash: u.password_hash || '',
+        isActive: u.is_active ?? true,
+        createdAt: u.created_at || new Date().toISOString(),
+        lastLogin: u.last_login,
+      }));
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mapped));
+      notifySync('users');
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('Fallo de red con Supabase Users:', err);
+  }
+  return getUsers();
+}
+
+export async function syncCloudTasks(): Promise<Task[]> {
+  const client = await getOrInitSupabase();
+  if (!client || typeof window === 'undefined') return getTasks();
+
+  try {
+    const { data, error } = await client.from('tasks').select('*');
+    if (error) {
+      console.warn('Error al consultar tareas en Supabase:', error);
+      return getTasks();
+    }
+    if (data) {
+      const mapped: Task[] = data.map((t) => ({
         id: t.id,
         title: t.title,
         description: t.description || '',
@@ -200,47 +253,42 @@ export async function syncFromSupabase() {
         createdAt: t.created_at,
         updatedAt: t.updated_at,
       }));
-      localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(mappedTasks));
+      localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(mapped));
       notifySync('tasks');
-    }
-
-    // 2. Sync users
-    const { data: dbUsers, error: userErr } = await supabase.from('users').select('*');
-    if (dbUsers && !userErr && dbUsers.length > 0) {
-      const mappedUsers: User[] = dbUsers.map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        avatar: u.avatar,
-        color: u.color,
-        role: u.role,
-        passwordHash: u.password_hash,
-        isActive: u.is_active,
-        createdAt: u.created_at,
-        lastLogin: u.last_login,
-      }));
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mappedUsers));
-      notifySync('users');
+      return mapped;
     }
   } catch (err) {
-    console.warn('Supabase sync warning:', err);
+    console.warn('Fallo de red con Supabase Tasks:', err);
   }
+  return getTasks();
 }
 
-// Subscribe to Supabase WebSockets if client is active
-if (typeof window !== 'undefined' && supabase) {
-  try {
-    supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
-        syncFromSupabase();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
-        syncFromSupabase();
-      })
-      .subscribe();
-  } catch (e) {
-    console.warn('Could not connect Supabase realtime channel:', e);
+export async function initCloudSync() {
+  if (typeof window === 'undefined') return;
+
+  const client = await getOrInitSupabase();
+  if (!client) return;
+
+  // Initial cloud sync
+  await syncCloudUsers();
+  await syncCloudTasks();
+
+  // Setup WebSocket listener once
+  if (!realtimeSubscribed) {
+    realtimeSubscribed = true;
+    try {
+      client
+        .channel('kanban-realtime-channel')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+          syncCloudUsers();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+          syncCloudTasks();
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('Error conectando canal Realtime:', e);
+    }
   }
 }
 
@@ -265,11 +313,7 @@ export function getUsers(): User[] {
 export async function initializeDefaultUsers() {
   if (typeof window === 'undefined') return;
 
-  // If Supabase is connected, try syncing remote first
-  if (isSupabaseConfigured) {
-    await syncFromSupabase();
-  }
-
+  // Initialize password hashes locally
   const adminHash = await hashPassword('Admin123!');
   const alexHash = await hashPassword('Alex123!');
   const beatrizHash = await hashPassword('Beatriz123!');
@@ -285,6 +329,9 @@ export async function initializeDefaultUsers() {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     notifySync('users');
   }
+
+  // Attempt sync with Cloud
+  await initCloudSync();
 }
 
 export function saveUsers(users: User[]) {
@@ -306,7 +353,8 @@ export async function loginWithCredentials(
   email: string,
   passwordPlain: string
 ): Promise<{ success: boolean; user?: User; error?: string }> {
-  let users = getUsers();
+  // Sync first to make sure we have the latest user list and passwords
+  let users = await syncCloudUsers();
 
   if (users.some((u) => !u.passwordHash)) {
     await initializeDefaultUsers();
@@ -330,8 +378,10 @@ export async function loginWithCredentials(
   user.lastLogin = new Date().toISOString();
   saveUsers(users);
 
-  if (supabase) {
-    supabase.from('users').update({ last_login: user.lastLogin }).eq('id', user.id).then();
+  // Update Supabase
+  const client = await getOrInitSupabase();
+  if (client) {
+    client.from('users').update({ last_login: user.lastLogin }).eq('id', user.id).then();
   }
 
   localStorage.setItem(STORAGE_KEYS.SESSION_USER_ID, user.id);
@@ -366,7 +416,7 @@ export function logout() {
 // ADMIN MANAGEMENT ACTIONS (NOMBRES, CONTRASEÑAS, FOTOS, ROLES)
 // -------------------------------------------------------------
 
-export function adminUpdateUser(
+export async function adminUpdateUser(
   admin: User,
   targetUserId: string,
   updates: {
@@ -376,7 +426,7 @@ export function adminUpdateUser(
     role?: UserRole;
     isActive?: boolean;
   }
-): { success: boolean; error?: string } {
+): Promise<{ success: boolean; error?: string }> {
   const users = getUsers();
   const index = users.findIndex((u) => u.id === targetUserId);
   if (index === -1) return { success: false, error: 'Usuario no encontrado' };
@@ -398,8 +448,10 @@ export function adminUpdateUser(
   users[index] = updated;
   saveUsers(users);
 
-  if (supabase) {
-    supabase
+  // Guardar en Supabase y esperar resultado
+  const client = await getOrInitSupabase();
+  if (client) {
+    const { error } = await client
       .from('users')
       .update({
         name: updated.name,
@@ -408,8 +460,11 @@ export function adminUpdateUser(
         role: updated.role,
         is_active: updated.isActive,
       })
-      .eq('id', targetUserId)
-      .then();
+      .eq('id', targetUserId);
+
+    if (error) {
+      console.error('Error guardando usuario en Supabase:', error);
+    }
   }
 
   logSecurityEvent({
@@ -446,8 +501,16 @@ export async function adminChangePassword(
   };
   saveUsers(users);
 
-  if (supabase) {
-    supabase.from('users').update({ password_hash: newHash }).eq('id', targetUserId).then();
+  const client = await getOrInitSupabase();
+  if (client) {
+    const { error } = await client
+      .from('users')
+      .update({ password_hash: newHash })
+      .eq('id', targetUserId);
+
+    if (error) {
+      console.error('Error cambiando clave en Supabase:', error);
+    }
   }
 
   logSecurityEvent({
@@ -501,20 +564,21 @@ export async function adminCreateUser(
   users.push(newUser);
   saveUsers(users);
 
-  if (supabase) {
-    supabase
-      .from('users')
-      .insert({
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        avatar: newUser.avatar,
-        color: newUser.color,
-        role: newUser.role,
-        password_hash: passwordHash,
-        is_active: true,
-      })
-      .then();
+  const client = await getOrInitSupabase();
+  if (client) {
+    const { error } = await client.from('users').insert({
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      avatar: newUser.avatar,
+      color: newUser.color,
+      role: newUser.role,
+      password_hash: passwordHash,
+      is_active: true,
+    });
+    if (error) {
+      console.error('Error creando usuario en Supabase:', error);
+    }
   }
 
   logSecurityEvent({
@@ -529,10 +593,10 @@ export async function adminCreateUser(
   return { success: true, user: newUser };
 }
 
-export function adminDeleteUser(
+export async function adminDeleteUser(
   admin: User,
   targetUserId: string
-): { success: boolean; error?: string } {
+): Promise<{ success: boolean; error?: string }> {
   const users = getUsers();
   const target = users.find((u) => u.id === targetUserId);
   if (!target) return { success: false, error: 'Usuario no encontrado' };
@@ -551,8 +615,12 @@ export function adminDeleteUser(
   const remaining = users.filter((u) => u.id !== targetUserId);
   saveUsers(remaining);
 
-  if (supabase) {
-    supabase.from('users').delete().eq('id', targetUserId).then();
+  const client = await getOrInitSupabase();
+  if (client) {
+    const { error } = await client.from('users').delete().eq('id', targetUserId);
+    if (error) {
+      console.error('Error eliminando usuario en Supabase:', error);
+    }
   }
 
   logSecurityEvent({
@@ -599,16 +667,20 @@ export async function updateSelfProfile(
   users[index] = updated;
   saveUsers(users);
 
-  if (supabase) {
-    supabase
+  const client = await getOrInitSupabase();
+  if (client) {
+    const { error } = await client
       .from('users')
       .update({
         name: updated.name,
         avatar: updated.avatar,
         password_hash: newHash,
       })
-      .eq('id', userId)
-      .then();
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error actualizando perfil en Supabase:', error);
+    }
   }
 
   logSecurityEvent({
@@ -645,7 +717,10 @@ export function saveTasks(tasks: Task[]) {
   notifySync('tasks');
 }
 
-export function createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>, actorUser: User): Task {
+export async function createTask(
+  taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>,
+  actorUser: User
+): Promise<Task> {
   const tasks = getTasks();
   const newTask: Task = {
     ...taskData,
@@ -656,22 +731,23 @@ export function createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'
   tasks.unshift(newTask);
   saveTasks(tasks);
 
-  if (supabase) {
-    supabase
-      .from('tasks')
-      .insert({
-        id: newTask.id,
-        title: newTask.title,
-        description: newTask.description || '',
-        status: newTask.status,
-        priority: newTask.priority,
-        assigned_to: newTask.assignedTo,
-        created_by: newTask.createdBy,
-        due_date: newTask.dueDate || null,
-        created_at: newTask.createdAt,
-        updated_at: newTask.updatedAt,
-      })
-      .then();
+  const client = await getOrInitSupabase();
+  if (client) {
+    const { error } = await client.from('tasks').insert({
+      id: newTask.id,
+      title: newTask.title,
+      description: newTask.description || '',
+      status: newTask.status,
+      priority: newTask.priority,
+      assigned_to: newTask.assignedTo,
+      created_by: newTask.createdBy,
+      due_date: newTask.dueDate || null,
+      created_at: newTask.createdAt,
+      updated_at: newTask.updatedAt,
+    });
+    if (error) {
+      console.error('Error creando tarea en Supabase:', error);
+    }
   }
 
   logActivity({
@@ -684,7 +760,11 @@ export function createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'
   return newTask;
 }
 
-export function updateTask(id: string, updates: Partial<Task>, actorUser: User): Task | null {
+export async function updateTask(
+  id: string,
+  updates: Partial<Task>,
+  actorUser: User
+): Promise<Task | null> {
   const tasks = getTasks();
   const index = tasks.findIndex((t) => t.id === id);
   if (index === -1) return null;
@@ -699,7 +779,8 @@ export function updateTask(id: string, updates: Partial<Task>, actorUser: User):
   tasks[index] = updatedTask;
   saveTasks(tasks);
 
-  if (supabase) {
+  const client = await getOrInitSupabase();
+  if (client) {
     const payload: Record<string, unknown> = {
       updated_at: updatedTask.updatedAt,
     };
@@ -710,7 +791,10 @@ export function updateTask(id: string, updates: Partial<Task>, actorUser: User):
     if (updates.assignedTo !== undefined) payload.assigned_to = updates.assignedTo;
     if (updates.dueDate !== undefined) payload.due_date = updates.dueDate;
 
-    supabase.from('tasks').update(payload).eq('id', id).then();
+    const { error } = await client.from('tasks').update(payload).eq('id', id);
+    if (error) {
+      console.error('Error actualizando tarea en Supabase:', error);
+    }
   }
 
   if (updates.status && updates.status !== oldTask.status) {
@@ -730,7 +814,7 @@ export function updateTask(id: string, updates: Partial<Task>, actorUser: User):
   return updatedTask;
 }
 
-export function deleteTask(id: string, actorUser: User): boolean {
+export async function deleteTask(id: string, actorUser: User): Promise<boolean> {
   const tasks = getTasks();
   const taskToDelete = tasks.find((t) => t.id === id);
   if (!taskToDelete) return false;
@@ -738,8 +822,12 @@ export function deleteTask(id: string, actorUser: User): boolean {
   const remaining = tasks.filter((t) => t.id !== id);
   saveTasks(remaining);
 
-  if (supabase) {
-    supabase.from('tasks').delete().eq('id', id).then();
+  const client = await getOrInitSupabase();
+  if (client) {
+    const { error } = await client.from('tasks').delete().eq('id', id);
+    if (error) {
+      console.error('Error eliminando tarea en Supabase:', error);
+    }
   }
 
   logActivity({
@@ -770,7 +858,7 @@ export function getActivityLogs(): ActivityLog[] {
   }
 }
 
-export function logActivity(log: Omit<ActivityLog, 'id' | 'timestamp'>) {
+export async function logActivity(log: Omit<ActivityLog, 'id' | 'timestamp'>) {
   if (typeof window === 'undefined') return;
   const logs = getActivityLogs();
   const newLog: ActivityLog = {
@@ -782,8 +870,9 @@ export function logActivity(log: Omit<ActivityLog, 'id' | 'timestamp'>) {
   localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(updatedLogs));
   notifySync('logs');
 
-  if (supabase) {
-    supabase
+  const client = await getOrInitSupabase();
+  if (client) {
+    client
       .from('activity_logs')
       .insert({
         id: newLog.id,
@@ -811,7 +900,7 @@ export function getSecurityLogs(): SecurityLog[] {
   }
 }
 
-export function logSecurityEvent(event: Omit<SecurityLog, 'id' | 'timestamp'>) {
+export async function logSecurityEvent(event: Omit<SecurityLog, 'id' | 'timestamp'>) {
   if (typeof window === 'undefined') return;
   const logs = getSecurityLogs();
   const newLog: SecurityLog = {
@@ -823,8 +912,9 @@ export function logSecurityEvent(event: Omit<SecurityLog, 'id' | 'timestamp'>) {
   localStorage.setItem(STORAGE_KEYS.SECURITY_LOGS, JSON.stringify(updated));
   notifySync('security');
 
-  if (supabase) {
-    supabase
+  const client = await getOrInitSupabase();
+  if (client) {
+    client
       .from('security_logs')
       .insert({
         id: newLog.id,

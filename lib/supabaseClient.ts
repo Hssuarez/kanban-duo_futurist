@@ -1,35 +1,47 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl =
+let cachedClient: SupabaseClient | null = null;
+let isConfigured = false;
+
+// Direct check from build-time env vars
+const buildUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   process.env.NEXT_PUBLIC_STORAGE_URL;
 
-const supabaseAnonKey =
+const buildKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   process.env.NEXT_PUBLIC_STORAGE_ANON_KEY;
 
-export let isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+if (buildUrl && buildKey) {
+  cachedClient = createClient(buildUrl, buildKey);
+  isConfigured = true;
+}
 
-export let supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(supabaseUrl as string, supabaseAnonKey as string)
-  : null;
+export function getCachedSupabase(): SupabaseClient | null {
+  return cachedClient;
+}
 
-// Async init for environments where variables were delivered via server runtime
-export async function ensureSupabaseClient(): Promise<SupabaseClient | null> {
-  if (supabase) return supabase;
+export function getIsConfigured(): boolean {
+  return isConfigured;
+}
+
+// Async getter that queries /api/config if not defined at build time
+export async function getOrInitSupabase(): Promise<SupabaseClient | null> {
+  if (cachedClient) return cachedClient;
 
   if (typeof window !== 'undefined') {
     try {
       const res = await fetch('/api/config');
       const data = await res.json();
       if (data.configured && data.url && data.anonKey) {
-        supabase = createClient(data.url, data.anonKey);
-        isSupabaseConfigured = true;
-        return supabase;
+        cachedClient = createClient(data.url, data.anonKey);
+        isConfigured = true;
+        return cachedClient;
       }
-    } catch {
-      // ignore
+    } catch (e) {
+      console.warn('Could not auto-init Supabase from /api/config:', e);
     }
   }
+
   return null;
 }
