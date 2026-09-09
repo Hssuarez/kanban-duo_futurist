@@ -1,0 +1,140 @@
+'use client';
+
+import React, { useState } from 'react';
+import { User, Task, ActivityLog } from '@/lib/types';
+import { Activity, Clock, Sparkles, ChevronDown, ChevronUp, Radio } from 'lucide-react';
+
+interface PeerActivityBarProps {
+  currentUser: User;
+  users: User[];
+  tasks: Task[];
+  logs: ActivityLog[];
+}
+
+export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
+  currentUser,
+  users,
+  tasks,
+  logs,
+}) => {
+  const [showLogs, setShowLogs] = useState(false);
+
+  const peerUser = users.find((u) => u.id !== currentUser.id) || users[0];
+
+  const peerWorkingTasks = tasks.filter(
+    (t) => t.assignedTo === peerUser?.id && t.status === 'trabajando'
+  );
+
+  const activeTask = peerWorkingTasks[0];
+
+  const formatTimeAgo = (dateStr: string) => {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'HACE_UN_MOMENTO';
+    if (diffMins < 60) return `T-${diffMins}M`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `T-${diffHours}H`;
+    return `T-${Math.floor(diffHours / 24)}D`;
+  };
+
+  return (
+    <div className="bg-[#0b0e18]/90 border border-cyan-500/30 rounded-2xl shadow-[0_0_20px_rgba(0,0,0,0.6)] overflow-hidden mb-6 font-mono">
+      {/* Main Focus Strip */}
+      <div className="p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#0b0e18] via-[#101424] to-[#0d1527]">
+        <div className="flex items-center gap-3">
+          {/* Peer Avatar with neon active pulse */}
+          <div className="relative">
+            <img
+              src={peerUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              alt={peerUser?.name}
+              className="w-11 h-11 rounded-xl object-cover ring-2 ring-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]"
+            />
+            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0b0e18] rounded-full">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            </span>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-cyan-400 tracking-widest uppercase flex items-center gap-1">
+                <Radio className="w-3 h-3 text-cyan-400 animate-pulse" />
+                TELEMETRÍA // {peerUser?.name?.toUpperCase()}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> LINK_STABLE
+              </span>
+            </div>
+
+            {activeTask ? (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-950/80 border border-amber-500/50 px-2 py-0.5 rounded uppercase tracking-wider shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                  <Clock className="w-3 h-3 animate-spin text-amber-400" style={{ animationDuration: '3s' }} />
+                  EJECUTANDO AHORA:
+                </span>
+                <span className="text-xs font-bold text-slate-200 line-clamp-1 tracking-wide">
+                  "{activeTask.title}"
+                </span>
+                {peerWorkingTasks.length > 1 && (
+                  <span className="text-[10px] text-cyan-400/80 font-normal">
+                    (+{peerWorkingTasks.length - 1} en cola)
+                  </span>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 mt-1 italic flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-slate-500" />
+                Sin tareas en estado activo actualmente.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Activity feed toggle button */}
+        <div className="flex items-center gap-2 self-end md:self-auto">
+          <button
+            onClick={() => setShowLogs(!showLogs)}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-white bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/40 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_10px_rgba(6,182,212,0.15)] uppercase tracking-wider"
+          >
+            <Activity className="w-3.5 h-3.5 text-cyan-400" />
+            <span>LOGS ({logs.length})</span>
+            {showLogs ? <ChevronUp className="w-3.5 h-3.5 text-cyan-400" /> : <ChevronDown className="w-3.5 h-3.5 text-cyan-400" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible Activity Logs */}
+      {showLogs && (
+        <div className="border-t border-cyan-500/20 bg-[#080b14]/90 p-4 max-h-56 overflow-y-auto">
+          <h4 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-2.5 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+            HISTORIAL DE ACCIONES EN TIEMPO REAL
+          </h4>
+          <div className="space-y-2">
+            {logs.length === 0 ? (
+              <p className="text-xs text-slate-500 italic">No hay registros de actividad aún.</p>
+            ) : (
+              logs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-[#0e1220] border border-slate-800 hover:border-cyan-500/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]"></span>
+                    <span className="font-bold text-cyan-300">{log.userName}</span>
+                    <span className="text-slate-400">{log.action}</span>
+                    <span className="font-bold text-white bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-[11px]">
+                      "{log.taskTitle}"
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-mono shrink-0 ml-2">
+                    {formatTimeAgo(log.timestamp)}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

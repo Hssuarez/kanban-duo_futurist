@@ -1,0 +1,53 @@
+export type TaskStatus = 'iniciado' | 'trabajando' | 'finalizado';
+
+export type TaskPriority = 'baja' | 'media' | 'alta';
+
+export type UserRole = 'admin' | 'member';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  color: string;
+  role: UserRole;
+  passwordHash: string;
+  isActive: boolean;
+  createdAt: string;
+  lastLogin?: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assignedTo: string; // User ID
+  createdBy: string;  // User ID
+  createdAt: string;  // ISO string
+  updatedAt: string;  // ISO string
+  dueDate?: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  taskTitle: string;
+  timestamp: string;
+}
+
+export interface SecurityLog {
+  id: string;
+  adminId: string;
+  adminName: string;
+  targetUserId?: string;
+  targetUserName?: string;
+  action: string;
+  details: string;
+  timestamp: string;
+}
+
+export type SpaceFilter = 'all' | 'mine' | 'peer';
