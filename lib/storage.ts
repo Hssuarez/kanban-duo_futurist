@@ -1,17 +1,16 @@
 import { Task, User, ActivityLog, SecurityLog, TaskStatus, UserRole } from './types';
 import { hashPassword, verifyPassword } from './auth';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 
-// Hashes calculados para las contraseñas por defecto
-// Admin123!, Alex123!, Beatriz123!
 export const DEFAULT_USERS: User[] = [
   {
     id: 'user-admin',
     name: 'Diana Méndez (Admin)',
     email: 'admin@empresa.com',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    color: '#6366f1', // indigo
+    color: '#6366f1',
     role: 'admin',
-    passwordHash: '', // se inicializa dinámicamente si falta
+    passwordHash: '',
     isActive: true,
     createdAt: '2026-09-01T10:00:00.000Z',
     lastLogin: new Date().toISOString(),
@@ -21,7 +20,7 @@ export const DEFAULT_USERS: User[] = [
     name: 'Alex Rivera',
     email: 'alex@empresa.com',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    color: '#3b82f6', // blue
+    color: '#3b82f6',
     role: 'member',
     passwordHash: '',
     isActive: true,
@@ -33,7 +32,7 @@ export const DEFAULT_USERS: User[] = [
     name: 'Beatriz Castro',
     email: 'beatriz@empresa.com',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    color: '#8b5cf6', // purple
+    color: '#8b5cf6',
     role: 'member',
     passwordHash: '',
     isActive: true,
@@ -179,6 +178,73 @@ export function subscribeToSync(callback: (type: string) => void) {
 }
 
 // -------------------------------------------------------------
+// SUPABASE REALTIME CLOUD INTEGRATION (WHEN CONFIGURED)
+// -------------------------------------------------------------
+
+export async function syncFromSupabase() {
+  if (!supabase || typeof window === 'undefined') return;
+
+  try {
+    // 1. Sync tasks
+    const { data: dbTasks, error: taskErr } = await supabase.from('tasks').select('*');
+    if (dbTasks && !taskErr && dbTasks.length > 0) {
+      const mappedTasks: Task[] = dbTasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        description: t.description || '',
+        status: t.status as TaskStatus,
+        priority: t.priority,
+        assignedTo: t.assigned_to,
+        createdBy: t.created_by,
+        dueDate: t.due_date,
+        createdAt: t.created_at,
+        updatedAt: t.updated_at,
+      }));
+      localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(mappedTasks));
+      notifySync('tasks');
+    }
+
+    // 2. Sync users
+    const { data: dbUsers, error: userErr } = await supabase.from('users').select('*');
+    if (dbUsers && !userErr && dbUsers.length > 0) {
+      const mappedUsers: User[] = dbUsers.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        avatar: u.avatar,
+        color: u.color,
+        role: u.role,
+        passwordHash: u.password_hash,
+        isActive: u.is_active,
+        createdAt: u.created_at,
+        lastLogin: u.last_login,
+      }));
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mappedUsers));
+      notifySync('users');
+    }
+  } catch (err) {
+    console.warn('Supabase sync warning:', err);
+  }
+}
+
+// Subscribe to Supabase WebSockets if client is active
+if (typeof window !== 'undefined' && supabase) {
+  try {
+    supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        syncFromSupabase();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+        syncFromSupabase();
+      })
+      .subscribe();
+  } catch (e) {
+    console.warn('Could not connect Supabase realtime channel:', e);
+  }
+}
+
+// -------------------------------------------------------------
 // USERS & AUTHENTICATION API
 // -------------------------------------------------------------
 
@@ -186,7 +252,6 @@ export function getUsers(): User[] {
   if (typeof window === 'undefined') return DEFAULT_USERS;
   const stored = localStorage.getItem(STORAGE_KEYS.USERS);
   if (!stored) {
-    // Inicializar con hashes por defecto de forma asíncrona
     initializeDefaultUsers();
     return DEFAULT_USERS;
   }
@@ -199,6 +264,12 @@ export function getUsers(): User[] {
 
 export async function initializeDefaultUsers() {
   if (typeof window === 'undefined') return;
+
+  // If Supabase is connected, try syncing remote first
+  if (isSupabaseConfigured) {
+    await syncFromSupabase();
+  }
+
   const adminHash = await hashPassword('Admin123!');
   const alexHash = await hashPassword('Alex123!');
   const beatrizHash = await hashPassword('Beatriz123!');
@@ -209,8 +280,11 @@ export async function initializeDefaultUsers() {
     { ...DEFAULT_USERS[2], passwordHash: beatrizHash },
   ];
 
-  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-  notifySync('users');
+  const existing = localStorage.getItem(STORAGE_KEYS.USERS);
+  if (!existing) {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    notifySync('users');
+  }
 }
 
 export function saveUsers(users: User[]) {
@@ -234,7 +308,6 @@ export async function loginWithCredentials(
 ): Promise<{ success: boolean; user?: User; error?: string }> {
   let users = getUsers();
 
-  // Asegurar inicialización de hashes si es primera vez
   if (users.some((u) => !u.passwordHash)) {
     await initializeDefaultUsers();
     users = getUsers();
@@ -254,9 +327,12 @@ export async function loginWithCredentials(
     return { success: false, error: 'Contraseña incorrecta. Por favor verifica tus credenciales.' };
   }
 
-  // Registrar login
   user.lastLogin = new Date().toISOString();
   saveUsers(users);
+
+  if (supabase) {
+    supabase.from('users').update({ last_login: user.lastLogin }).eq('id', user.id).then();
+  }
 
   localStorage.setItem(STORAGE_KEYS.SESSION_USER_ID, user.id);
   notifySync('session');
@@ -307,7 +383,6 @@ export function adminUpdateUser(
 
   const target = users[index];
 
-  // Regla de seguridad: no permitir suspender o quitar rol al último admin
   if (target.role === 'admin' && updates.role === 'member') {
     const adminCount = users.filter((u) => u.role === 'admin' && u.isActive).length;
     if (adminCount <= 1) {
@@ -322,6 +397,20 @@ export function adminUpdateUser(
 
   users[index] = updated;
   saveUsers(users);
+
+  if (supabase) {
+    supabase
+      .from('users')
+      .update({
+        name: updated.name,
+        email: updated.email,
+        avatar: updated.avatar,
+        role: updated.role,
+        is_active: updated.isActive,
+      })
+      .eq('id', targetUserId)
+      .then();
+  }
 
   logSecurityEvent({
     adminId: admin.id,
@@ -356,6 +445,10 @@ export async function adminChangePassword(
     passwordHash: newHash,
   };
   saveUsers(users);
+
+  if (supabase) {
+    supabase.from('users').update({ password_hash: newHash }).eq('id', targetUserId).then();
+  }
 
   logSecurityEvent({
     adminId: admin.id,
@@ -408,6 +501,22 @@ export async function adminCreateUser(
   users.push(newUser);
   saveUsers(users);
 
+  if (supabase) {
+    supabase
+      .from('users')
+      .insert({
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        avatar: newUser.avatar,
+        color: newUser.color,
+        role: newUser.role,
+        password_hash: passwordHash,
+        is_active: true,
+      })
+      .then();
+  }
+
   logSecurityEvent({
     adminId: admin.id,
     adminName: admin.name,
@@ -442,6 +551,10 @@ export function adminDeleteUser(
   const remaining = users.filter((u) => u.id !== targetUserId);
   saveUsers(remaining);
 
+  if (supabase) {
+    supabase.from('users').delete().eq('id', targetUserId).then();
+  }
+
   logSecurityEvent({
     adminId: admin.id,
     adminName: admin.name,
@@ -454,7 +567,6 @@ export function adminDeleteUser(
   return { success: true };
 }
 
-// Actualización de su propio perfil por el usuario
 export async function updateSelfProfile(
   userId: string,
   updates: {
@@ -486,6 +598,18 @@ export async function updateSelfProfile(
 
   users[index] = updated;
   saveUsers(users);
+
+  if (supabase) {
+    supabase
+      .from('users')
+      .update({
+        name: updated.name,
+        avatar: updated.avatar,
+        password_hash: newHash,
+      })
+      .eq('id', userId)
+      .then();
+  }
 
   logSecurityEvent({
     adminId: user.id,
@@ -532,6 +656,24 @@ export function createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'
   tasks.unshift(newTask);
   saveTasks(tasks);
 
+  if (supabase) {
+    supabase
+      .from('tasks')
+      .insert({
+        id: newTask.id,
+        title: newTask.title,
+        description: newTask.description || '',
+        status: newTask.status,
+        priority: newTask.priority,
+        assigned_to: newTask.assignedTo,
+        created_by: newTask.createdBy,
+        due_date: newTask.dueDate || null,
+        created_at: newTask.createdAt,
+        updated_at: newTask.updatedAt,
+      })
+      .then();
+  }
+
   logActivity({
     userId: actorUser.id,
     userName: actorUser.name,
@@ -557,6 +699,20 @@ export function updateTask(id: string, updates: Partial<Task>, actorUser: User):
   tasks[index] = updatedTask;
   saveTasks(tasks);
 
+  if (supabase) {
+    const payload: Record<string, unknown> = {
+      updated_at: updatedTask.updatedAt,
+    };
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.priority !== undefined) payload.priority = updates.priority;
+    if (updates.assignedTo !== undefined) payload.assigned_to = updates.assignedTo;
+    if (updates.dueDate !== undefined) payload.due_date = updates.dueDate;
+
+    supabase.from('tasks').update(payload).eq('id', id).then();
+  }
+
   if (updates.status && updates.status !== oldTask.status) {
     const statusNames: Record<TaskStatus, string> = {
       iniciado: 'Iniciado',
@@ -581,6 +737,10 @@ export function deleteTask(id: string, actorUser: User): boolean {
 
   const remaining = tasks.filter((t) => t.id !== id);
   saveTasks(remaining);
+
+  if (supabase) {
+    supabase.from('tasks').delete().eq('id', id).then();
+  }
 
   logActivity({
     userId: actorUser.id,
@@ -621,6 +781,20 @@ export function logActivity(log: Omit<ActivityLog, 'id' | 'timestamp'>) {
   const updatedLogs = [newLog, ...logs].slice(0, 30);
   localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(updatedLogs));
   notifySync('logs');
+
+  if (supabase) {
+    supabase
+      .from('activity_logs')
+      .insert({
+        id: newLog.id,
+        user_id: newLog.userId,
+        user_name: newLog.userName,
+        action: newLog.action,
+        task_title: newLog.taskTitle,
+        timestamp: newLog.timestamp,
+      })
+      .then();
+  }
 }
 
 export function getSecurityLogs(): SecurityLog[] {
@@ -648,4 +822,20 @@ export function logSecurityEvent(event: Omit<SecurityLog, 'id' | 'timestamp'>) {
   const updated = [newLog, ...logs].slice(0, 50);
   localStorage.setItem(STORAGE_KEYS.SECURITY_LOGS, JSON.stringify(updated));
   notifySync('security');
+
+  if (supabase) {
+    supabase
+      .from('security_logs')
+      .insert({
+        id: newLog.id,
+        admin_id: newLog.adminId,
+        admin_name: newLog.adminName,
+        target_user_id: newLog.targetUserId || null,
+        target_user_name: newLog.targetUserName || null,
+        action: newLog.action,
+        details: newLog.details,
+        timestamp: newLog.timestamp,
+      })
+      .then();
+  }
 }
