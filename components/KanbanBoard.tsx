@@ -235,9 +235,9 @@ export const KanbanBoard: React.FC = () => {
     );
   }
 
-  // Si no hay sesión activa, mostrar pantalla de login (pasándole users para sync inmediato)
+  // Si no hay sesión activa, mostrar pantalla de login segura
   if (!sessionUser) {
-    return <LoginForm onLoginSuccess={handleLoginSuccess} initialUsers={users} />;
+    return <LoginForm onLoginSuccess={handleLoginSuccess} />;
   }
 
   // Si el usuario seleccionó la vista de Panel de Administración (y es admin)

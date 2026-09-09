@@ -1,33 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Kanban, Lock, Mail, Eye, EyeOff, ShieldCheck, Terminal, AlertCircle, Cpu, Zap } from 'lucide-react';
-import { loginWithCredentials, getUsers, subscribeToSync } from '@/lib/storage';
+import React, { useState } from 'react';
+import { Kanban, Lock, Mail, Eye, EyeOff, AlertCircle, Cpu, Zap, ShieldCheck } from 'lucide-react';
+import { loginWithCredentials } from '@/lib/storage';
 import { User } from '@/lib/types';
 
 interface LoginFormProps {
   onLoginSuccess: (user: User) => void;
-  initialUsers?: User[];
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, initialUsers }) => {
-  const [users, setUsers] = useState<User[]>(initialUsers || []);
+export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  // Load and subscribe to dynamic user modifications (e.g. name or photo changed)
-  useEffect(() => {
-    setUsers(getUsers());
-    const unsub = subscribeToSync((type) => {
-      if (type === 'users') {
-        setUsers(getUsers());
-      }
-    });
-    return () => unsub();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,31 +33,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, initialUse
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleQuickLogin = async (quickEmail: string, quickPass: string) => {
-    setEmail(quickEmail);
-    setPassword(quickPass);
-    setError('');
-    setIsLoading(true);
-    try {
-      const res = await loginWithCredentials(quickEmail, quickPass);
-      if (res.success && res.user) {
-        onLoginSuccess(res.user);
-      } else {
-        setError(res.error || 'Credenciales no autorizadas.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Known default passwords helper mapping for quick testing
-  const getDefaultPass = (uEmail: string) => {
-    if (uEmail.toLowerCase().includes('admin')) return 'Admin123!';
-    if (uEmail.toLowerCase().includes('alex')) return 'Alex123!';
-    if (uEmail.toLowerCase().includes('beatriz')) return 'Beatriz123!';
-    return '••••••••';
   };
 
   return (
@@ -102,7 +64,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, initialUse
             KANBAN<span className="text-cyan-400">//DUO</span>
           </h1>
           <p className="text-[11px] text-slate-400 mt-1 tracking-wider uppercase">
-            // ACCESO RESTRINGIDO & GESTIÓN COLABORATIVA
+            // PORTAL DE ACCESO PRIVADO & SEGURO
           </p>
         </div>
 
@@ -125,7 +87,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, initialUse
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@empresa.com"
+              placeholder="usuario@empresa.com"
               className="w-full px-3.5 py-2.5 text-xs bg-[#090b12] border border-slate-700 text-white rounded-xl focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 shadow-inner font-mono transition-all placeholder:text-slate-600"
             />
           </div>
@@ -140,7 +102,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, initialUse
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Ingresa tu clave privada"
                 className="w-full px-3.5 pr-10 py-2.5 text-xs bg-[#090b12] border border-slate-700 text-white rounded-xl focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 shadow-inner font-mono transition-all placeholder:text-slate-600"
               />
               <button
@@ -156,76 +118,25 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, initialUse
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold uppercase tracking-wider rounded-xl text-xs shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2 mt-2 active:scale-98 disabled:opacity-50"
+            className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold uppercase tracking-wider rounded-xl text-xs shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2 mt-4 active:scale-98 disabled:opacity-50"
           >
             {isLoading ? (
               <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
             ) : (
               <>
                 <Zap className="w-4 h-4 fill-black" />
-                <span>ACCEDER AL PROTOCOLO</span>
+                <span>AUTENTICAR Y ACCEDER</span>
               </>
             )}
           </button>
         </form>
 
-        {/* Dynamic Quick Access Cards (Reflects name and photo changes immediately!) */}
-        <div className="mt-6 pt-4 border-t border-cyan-500/20">
-          <div className="flex items-center justify-between mb-2.5">
-            <p className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
-              <Terminal className="w-3 h-3 text-cyan-400" />
-              // ACCESO RÁPIDO DINÁMICO
-            </p>
-            <span className="text-[9px] text-slate-500">Auto-sincronizado</span>
-          </div>
-
-          <div className="grid grid-cols-1 gap-2">
-            {users.slice(0, 3).map((u) => {
-              const defaultPass = getDefaultPass(u.email);
-              const isAdmin = u.role === 'admin';
-
-              return (
-                <button
-                  key={u.id}
-                  onClick={() => handleQuickLogin(u.email, defaultPass)}
-                  className={`flex items-center justify-between p-2.5 rounded-xl border transition-all text-left ${
-                    isAdmin
-                      ? 'bg-indigo-950/30 border-indigo-500/40 hover:border-indigo-400 hover:bg-indigo-950/50 hover:shadow-[0_0_15px_rgba(99,102,241,0.25)]'
-                      : 'bg-cyan-950/20 border-cyan-500/30 hover:border-cyan-400 hover:bg-cyan-950/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <img
-                      src={u.avatar}
-                      alt={u.name}
-                      className={`w-8 h-8 rounded-lg object-cover ring-1 ${
-                        isAdmin ? 'ring-indigo-400' : 'ring-cyan-400'
-                      }`}
-                    />
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-200">
-                          {u.name}
-                        </span>
-                        {isAdmin && (
-                          <span className="text-[9px] font-bold text-indigo-400 bg-indigo-900/60 px-1 rounded border border-indigo-500/40">
-                            ADMIN
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-slate-400 block font-mono">
-                        {u.email}
-                      </span>
-                    </div>
-                  </div>
-
-                  <span className="text-[10px] bg-slate-900 border border-slate-700 text-cyan-300 px-2 py-1 rounded font-mono shadow-xs">
-                    {defaultPass}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        {/* Security Badge Footer */}
+        <div className="mt-6 pt-4 border-t border-cyan-500/20 text-center">
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest flex items-center justify-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            CONEXIÓN SEGURA // CRIPTO-HASH SHA-256
+          </p>
         </div>
       </div>
     </div>
