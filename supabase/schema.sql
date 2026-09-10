@@ -30,7 +30,7 @@ VALUES
     'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
     '#6366f1',
     'admin',
-    'c25a8b79b940989f2d1e2e9c20a4b7f805a5a1f274a1e9441cf11d51a9e2239a',
+    '5728a1892a1d83dc6f27686ec169475e6bf47fa680155203471ad3e33633f5e6',
     true
   ),
   (
@@ -40,7 +40,7 @@ VALUES
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     '#3b82f6',
     'member',
-    '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
+    '6c5ee3e006a4217ecf271f5760599383e9d0aab51f3800b3d01d94e1a8d1afec',
     true
   ),
   (
@@ -50,7 +50,7 @@ VALUES
     'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
     '#8b5cf6',
     'member',
-    '2f86a2f3f982d5a371c19d4ee5b24467c6999a4c84a5115ff6a42a98f79f22be',
+    'aec392b498649320df0f57d2cc7f0ea4a554956348bd22278a95c143936998ba',
     true
   )
 ON CONFLICT (id) DO UPDATE SET
