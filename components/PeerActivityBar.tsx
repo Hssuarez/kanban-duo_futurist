@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, Task, ActivityLog } from '@/lib/types';
-import { Activity, Clock, Sparkles, ChevronDown, ChevronUp, Radio } from 'lucide-react';
+import { subscribeToPresence } from '@/lib/presence';
+import { Activity, Clock, Sparkles, ChevronDown, ChevronUp, Radio, Users } from 'lucide-react';
 
 interface PeerActivityBarProps {
   currentUser: User;
@@ -18,8 +19,23 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
   logs,
 }) => {
   const [showLogs, setShowLogs] = useState(false);
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
+  const [selectedPeerId, setSelectedPeerId] = useState<string | null>(null);
 
-  const peerUser = users.find((u) => u.id !== currentUser.id) || users[0];
+  useEffect(() => {
+    const unsubscribe = subscribeToPresence((ids) => {
+      setOnlineUserIds(ids);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const peers = useMemo(() => {
+    const list = users.filter((u) => u.id !== currentUser.id);
+    return list.length > 0 ? list : users;
+  }, [users, currentUser]);
+
+  const peerUser = peers.find((p) => p.id === selectedPeerId) || peers[0] || users[0];
+  const isOnline = Boolean(peerUser && onlineUserIds.includes(peerUser.id));
 
   const peerWorkingTasks = tasks.filter(
     (t) => t.assignedTo === peerUser?.id && t.status === 'trabajando'
@@ -30,11 +46,11 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
   const formatTimeAgo = (dateStr: string) => {
     const diffMs = Date.now() - new Date(dateStr).getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'HACE_UN_MOMENTO';
-    if (diffMins < 60) return `T-${diffMins}M`;
+    if (diffMins < 1) return 'HACE UN MOMENTO';
+    if (diffMins < 60) return `HACE ${diffMins}M`;
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `T-${diffHours}H`;
-    return `T-${Math.floor(diffHours / 24)}D`;
+    if (diffHours < 24) return `HACE ${diffHours}H`;
+    return `HACE ${Math.floor(diffHours / 24)}D`;
   };
 
   return (
@@ -42,27 +58,60 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
       {/* Main Focus Strip */}
       <div className="p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#0b0e18] via-[#101424] to-[#0d1527]">
         <div className="flex items-center gap-3">
-          {/* Peer Avatar with neon active pulse */}
-          <div className="relative">
+          {/* Peer Avatar with real active pulse or offline indicator */}
+          <div className="relative shrink-0">
             <img
               src={peerUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={peerUser?.name}
-              className="w-11 h-11 rounded-xl object-cover ring-2 ring-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]"
+              className={`w-11 h-11 rounded-xl object-cover ring-2 transition-all ${
+                isOnline
+                  ? 'ring-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                  : 'ring-slate-700/80 grayscale-[30%] opacity-80'
+              }`}
             />
-            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0b0e18] rounded-full">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            </span>
+            {isOnline ? (
+              <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0b0e18] rounded-full shadow-[0_0_8px_#10b981]">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              </span>
+            ) : (
+              <span
+                title="Usuario desconectado"
+                className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-slate-600 border-2 border-[#0b0e18] rounded-full"
+              ></span>
+            )}
           </div>
 
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-cyan-400 tracking-widest uppercase flex items-center gap-1">
-                <Radio className="w-3 h-3 text-cyan-400 animate-pulse" />
-                TELEMETRÍA // {peerUser?.name?.toUpperCase()}
-              </span>
-              <span className="inline-flex items-center gap-1 text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> LINK_STABLE
-              </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-cyan-400 tracking-widest uppercase">
+                <Radio className={`w-3 h-3 ${isOnline ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
+                <span>TELEMETRÍA //</span>
+                {peers.length > 1 ? (
+                  <select
+                    value={peerUser?.id}
+                    onChange={(e) => setSelectedPeerId(e.target.value)}
+                    className="bg-[#0e121e] border border-cyan-500/40 text-cyan-300 text-[10px] font-bold uppercase rounded px-1.5 py-0.5 focus:outline-none focus:border-cyan-400 cursor-pointer"
+                  >
+                    {peers.map((p) => (
+                      <option key={p.id} value={p.id} className="bg-[#0e121e] text-white">
+                        {p.name.toUpperCase()} {onlineUserIds.includes(p.id) ? '● EN LÍNEA' : '○ OFFLINE'}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span>{peerUser?.name?.toUpperCase()}</span>
+                )}
+              </div>
+
+              {isOnline ? (
+                <span className="inline-flex items-center gap-1 text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LINK_STABLE // EN LÍNEA
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[9px] bg-slate-900/80 text-slate-400 border border-slate-700/60 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span> OFFLINE // DESCONECTADO
+                </span>
+              )}
             </div>
 
             {activeTask ? (
@@ -80,10 +129,15 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
                   </span>
                 )}
               </div>
-            ) : (
+            ) : isOnline ? (
               <p className="text-xs text-slate-400 mt-1 italic flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-slate-500" />
-                Sin tareas en estado activo actualmente.
+                En línea pero sin tareas en estado activo actualmente.
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500 mt-1 italic flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                Operador desconectado.{peerUser?.lastLogin ? ` Última sesión: ${formatTimeAgo(peerUser.lastLogin)}` : ''}
               </p>
             )}
           </div>

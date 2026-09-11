@@ -33,6 +33,7 @@ import { UserProfileModal } from './UserProfileModal';
 import { AdminPanel } from './admin/AdminPanel';
 import { TaskCalendar } from './calendar/TaskCalendar';
 import { TaskDashboard } from './dashboard/TaskDashboard';
+import { initPresence } from '@/lib/presence';
 import { Filter } from 'lucide-react';
 
 export const KanbanBoard: React.FC = () => {
@@ -80,6 +81,15 @@ export const KanbanBoard: React.FC = () => {
 
     return () => unsubscribe();
   }, [refreshData]);
+
+  // Sincronización de presencia en tiempo real (Supabase Presence)
+  useEffect(() => {
+    if (sessionUser) {
+      initPresence(sessionUser);
+    } else {
+      initPresence(null);
+    }
+  }, [sessionUser]);
 
   // Manejo de sesión
   const handleLoginSuccess = (user: User) => {

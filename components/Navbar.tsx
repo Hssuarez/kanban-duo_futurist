@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, SpaceFilter, AppView } from '@/lib/types';
+import { subscribeToPresence } from '@/lib/presence';
 import {
   Kanban,
   Plus,
@@ -48,6 +49,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const unsub = subscribeToPresence((ids) => setOnlineUserIds(ids));
+    return () => unsub();
+  }, []);
 
   const peerUser = users.find((u) => u.id !== currentUser.id) || users[0];
 
@@ -253,7 +260,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Users className="w-3.5 h-3.5 text-indigo-400" />
-              <span>// ESPACIO DE {peerUser?.name?.split(' ')[0] || 'PEER'}</span>
+              <span className="flex items-center gap-1">
+                <span>// ESPACIO DE {peerUser?.name?.split(' ')[0] || 'PEER'}</span>
+                {Boolean(peerUser && onlineUserIds.includes(peerUser.id)) && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" title="Operador en línea"></span>
+                )}
+              </span>
             </button>
 
             <button
@@ -271,7 +283,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <div className="text-[11px] text-emerald-400 hidden xl:flex items-center gap-2 font-mono shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>SYNC//BROADCAST_ACTIVO</span>
+            <span>REALTIME//PRESENCE_ACTIVO</span>
           </div>
         </div>
       </div>
