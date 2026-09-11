@@ -9,6 +9,7 @@ import {
   TaskStatus,
   TaskPriority,
   SpaceFilter,
+  AppView,
 } from '@/lib/types';
 import {
   getTasks,
@@ -30,12 +31,14 @@ import { Column } from './Column';
 import { TaskModal } from './TaskModal';
 import { UserProfileModal } from './UserProfileModal';
 import { AdminPanel } from './admin/AdminPanel';
+import { TaskCalendar } from './calendar/TaskCalendar';
+import { TaskDashboard } from './dashboard/TaskDashboard';
 import { Filter } from 'lucide-react';
 
 export const KanbanBoard: React.FC = () => {
   const [mounted, setMounted] = useState(false);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState<'board' | 'admin'>('board');
+  const [currentView, setCurrentView] = useState<AppView>('board');
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -258,6 +261,8 @@ export const KanbanBoard: React.FC = () => {
       <Navbar
         currentUser={sessionUser}
         users={users}
+        currentView={currentView}
+        setCurrentView={setCurrentView}
         spaceFilter={spaceFilter}
         setSpaceFilter={setSpaceFilter}
         searchQuery={searchQuery}
@@ -270,90 +275,113 @@ export const KanbanBoard: React.FC = () => {
 
       {/* Main Container */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 flex flex-col">
-        {/* Peer Activity Bar */}
-        <PeerActivityBar
-          currentUser={sessionUser}
-          users={users}
-          tasks={tasks}
-          logs={logs}
-        />
+        {currentView === 'board' && (
+          <>
+            {/* Peer Activity Bar */}
+            <PeerActivityBar
+              currentUser={sessionUser}
+              users={users}
+              tasks={tasks}
+              logs={logs}
+            />
 
-        {/* Board Controls & Subheader */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <span>
-                {spaceFilter === 'mine' && `// MI ESPACIO: ${sessionUser.name.toUpperCase()}`}
-                {spaceFilter === 'peer' && `// ESPACIO PEER: ${peerUser?.name?.toUpperCase() || 'COMPAÑERO'}`}
-                {spaceFilter === 'all' && '// REJILLA DE EQUIPO (GLOBAL)'}
-              </span>
-            </h2>
-            <span className="text-[10px] bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
-              {filteredTasks.length} TAREAS
-            </span>
-          </div>
+            {/* Board Controls & Subheader */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <span>
+                    {spaceFilter === 'mine' && `// MI ESPACIO: ${sessionUser.name.toUpperCase()}`}
+                    {spaceFilter === 'peer' && `// ESPACIO PEER: ${peerUser?.name?.toUpperCase() || 'COMPAÑERO'}`}
+                    {spaceFilter === 'all' && '// REJILLA DE EQUIPO (GLOBAL)'}
+                  </span>
+                </h2>
+                <span className="text-[10px] bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
+                  {filteredTasks.length} TAREAS
+                </span>
+              </div>
 
-          {/* Priority filter selector */}
-          <div className="flex items-center gap-2">
-            <Filter className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">PRIORIDAD:</span>
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="text-xs bg-[#101422] border border-slate-700 rounded-lg px-2.5 py-1.5 text-cyan-300 focus:outline-none focus:border-cyan-400 shadow-2xs font-mono"
-            >
-              <option value="all">TODAS</option>
-              <option value="alta">ALTA</option>
-              <option value="media">MEDIA</option>
-              <option value="baja">BAJA</option>
-            </select>
-          </div>
-        </div>
+              {/* Priority filter selector */}
+              <div className="flex items-center gap-2">
+                <Filter className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">PRIORIDAD:</span>
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  className="text-xs bg-[#101422] border border-slate-700 rounded-lg px-2.5 py-1.5 text-cyan-300 focus:outline-none focus:border-cyan-400 shadow-2xs font-mono"
+                >
+                  <option value="all">TODAS</option>
+                  <option value="alta">ALTA</option>
+                  <option value="media">MEDIA</option>
+                  <option value="baja">BAJA</option>
+                </select>
+              </div>
+            </div>
 
-        {/* 3 Columns Kanban Board */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 flex-1 items-start">
-          {/* Columna 1: Iniciado */}
-          <Column
-            status="iniciado"
-            title="Iniciado"
-            tasks={iniciadoTasks}
+            {/* 3 Columns Kanban Board */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 flex-1 items-start">
+              {/* Columna 1: Iniciado */}
+              <Column
+                status="iniciado"
+                title="Iniciado"
+                tasks={iniciadoTasks}
+                users={users}
+                currentUser={sessionUser}
+                onAddNew={handleOpenAddNew}
+                onEdit={handleOpenEdit}
+                onDelete={handleDeleteTask}
+                onMoveStatus={handleMoveStatus}
+                onDropTask={handleDropTask}
+              />
+
+              {/* Columna 2: Trabajando */}
+              <Column
+                status="trabajando"
+                title="Trabajando"
+                tasks={trabajandoTasks}
+                users={users}
+                currentUser={sessionUser}
+                onAddNew={handleOpenAddNew}
+                onEdit={handleOpenEdit}
+                onDelete={handleDeleteTask}
+                onMoveStatus={handleMoveStatus}
+                onDropTask={handleDropTask}
+              />
+
+              {/* Columna 3: Finalizado */}
+              <Column
+                status="finalizado"
+                title="Finalizado"
+                tasks={finalizadoTasks}
+                users={users}
+                currentUser={sessionUser}
+                onAddNew={handleOpenAddNew}
+                onEdit={handleOpenEdit}
+                onDelete={handleDeleteTask}
+                onMoveStatus={handleMoveStatus}
+                onDropTask={handleDropTask}
+              />
+            </div>
+          </>
+        )}
+
+        {currentView === 'calendar' && (
+          <TaskCalendar
+            tasks={tasks}
             users={users}
             currentUser={sessionUser}
-            onAddNew={handleOpenAddNew}
-            onEdit={handleOpenEdit}
-            onDelete={handleDeleteTask}
-            onMoveStatus={handleMoveStatus}
-            onDropTask={handleDropTask}
+            onOpenNewTask={() => handleOpenAddNew('iniciado')}
+            onOpenEditTask={handleOpenEdit}
           />
+        )}
 
-          {/* Columna 2: Trabajando */}
-          <Column
-            status="trabajando"
-            title="Trabajando"
-            tasks={trabajandoTasks}
+        {currentView === 'dashboard' && (
+          <TaskDashboard
+            tasks={tasks}
             users={users}
             currentUser={sessionUser}
-            onAddNew={handleOpenAddNew}
-            onEdit={handleOpenEdit}
-            onDelete={handleDeleteTask}
-            onMoveStatus={handleMoveStatus}
-            onDropTask={handleDropTask}
+            onOpenTaskDetail={handleOpenEdit}
           />
-
-          {/* Columna 3: Finalizado */}
-          <Column
-            status="finalizado"
-            title="Finalizado"
-            tasks={finalizadoTasks}
-            users={users}
-            currentUser={sessionUser}
-            onAddNew={handleOpenAddNew}
-            onEdit={handleOpenEdit}
-            onDelete={handleDeleteTask}
-            onMoveStatus={handleMoveStatus}
-            onDropTask={handleDropTask}
-          />
-        </div>
+        )}
       </main>
 
       {/* Task Creation/Editing Modal */}

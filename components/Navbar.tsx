@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User, SpaceFilter } from '@/lib/types';
+import { User, SpaceFilter, AppView } from '@/lib/types';
 import {
   Kanban,
   Plus,
@@ -14,11 +14,15 @@ import {
   LogOut,
   Settings,
   Cpu,
+  Calendar,
+  LayoutDashboard,
 } from 'lucide-react';
 
 interface NavbarProps {
   currentUser: User;
   users: User[];
+  currentView: AppView;
+  setCurrentView: (view: AppView) => void;
   spaceFilter: SpaceFilter;
   setSpaceFilter: (filter: SpaceFilter) => void;
   searchQuery: string;
@@ -32,6 +36,8 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   users,
+  currentView,
+  setCurrentView,
   spaceFilter,
   setSpaceFilter,
   searchQuery,
@@ -183,12 +189,52 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Space Navigation Tabs */}
-        <div className="flex items-center justify-between border-t border-cyan-500/10 py-2.5 overflow-x-auto no-scrollbar gap-4">
-          <div className="flex items-center gap-1.5 p-1 bg-[#090c14] rounded-xl border border-slate-800">
+        {/* Navigation Bar: Section Tabs & Space Navigation */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-cyan-500/10 py-2.5 overflow-x-auto no-scrollbar gap-3">
+          {/* Main App Section Tabs (KANBAN / CALENDARIO / DASHBOARD) */}
+          <div className="flex items-center gap-1.5 p-1 bg-[#090c14] rounded-xl border border-cyan-500/30 shrink-0">
+            <button
+              onClick={() => setCurrentView('board')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
+                currentView === 'board'
+                  ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.4)] font-black'
+                  : 'text-slate-400 hover:text-cyan-300 hover:bg-slate-800/40'
+              }`}
+            >
+              <Kanban className="w-3.5 h-3.5" />
+              <span>// KANBAN</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentView('calendar')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
+                currentView === 'calendar'
+                  ? 'bg-indigo-500 text-white shadow-[0_0_12px_rgba(99,102,241,0.4)] font-black'
+                  : 'text-slate-400 hover:text-indigo-300 hover:bg-slate-800/40'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>// CALENDARIO</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentView('dashboard')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
+                currentView === 'dashboard'
+                  ? 'bg-fuchsia-500 text-white shadow-[0_0_12px_rgba(217,70,239,0.4)] font-black'
+                  : 'text-slate-400 hover:text-fuchsia-300 hover:bg-slate-800/40'
+              }`}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>// DASHBOARD</span>
+            </button>
+          </div>
+
+          {/* Space Navigation Tabs (Mine / Peer / All) */}
+          <div className="flex items-center gap-1.5 p-1 bg-[#090c14] rounded-xl border border-slate-800 shrink-0">
             <button
               onClick={() => setSpaceFilter('mine')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
                 spaceFilter === 'mine'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
                   : 'text-slate-400 hover:text-cyan-300 hover:bg-slate-800/40'
@@ -200,7 +246,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               onClick={() => setSpaceFilter('peer')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
                 spaceFilter === 'peer'
                   ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50 shadow-[0_0_12px_rgba(99,102,241,0.3)]'
                   : 'text-slate-400 hover:text-indigo-300 hover:bg-slate-800/40'
@@ -223,7 +269,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
 
-          <div className="text-[11px] text-emerald-400 hidden sm:flex items-center gap-2 font-mono">
+          <div className="text-[11px] text-emerald-400 hidden xl:flex items-center gap-2 font-mono shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>SYNC//BROADCAST_ACTIVO</span>
           </div>

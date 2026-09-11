@@ -68,11 +68,32 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   assigned_to TEXT REFERENCES public.users(id) ON DELETE CASCADE,
   created_by TEXT REFERENCES public.users(id) ON DELETE CASCADE,
   due_date TEXT,
+  started_at TIMESTAMP WITH TIME ZONE,
+  completed_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. Tabla de Registro de Actividad en Tareas
+-- 3. Tabla de Histórico Inmutable de Estados de Tareas
+CREATE TABLE IF NOT EXISTS public.task_status_history (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+  task_id TEXT NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+  previous_status TEXT CHECK (previous_status IN ('iniciado', 'trabajando', 'finalizado') OR previous_status IS NULL),
+  new_status TEXT NOT NULL CHECK (new_status IN ('iniciado', 'trabajando', 'finalizado')),
+  changed_by TEXT REFERENCES public.users(id) ON DELETE SET NULL,
+  changed_by_name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  observations TEXT
+);
+
+-- Índices de alto rendimiento
+CREATE INDEX IF NOT EXISTS idx_tsh_task_id ON public.task_status_history(task_id);
+CREATE INDEX IF NOT EXISTS idx_tsh_created_at ON public.task_status_history(created_at);
+CREATE INDEX IF NOT EXISTS idx_tsh_changed_by ON public.task_status_history(changed_by);
+CREATE INDEX IF NOT EXISTS idx_tasks_started_at ON public.tasks(started_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_completed_at ON public.tasks(completed_at);
+
+-- 4. Tabla de Registro de Actividad en Tareas
 CREATE TABLE IF NOT EXISTS public.activity_logs (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
   user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE,
@@ -82,7 +103,7 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
   timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. Tabla de Auditoría de Seguridad (cambios de contraseñas, fotos, usuarios)
+-- 5. Tabla de Auditoría de Seguridad (cambios de contraseñas, fotos, usuarios)
 CREATE TABLE IF NOT EXISTS public.security_logs (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
   admin_id TEXT REFERENCES public.users(id) ON DELETE SET NULL,
@@ -94,19 +115,22 @@ CREATE TABLE IF NOT EXISTS public.security_logs (
   timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 5. Habilitar Sincronización Realtime en Supabase
+-- 6. Habilitar Sincronización Realtime en Supabase
 ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.task_status_history;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.activity_logs;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.security_logs;
 
 -- Políticas de seguridad RLS
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_status_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.security_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Acceso a usuarios" ON public.users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acceso a tareas" ON public.tasks FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso a historico" ON public.task_status_history FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acceso a logs actividad" ON public.activity_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acceso a logs seguridad" ON public.security_logs FOR ALL USING (true) WITH CHECK (true);

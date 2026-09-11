@@ -28,6 +28,19 @@ export interface Task {
   createdAt: string;  // ISO string
   updatedAt: string;  // ISO string
   dueDate?: string;
+  startedAt?: string;   // Primera fecha en que la tarea pasó a iniciado
+  completedAt?: string; // Fecha en que la tarea pasó a finalizado
+}
+
+export interface TaskStatusHistory {
+  id: string;
+  taskId: string;
+  previousStatus: TaskStatus | null;
+  newStatus: TaskStatus;
+  changedBy?: string;
+  changedByName: string;
+  createdAt: string; // ISO string UTC
+  observations?: string;
 }
 
 export interface ActivityLog {
@@ -51,3 +64,5 @@ export interface SecurityLog {
 }
 
 export type SpaceFilter = 'all' | 'mine' | 'peer';
+
+export type AppView = 'board' | 'calendar' | 'dashboard' | 'admin';

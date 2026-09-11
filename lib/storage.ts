@@ -1,4 +1,4 @@
-import { Task, User, ActivityLog, SecurityLog, TaskStatus, UserRole } from './types';
+import { Task, User, ActivityLog, SecurityLog, TaskStatus, UserRole, TaskStatusHistory } from './types';
 import { hashPassword, verifyPassword } from './auth';
 import { getOrInitSupabase, getCachedSupabase } from './supabaseClient';
 
@@ -52,6 +52,8 @@ const INITIAL_TASKS: Task[] = [
     createdBy: 'user-alex',
     createdAt: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
     updatedAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+    startedAt: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
+    completedAt: new Date(Date.now() - 3600000 * 24).toISOString(),
     dueDate: '2026-09-12',
   },
   {
@@ -64,6 +66,7 @@ const INITIAL_TASKS: Task[] = [
     createdBy: 'user-alex',
     createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
     updatedAt: new Date().toISOString(),
+    startedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
     dueDate: '2026-09-15',
   },
   {
@@ -76,6 +79,7 @@ const INITIAL_TASKS: Task[] = [
     createdBy: 'user-alex',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    startedAt: new Date().toISOString(),
     dueDate: '2026-09-18',
   },
   {
@@ -88,6 +92,8 @@ const INITIAL_TASKS: Task[] = [
     createdBy: 'user-beatriz',
     createdAt: new Date(Date.now() - 3600000 * 24 * 3).toISOString(),
     updatedAt: new Date(Date.now() - 3600000 * 12).toISOString(),
+    startedAt: new Date(Date.now() - 3600000 * 24 * 3).toISOString(),
+    completedAt: new Date(Date.now() - 3600000 * 12).toISOString(),
     dueDate: '2026-09-11',
   },
   {
@@ -100,6 +106,7 @@ const INITIAL_TASKS: Task[] = [
     createdBy: 'user-beatriz',
     createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
     updatedAt: new Date().toISOString(),
+    startedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
     dueDate: '2026-09-14',
   },
   {
@@ -112,6 +119,7 @@ const INITIAL_TASKS: Task[] = [
     createdBy: 'user-beatriz',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    startedAt: new Date().toISOString(),
     dueDate: '2026-09-20',
   },
 ];
@@ -146,12 +154,137 @@ const INITIAL_SECURITY_LOGS: SecurityLog[] = [
   },
 ];
 
+
+const INITIAL_TASK_HISTORY: TaskStatusHistory[] = [
+  {
+    id: 'hist-task-1-1',
+    taskId: 'task-1',
+    previousStatus: null,
+    newStatus: 'iniciado',
+    changedBy: 'user-alex',
+    changedByName: 'Alex Rivera',
+    createdAt: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
+    observations: 'Creación e inicio de tarea en el sistema.',
+  },
+  {
+    id: 'hist-task-1-2',
+    taskId: 'task-1',
+    previousStatus: 'iniciado',
+    newStatus: 'trabajando',
+    changedBy: 'user-alex',
+    changedByName: 'Alex Rivera',
+    createdAt: new Date(Date.now() - 3600000 * 24 * 1.5).toISOString(),
+    observations: 'Comenzando desarrollo y configuración base.',
+  },
+  {
+    id: 'hist-task-1-3',
+    taskId: 'task-1',
+    previousStatus: 'trabajando',
+    newStatus: 'finalizado',
+    changedBy: 'user-alex',
+    changedByName: 'Alex Rivera',
+    createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+    observations: 'Arquitectura configurada con éxito.',
+  },
+  {
+    id: 'hist-task-2-1',
+    taskId: 'task-2',
+    previousStatus: null,
+    newStatus: 'iniciado',
+    changedBy: 'user-alex',
+    changedByName: 'Alex Rivera',
+    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+    observations: 'Creación de tarea.',
+  },
+  {
+    id: 'hist-task-2-2',
+    taskId: 'task-2',
+    previousStatus: 'iniciado',
+    newStatus: 'trabajando',
+    changedBy: 'user-alex',
+    changedByName: 'Alex Rivera',
+    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    observations: 'En progreso activo de diseño de columnas.',
+  },
+  {
+    id: 'hist-task-3-1',
+    taskId: 'task-3',
+    previousStatus: null,
+    newStatus: 'iniciado',
+    changedBy: 'user-alex',
+    changedByName: 'Alex Rivera',
+    createdAt: new Date().toISOString(),
+    observations: 'Tarea iniciada en el espacio de trabajo.',
+  },
+  {
+    id: 'hist-task-4-1',
+    taskId: 'task-4',
+    previousStatus: null,
+    newStatus: 'iniciado',
+    changedBy: 'user-beatriz',
+    changedByName: 'Beatriz Castro',
+    createdAt: new Date(Date.now() - 3600000 * 24 * 3).toISOString(),
+    observations: 'Inicio de definición de estilos.',
+  },
+  {
+    id: 'hist-task-4-2',
+    taskId: 'task-4',
+    previousStatus: 'iniciado',
+    newStatus: 'trabajando',
+    changedBy: 'user-beatriz',
+    changedByName: 'Beatriz Castro',
+    createdAt: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
+    observations: 'Maquetando paleta Cyberpunk y responsivo.',
+  },
+  {
+    id: 'hist-task-4-3',
+    taskId: 'task-4',
+    previousStatus: 'trabajando',
+    newStatus: 'finalizado',
+    changedBy: 'user-beatriz',
+    changedByName: 'Beatriz Castro',
+    createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
+    observations: 'Diseño móvil verificado y optimizado.',
+  },
+  {
+    id: 'hist-task-5-1',
+    taskId: 'task-5',
+    previousStatus: null,
+    newStatus: 'iniciado',
+    changedBy: 'user-beatriz',
+    changedByName: 'Beatriz Castro',
+    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    observations: 'Creación de tarea.',
+  },
+  {
+    id: 'hist-task-5-2',
+    taskId: 'task-5',
+    previousStatus: 'iniciado',
+    newStatus: 'trabajando',
+    changedBy: 'user-beatriz',
+    changedByName: 'Beatriz Castro',
+    createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    observations: 'Implementando componente PeerActivityBar.',
+  },
+  {
+    id: 'hist-task-6-1',
+    taskId: 'task-6',
+    previousStatus: null,
+    newStatus: 'iniciado',
+    changedBy: 'user-beatriz',
+    changedByName: 'Beatriz Castro',
+    createdAt: new Date().toISOString(),
+    observations: 'Preparando configuración cloud.',
+  },
+];
+
 const STORAGE_KEYS = {
   USERS: 'kanban_duo_users_v2',
   SESSION_USER_ID: 'kanban_duo_session_user_id_v2',
   TASKS: 'kanban_duo_tasks',
   LOGS: 'kanban_duo_activity_logs',
   SECURITY_LOGS: 'kanban_duo_security_logs_v2',
+  TASK_HISTORY: 'kanban_duo_task_history_v3',
 };
 
 // Broadcast Channel for live multi-tab and local in-tab sync
@@ -162,7 +295,7 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
 
 const localListeners = new Set<(type: string) => void>();
 
-export function notifySync(type: 'tasks' | 'users' | 'logs' | 'security' | 'session') {
+export function notifySync(type: 'tasks' | 'users' | 'logs' | 'security' | 'session' | 'history') {
   if (syncChannel) {
     try {
       syncChannel.postMessage({ type, timestamp: Date.now() });
@@ -250,6 +383,8 @@ export async function syncCloudTasks(): Promise<Task[]> {
         assignedTo: t.assigned_to,
         createdBy: t.created_by,
         dueDate: t.due_date,
+        startedAt: t.started_at || undefined,
+        completedAt: t.completed_at || undefined,
         createdAt: t.created_at,
         updatedAt: t.updated_at,
       }));
@@ -263,6 +398,125 @@ export async function syncCloudTasks(): Promise<Task[]> {
   return getTasks();
 }
 
+
+export function getLocalStatusHistory(): TaskStatusHistory[] {
+  if (typeof window === 'undefined') return INITIAL_TASK_HISTORY;
+  const stored = localStorage.getItem(STORAGE_KEYS.TASK_HISTORY);
+  if (!stored) {
+    localStorage.setItem(STORAGE_KEYS.TASK_HISTORY, JSON.stringify(INITIAL_TASK_HISTORY));
+    return INITIAL_TASK_HISTORY;
+  }
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return INITIAL_TASK_HISTORY;
+  }
+}
+
+export function saveLocalStatusHistory(history: TaskStatusHistory[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEYS.TASK_HISTORY, JSON.stringify(history));
+  notifySync('history');
+}
+
+export async function recordStatusHistory(
+  event: Omit<TaskStatusHistory, 'id'>
+): Promise<TaskStatusHistory> {
+  const history = getLocalStatusHistory();
+  const newRecord: TaskStatusHistory = {
+    id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    ...event,
+  };
+  history.push(newRecord);
+  saveLocalStatusHistory(history);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      await client.from('task_status_history').insert({
+        id: newRecord.id,
+        task_id: newRecord.taskId,
+        previous_status: newRecord.previousStatus,
+        new_status: newRecord.newStatus,
+        changed_by: newRecord.changedBy || null,
+        changed_by_name: newRecord.changedByName,
+        created_at: newRecord.createdAt,
+        observations: newRecord.observations || null,
+      });
+    } catch (e) {
+      console.warn('Error guardando histórico en Supabase:', e);
+    }
+  }
+
+  return newRecord;
+}
+
+export async function getTaskStatusHistory(taskId: string): Promise<TaskStatusHistory[]> {
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from('task_status_history')
+        .select('*')
+        .eq('task_id', taskId)
+        .order('created_at', { ascending: true });
+      if (!error && data && data.length > 0) {
+        return data.map((d) => ({
+          id: d.id,
+          taskId: d.task_id,
+          previousStatus: d.previous_status,
+          newStatus: d.new_status,
+          changedBy: d.changed_by,
+          changedByName: d.changed_by_name,
+          createdAt: d.created_at,
+          observations: d.observations,
+        }));
+      }
+    } catch (e) {
+      console.warn('Error consultando histórico en Supabase:', e);
+    }
+  }
+
+  const allLocal = getLocalStatusHistory();
+  return allLocal
+    .filter((h) => h.taskId === taskId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+export async function getAllStatusHistory(): Promise<TaskStatusHistory[]> {
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from('task_status_history')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (!error && data && data.length > 0) {
+        const mapped = data.map((d) => ({
+          id: d.id,
+          taskId: d.task_id,
+          previousStatus: d.previous_status,
+          newStatus: d.new_status,
+          changedBy: d.changed_by,
+          changedByName: d.changed_by_name,
+          createdAt: d.created_at,
+          observations: d.observations,
+        }));
+        saveLocalStatusHistory(mapped);
+        return mapped;
+      }
+    } catch (e) {
+      console.warn('Error consultando todo el histórico en Supabase:', e);
+    }
+  }
+
+  return getLocalStatusHistory();
+}
+
+export async function syncCloudStatusHistory(): Promise<TaskStatusHistory[]> {
+  return getAllStatusHistory();
+}
+
 export async function initCloudSync() {
   if (typeof window === 'undefined') return;
 
@@ -272,6 +526,7 @@ export async function initCloudSync() {
   // Initial cloud sync
   await syncCloudUsers();
   await syncCloudTasks();
+  await syncCloudStatusHistory();
 
   // Setup WebSocket listener once
   if (!realtimeSubscribed) {
@@ -284,6 +539,9 @@ export async function initCloudSync() {
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
           syncCloudTasks();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'task_status_history' }, () => {
+          syncCloudStatusHistory();
         })
         .subscribe();
     } catch (e) {
@@ -718,22 +976,48 @@ export function saveTasks(tasks: Task[]) {
 }
 
 export async function createTask(
-  taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>,
+  taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> & { observations?: string },
   actorUser: User
 ): Promise<Task> {
   const tasks = getTasks();
+  const nowIso = new Date().toISOString();
+
+  // started_at debe conservar la primera fecha de inicio
+  const startedAt =
+    taskData.status === 'iniciado' || taskData.status === 'trabajando'
+      ? taskData.startedAt || nowIso
+      : taskData.startedAt || undefined;
+
+  const completedAt =
+    taskData.status === 'finalizado'
+      ? taskData.completedAt || nowIso
+      : undefined;
+
   const newTask: Task = {
     ...taskData,
     id: `task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: nowIso,
+    updatedAt: nowIso,
+    startedAt,
+    completedAt,
   };
   tasks.unshift(newTask);
   saveTasks(tasks);
 
+  // Registrar histórico inicial inmutable
+  await recordStatusHistory({
+    taskId: newTask.id,
+    previousStatus: null,
+    newStatus: newTask.status,
+    changedBy: actorUser.id,
+    changedByName: actorUser.name,
+    createdAt: nowIso,
+    observations: taskData.observations || 'Creación de la tarea en el sistema.',
+  });
+
   const client = await getOrInitSupabase();
   if (client) {
-    const { error } = await client.from('tasks').insert({
+    const payload: Record<string, unknown> = {
       id: newTask.id,
       title: newTask.title,
       description: newTask.description || '',
@@ -744,9 +1028,12 @@ export async function createTask(
       due_date: newTask.dueDate || null,
       created_at: newTask.createdAt,
       updated_at: newTask.updatedAt,
-    });
+      started_at: newTask.startedAt || null,
+      completed_at: newTask.completedAt || null,
+    };
+    const { error } = await client.from('tasks').insert(payload);
     if (error) {
-      console.error('Error creando tarea en Supabase:', error);
+      console.warn('Error creando tarea en Supabase:', error);
     }
   }
 
@@ -762,7 +1049,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  updates: Partial<Task>,
+  updates: Partial<Task> & { observations?: string },
   actorUser: User
 ): Promise<Task | null> {
   const tasks = getTasks();
@@ -770,14 +1057,51 @@ export async function updateTask(
   if (index === -1) return null;
 
   const oldTask = tasks[index];
+  const nowIso = new Date().toISOString();
+
+  let startedAt = oldTask.startedAt;
+  let completedAt = oldTask.completedAt;
+
+  // started_at debe conservar la PRIMERA fecha de inicio
+  if (
+    !startedAt &&
+    (updates.status === 'iniciado' ||
+      updates.status === 'trabajando' ||
+      oldTask.status === 'iniciado')
+  ) {
+    startedAt = nowIso;
+  }
+
+  // completed_at debe representar la última finalización de la tarea
+  if (updates.status === 'finalizado') {
+    completedAt = nowIso;
+  }
+
   const updatedTask: Task = {
     ...oldTask,
     ...updates,
-    updatedAt: new Date().toISOString(),
+    startedAt,
+    completedAt,
+    updatedAt: nowIso,
   };
 
   tasks[index] = updatedTask;
   saveTasks(tasks);
+
+  // Si hubo cambio de estado, registrar en task_status_history
+  if (updates.status && updates.status !== oldTask.status) {
+    await recordStatusHistory({
+      taskId: id,
+      previousStatus: oldTask.status,
+      newStatus: updates.status,
+      changedBy: actorUser.id,
+      changedByName: actorUser.name,
+      createdAt: nowIso,
+      observations:
+        updates.observations ||
+        `Cambio de estado: ${oldTask.status.toUpperCase()} -> ${updates.status.toUpperCase()}`,
+    });
+  }
 
   const client = await getOrInitSupabase();
   if (client) {
@@ -790,10 +1114,12 @@ export async function updateTask(
     if (updates.priority !== undefined) payload.priority = updates.priority;
     if (updates.assignedTo !== undefined) payload.assigned_to = updates.assignedTo;
     if (updates.dueDate !== undefined) payload.due_date = updates.dueDate;
+    if (startedAt !== undefined) payload.started_at = startedAt || null;
+    if (completedAt !== undefined) payload.completed_at = completedAt || null;
 
     const { error } = await client.from('tasks').update(payload).eq('id', id);
     if (error) {
-      console.error('Error actualizando tarea en Supabase:', error);
+      console.warn('Error actualizando tarea en Supabase:', error);
     }
   }
 
