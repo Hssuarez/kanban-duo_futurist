@@ -111,22 +111,22 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
         className="bg-[#0e121e] w-full max-w-lg rounded-2xl shadow-[0_0_35px_rgba(6,182,212,0.2)] border border-cyan-500/40 overflow-hidden text-slate-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-cyan-500/20 bg-[#090c15]">
-          <div className="flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-              // ALTA DE NUEVO OPERADOR EN RED
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-cyan-500/20 bg-[#090c15] gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Cpu className="w-4 h-4 text-cyan-400 shrink-0" />
+            <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider truncate">
+              // ALTA DE NUEVO OPERADOR
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-cyan-400 rounded-lg hover:bg-cyan-950/40 transition-colors"
+            className="p-1 text-slate-400 hover:text-cyan-400 rounded-lg hover:bg-cyan-950/40 transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           {error && (
             <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/50 border border-rose-500/60 rounded-xl">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />

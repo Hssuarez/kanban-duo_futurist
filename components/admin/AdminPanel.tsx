@@ -165,38 +165,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     <div className="min-h-screen bg-[#080a11] text-slate-200 selection:bg-cyan-500 selection:text-black pb-16 font-mono">
       {/* Top Header */}
       <header className="bg-[#0b0e17]/90 border-b border-cyan-500/30 sticky top-0 z-30 shadow-[0_4px_25px_rgba(0,0,0,0.6)] backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
+            {/* Left: Back button & Title */}
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <button
                 onClick={onBackToBoard}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:text-black hover:bg-cyan-400 bg-cyan-950/40 border border-cyan-500/40 rounded-xl transition-all uppercase tracking-wider shadow-[0_0_10px_rgba(6,182,212,0.15)]"
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-cyan-300 hover:text-black hover:bg-cyan-400 bg-cyan-950/40 border border-cyan-500/40 rounded-xl transition-all uppercase tracking-wider shadow-[0_0_10px_rgba(6,182,212,0.15)] shrink-0"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>// TABLERO</span>
+                <span className="hidden xs:inline sm:inline">// TABLERO</span>
+                <span className="xs:hidden sm:hidden">VOLVER</span>
               </button>
 
               <div className="h-5 w-[1px] bg-slate-800 hidden sm:block"></div>
 
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-indigo-950 border border-indigo-500/50 text-indigo-400 flex items-center justify-center shadow-[0_0_12px_rgba(99,102,241,0.3)]">
-                  <Shield className="w-4 h-4 text-indigo-400" />
+              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-indigo-950 border border-indigo-500/50 text-indigo-400 flex items-center justify-center shadow-[0_0_12px_rgba(99,102,241,0.3)] shrink-0">
+                  <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400" />
                 </div>
-                <div>
-                  <h1 className="text-sm sm:text-base font-black text-white leading-none uppercase tracking-wider">
-                    CONSOLE//ADMIN <span className="text-cyan-400">// OMEGA</span>
+                <div className="min-w-0">
+                  <h1 className="text-xs sm:text-base font-black text-white leading-tight uppercase tracking-wider truncate">
+                    <span className="hidden sm:inline">CONSOLE//ADMIN </span>
+                    <span className="sm:hidden">ADMIN </span>
+                    <span className="text-cyan-400">// OMEGA</span>
                   </h1>
-                  <p className="text-[10px] text-slate-500 mt-0.5 uppercase tracking-widest">
-                    // CONTROL DE IDENTIDADES, CRIPTO-CLAVES Y TELEMETRÍA
+                  <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase tracking-widest truncate hidden md:block">
+                    // CONTROL DE IDENTIDADES & TELEMETRÍA
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* Right: New operator button */}
+            <div className="flex items-center shrink-0">
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black px-3.5 py-2 rounded-xl text-xs font-bold shadow-[0_0_18px_rgba(6,182,212,0.35)] transition-all uppercase tracking-wider active:scale-98"
+                title="Crear nuevo operador"
+                className="inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold shadow-[0_0_18px_rgba(6,182,212,0.35)] transition-all uppercase tracking-wider active:scale-98"
               >
                 <UserPlus className="w-4 h-4 stroke-[3]" />
                 <span className="hidden sm:inline">ALTA//OPERADOR</span>
@@ -227,8 +233,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         )}
 
         {/* Stats KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <div className="bg-[#0b0e18]/90 p-5 rounded-2xl border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.1)]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <div className="bg-[#0b0e18]/90 p-4 sm:p-5 rounded-2xl border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.1)]">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">
                 // TOTAL OPERADORES
@@ -237,13 +243,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <Users className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-3xl font-black text-white mt-2 tracking-tight">{users.length}</p>
+            <p className="text-2xl sm:text-3xl font-black text-white mt-2 tracking-tight">{users.length}</p>
             <p className="text-[10px] text-slate-500 mt-1 uppercase">
               {totalActive} Nodos Activos en Red
             </p>
           </div>
 
-          <div className="bg-[#0b0e18]/90 p-5 rounded-2xl border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]">
+          <div className="bg-[#0b0e18]/90 p-4 sm:p-5 rounded-2xl border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
                 // ACCESO OMEGA (ADMINS)
@@ -252,11 +258,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <Shield className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-3xl font-black text-white mt-2 tracking-tight">{totalAdmins}</p>
+            <p className="text-2xl sm:text-3xl font-black text-white mt-2 tracking-tight">{totalAdmins}</p>
             <p className="text-[10px] text-slate-500 mt-1 uppercase">Privilegios de Nivel Máximo</p>
           </div>
 
-          <div className="bg-[#0b0e18]/90 p-5 rounded-2xl border border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
+          <div className="bg-[#0b0e18]/90 p-4 sm:p-5 rounded-2xl border border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">
                 // AUDITORÍA Y EVENTOS
@@ -265,23 +271,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <Activity className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-3xl font-black text-white mt-2 tracking-tight">{securityLogs.length}</p>
+            <p className="text-2xl sm:text-3xl font-black text-white mt-2 tracking-tight">{securityLogs.length}</p>
             <p className="text-[10px] text-slate-500 mt-1 uppercase">Eventos Criptográficos Registrados</p>
           </div>
         </div>
 
         {/* Tab Navigation & Search */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-1.5 p-1 bg-[#090c14] rounded-xl border border-slate-800 w-fit">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:flex sm:w-fit w-full items-center gap-1.5 p-1 bg-[#090c14] rounded-xl border border-slate-800">
             <button
               onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+              className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
                 activeTab === 'users'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
                   : 'text-slate-400 hover:text-cyan-300'
               }`}
             >
-              <Users className="w-3.5 h-3.5 text-cyan-400" />
+              <Users className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
               <span>// OPERADORES ({users.length})</span>
             </button>
 
@@ -290,19 +296,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 setActiveTab('security');
                 setSecurityLogs(getSecurityLogs());
               }}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+              className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
                 activeTab === 'security'
                   ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50 shadow-[0_0_12px_rgba(99,102,241,0.3)]'
                   : 'text-slate-400 hover:text-indigo-300'
               }`}
             >
-              <Lock className="w-3.5 h-3.5 text-indigo-400" />
-              <span>// AUDITORÍA DE SEGURIDAD</span>
+              <Lock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span>
+                // AUDITORÍA
+                <span className="hidden sm:inline">&nbsp;DE SEGURIDAD</span>
+              </span>
             </button>
           </div>
 
           {activeTab === 'users' && (
-            <div className="relative max-w-xs w-full">
+            <div className="relative w-full sm:max-w-xs">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400/60" />
               <input
                 type="text"
@@ -318,8 +327,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         {/* Tab 1: Users Management Table */}
         {activeTab === 'users' && (
           <div className="bg-[#0b0e18]/90 border border-cyan-500/25 rounded-2xl shadow-[0_0_25px_rgba(0,0,0,0.7)] overflow-hidden">
+            <div className="sm:hidden px-4 pt-3 text-[10px] text-cyan-400/70 font-mono flex items-center justify-between border-b border-slate-800/80 pb-2">
+              <span>// LISTA DE OPERADORES</span>
+              <span className="text-slate-500 font-bold">DESLIZA →</span>
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[620px]">
                 <thead>
                   <tr className="border-b border-slate-800 bg-[#07090f] text-[10px] font-bold text-cyan-400 uppercase tracking-widest">
                     <th className="py-3.5 px-6">Identidad & Avatar</th>

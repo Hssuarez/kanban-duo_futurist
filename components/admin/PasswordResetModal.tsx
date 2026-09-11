@@ -75,22 +75,22 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
         className="bg-[#0e121e] w-full max-w-md rounded-2xl shadow-[0_0_35px_rgba(245,158,11,0.2)] border border-amber-500/40 overflow-hidden text-slate-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-amber-500/20 bg-[#090c15]">
-          <div className="flex items-center gap-2">
-            <KeyRound className="w-5 h-5 text-amber-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-              // RESTABLECER CLAVE // {user.name.toUpperCase()}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-amber-500/20 bg-[#090c15] gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <KeyRound className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0" />
+            <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider truncate">
+              // CLAVE: {user.name.toUpperCase()}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-amber-400 rounded-lg hover:bg-amber-950/40 transition-colors"
+            className="p-1 text-slate-400 hover:text-amber-400 rounded-lg hover:bg-amber-950/40 transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           {/* Target User Info */}
           <div className="flex items-center gap-3 p-3 bg-[#080b14] border border-slate-800 rounded-xl">
             <img

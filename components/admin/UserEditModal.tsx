@@ -103,28 +103,28 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-cyan-500/20 bg-[#090c15]">
-          <div>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-cyan-500/20 bg-[#090c15] gap-2">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                // MODIFICAR OPERADOR: {user.name.toUpperCase()}
+              <Cpu className="w-4 h-4 text-cyan-400 shrink-0" />
+              <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider truncate">
+                // MODIFICAR: {user.name.toUpperCase()}
               </h3>
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wider">
+            <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 uppercase tracking-wider truncate hidden sm:block">
               Control de identidad, avatar, permisos de rol y estado
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-cyan-400 rounded-lg hover:bg-cyan-950/40 transition-colors"
+            className="p-1 text-slate-400 hover:text-cyan-400 rounded-lg hover:bg-cyan-950/40 transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           {error && (
             <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/50 border border-rose-500/60 rounded-xl">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
