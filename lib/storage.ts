@@ -1,6 +1,20 @@
-import { Task, User, ActivityLog, SecurityLog, TaskStatus, UserRole, TaskStatusHistory } from './types';
+import { Task, User, ActivityLog, SecurityLog, TaskStatus, UserRole, TaskStatusHistory, Project } from './types';
 import { hashPassword, verifyPassword } from './auth';
 import { getOrInitSupabase, getCachedSupabase } from './supabaseClient';
+
+
+export const DEFAULT_PROJECTS: Project[] = [
+  {
+    id: 'proj-default',
+    name: 'Protocolo Alpha (Proyecto Principal)',
+    description: 'Tablero central del sistema con el equipo inicial.',
+    color: '#06b6d4',
+    createdBy: 'user-admin',
+    memberIds: ['user-admin', 'user-alex', 'user-beatriz'],
+    createdAt: '2026-09-01T10:00:00.000Z',
+    updatedAt: '2026-09-01T10:00:00.000Z',
+  },
+];
 
 export const DEFAULT_USERS: User[] = [
   {
@@ -44,6 +58,7 @@ export const DEFAULT_USERS: User[] = [
 const INITIAL_TASKS: Task[] = [
   {
     id: 'task-1',
+    projectId: 'proj-default',
     title: 'Configurar arquitectura inicial y Next.js',
     description: 'Estructurar proyecto, configurar Tailwind CSS y componentes base.',
     status: 'finalizado',
@@ -58,6 +73,7 @@ const INITIAL_TASKS: Task[] = [
   },
   {
     id: 'task-2',
+    projectId: 'proj-default',
     title: 'Diseñar interfaz del tablero Kanban con 3 columnas',
     description: 'Columnas: Iniciado, Trabajando y Finalizado con drag and drop fluido.',
     status: 'trabajando',
@@ -71,6 +87,7 @@ const INITIAL_TASKS: Task[] = [
   },
   {
     id: 'task-3',
+    projectId: 'proj-default',
     title: 'Integrar sistema de filtros por espacio de trabajo',
     description: 'Permitir alternar entre Mi Espacio, Espacio de Compañero y Vista de Equipo.',
     status: 'iniciado',
@@ -84,6 +101,7 @@ const INITIAL_TASKS: Task[] = [
   },
   {
     id: 'task-4',
+    projectId: 'proj-default',
     title: 'Definir paleta de diseño y experiencia móvil',
     description: 'Asegurar diseño responsivo para móviles, tablets y monitores grandes.',
     status: 'finalizado',
@@ -98,6 +116,7 @@ const INITIAL_TASKS: Task[] = [
   },
   {
     id: 'task-5',
+    projectId: 'proj-default',
     title: 'Implementar widget de estado activo del compañero',
     description: 'Mostrar claramente en el encabezado qué tarea está desarrollando el otro usuario.',
     status: 'trabajando',
@@ -111,6 +130,7 @@ const INITIAL_TASKS: Task[] = [
   },
   {
     id: 'task-6',
+    projectId: 'proj-default',
     title: 'Preparar configuración de despliegue en Vercel',
     description: 'Documentar variables de entorno y soporte de base de datos gratuita en la nube.',
     status: 'iniciado',
@@ -285,6 +305,8 @@ const STORAGE_KEYS = {
   LOGS: 'kanban_duo_activity_logs',
   SECURITY_LOGS: 'kanban_duo_security_logs_v2',
   TASK_HISTORY: 'kanban_duo_task_history_v3',
+  PROJECTS: 'kanban_duo_projects_v4',
+  ACTIVE_PROJECT_ID: 'kanban_duo_active_project_id_v4',
 };
 
 // Broadcast Channel for live multi-tab and local in-tab sync
@@ -295,7 +317,7 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
 
 const localListeners = new Set<(type: string) => void>();
 
-export function notifySync(type: 'tasks' | 'users' | 'logs' | 'security' | 'session' | 'history') {
+export function notifySync(type: 'tasks' | 'users' | 'logs' | 'security' | 'session' | 'history' | 'projects' | 'active_project') {
   if (syncChannel) {
     try {
       syncChannel.postMessage({ type, timestamp: Date.now() });
@@ -376,6 +398,7 @@ export async function syncCloudTasks(): Promise<Task[]> {
     if (data) {
       const mapped: Task[] = data.map((t) => ({
         id: t.id,
+        projectId: t.project_id || 'proj-default',
         title: t.title,
         description: t.description || '',
         status: t.status as TaskStatus,
@@ -524,6 +547,7 @@ export async function initCloudSync() {
   if (!client) return;
 
   // Initial cloud sync
+  await syncCloudProjects();
   await syncCloudUsers();
   await syncCloudTasks();
   await syncCloudStatusHistory();
@@ -534,6 +558,9 @@ export async function initCloudSync() {
     try {
       client
         .channel('kanban-realtime-channel')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
+          syncCloudProjects();
+        })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
           syncCloudUsers();
         })
@@ -951,6 +978,262 @@ export async function updateSelfProfile(
   return { success: true };
 }
 
+
+// -------------------------------------------------------------
+// PROJECTS API & CLOUD SYNC
+// -------------------------------------------------------------
+
+export function getProjects(): Project[] {
+  if (typeof window === 'undefined') return DEFAULT_PROJECTS;
+  const stored = localStorage.getItem(STORAGE_KEYS.PROJECTS);
+  if (!stored) {
+    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(DEFAULT_PROJECTS));
+    return DEFAULT_PROJECTS;
+  }
+  try {
+    const list: Project[] = JSON.parse(stored);
+    if (!list.some((p) => p.id === 'proj-default')) {
+      list.unshift(DEFAULT_PROJECTS[0]);
+      localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(list));
+    }
+    return list;
+  } catch {
+    return DEFAULT_PROJECTS;
+  }
+}
+
+export function saveProjects(projects: Project[]) {
+  if (typeof window === 'undefined') return;
+  if (!projects.some((p) => p.id === 'proj-default')) {
+    projects.unshift(DEFAULT_PROJECTS[0]);
+  }
+  localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+  notifySync('projects');
+}
+
+export function getActiveProjectId(): string {
+  if (typeof window === 'undefined') return 'proj-default';
+  const stored = localStorage.getItem(STORAGE_KEYS.ACTIVE_PROJECT_ID);
+  if (!stored) return 'proj-default';
+  return stored;
+}
+
+export function setActiveProjectId(id: string) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, id);
+  notifySync('active_project');
+}
+
+export async function syncCloudProjects(): Promise<Project[]> {
+  const client = await getOrInitSupabase();
+  if (!client || typeof window === 'undefined') return getProjects();
+
+  try {
+    const { data, error } = await client.from('projects').select('*');
+    if (error) {
+      console.warn('Error al consultar proyectos en Supabase:', error);
+      return getProjects();
+    }
+    if (data && data.length > 0) {
+      const mapped: Project[] = data.map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description || '',
+        color: p.color || '#06b6d4',
+        createdBy: p.created_by,
+        memberIds: Array.isArray(p.member_ids) ? p.member_ids : [],
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+      }));
+
+      if (!mapped.some((p) => p.id === 'proj-default')) {
+        mapped.unshift(DEFAULT_PROJECTS[0]);
+      }
+
+      localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(mapped));
+      notifySync('projects');
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('Fallo de red con Supabase Projects:', err);
+  }
+  return getProjects();
+}
+
+export async function createProject(
+  data: {
+    name: string;
+    description?: string;
+    color?: string;
+    memberIds: string[];
+  },
+  actorUser: User
+): Promise<Project> {
+  const projects = getProjects();
+  const nowIso = new Date().toISOString();
+
+  const memberSet = new Set(data.memberIds);
+  memberSet.add(actorUser.id);
+
+  const newProject: Project = {
+    id: `proj-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    name: data.name.trim(),
+    description: data.description ? data.description.trim() : '',
+    color: data.color || '#06b6d4',
+    createdBy: actorUser.id,
+    memberIds: Array.from(memberSet),
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+
+  projects.push(newProject);
+  saveProjects(projects);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      const { error } = await client.from('projects').insert({
+        id: newProject.id,
+        name: newProject.name,
+        description: newProject.description || null,
+        color: newProject.color,
+        created_by: newProject.createdBy,
+        member_ids: newProject.memberIds,
+        created_at: newProject.createdAt,
+        updated_at: newProject.updatedAt,
+      });
+      if (error) {
+        console.error('Error insertando proyecto en Supabase:', error);
+      }
+    } catch (e) {
+      console.warn('Error de red al crear proyecto en Supabase:', e);
+    }
+  }
+
+  logActivity({
+    userId: actorUser.id,
+    userName: actorUser.name,
+    action: 'ha creado el proyecto',
+    taskTitle: newProject.name,
+  });
+
+  return newProject;
+}
+
+export async function updateProject(
+  id: string,
+  updates: {
+    name?: string;
+    description?: string;
+    color?: string;
+    memberIds?: string[];
+  },
+  actorUser: User
+): Promise<Project | null> {
+  const projects = getProjects();
+  const index = projects.findIndex((p) => p.id === id);
+  if (index === -1) return null;
+
+  const current = projects[index];
+
+  if (actorUser.role !== 'admin' && current.createdBy !== actorUser.id) {
+    throw new Error('Solo el creador del proyecto o un administrador pueden editar este proyecto.');
+  }
+
+  const nowIso = new Date().toISOString();
+  let updatedMembers = updates.memberIds ? [...updates.memberIds] : current.memberIds;
+  if (current.createdBy && !updatedMembers.includes(current.createdBy)) {
+    updatedMembers.push(current.createdBy);
+  }
+
+  const updated: Project = {
+    ...current,
+    name: updates.name ? updates.name.trim() : current.name,
+    description: updates.description !== undefined ? updates.description.trim() : current.description,
+    color: updates.color || current.color,
+    memberIds: updatedMembers,
+    updatedAt: nowIso,
+  };
+
+  projects[index] = updated;
+  saveProjects(projects);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      const { error } = await client
+        .from('projects')
+        .update({
+          name: updated.name,
+          description: updated.description || null,
+          color: updated.color,
+          member_ids: updated.memberIds,
+          updated_at: updated.updatedAt,
+        })
+        .eq('id', id);
+      if (error) {
+        console.error('Error actualizando proyecto en Supabase:', error);
+      }
+    } catch (e) {
+      console.warn('Error de red actualizando proyecto en Supabase:', e);
+    }
+  }
+
+  logActivity({
+    userId: actorUser.id,
+    userName: actorUser.name,
+    action: 'actualizó la configuración del proyecto',
+    taskTitle: updated.name,
+  });
+
+  return updated;
+}
+
+export async function deleteProject(id: string, actorUser: User): Promise<{ success: boolean; error?: string }> {
+  if (id === 'proj-default') {
+    return { success: false, error: 'El proyecto principal por defecto no puede ser eliminado.' };
+  }
+
+  const projects = getProjects();
+  const target = projects.find((p) => p.id === id);
+  if (!target) return { success: false, error: 'Proyecto no encontrado.' };
+
+  if (actorUser.role !== 'admin' && target.createdBy !== actorUser.id) {
+    return { success: false, error: 'Solo el creador del proyecto o un administrador pueden eliminar este proyecto.' };
+  }
+
+  const tasks = getTasks().filter((t) => (t.projectId || 'proj-default') !== id);
+  saveTasks(tasks);
+
+  const remaining = projects.filter((p) => p.id !== id);
+  saveProjects(remaining);
+
+  if (getActiveProjectId() === id) {
+    setActiveProjectId('proj-default');
+  }
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      const { error } = await client.from('projects').delete().eq('id', id);
+      if (error) {
+        console.error('Error eliminando proyecto en Supabase:', error);
+      }
+    } catch (e) {
+      console.warn('Error de red eliminando proyecto en Supabase:', e);
+    }
+  }
+
+  logActivity({
+    userId: actorUser.id,
+    userName: actorUser.name,
+    action: 'eliminó el proyecto',
+    taskTitle: target.name,
+  });
+
+  return { success: true };
+}
+
 // -------------------------------------------------------------
 // TASKS API
 // -------------------------------------------------------------
@@ -963,7 +1246,19 @@ export function getTasks(): Task[] {
     return INITIAL_TASKS;
   }
   try {
-    return JSON.parse(stored);
+    const parsed: Task[] = JSON.parse(stored);
+    let updated = false;
+    const sanitized = parsed.map((t) => {
+      if (!t.projectId) {
+        updated = true;
+        return { ...t, projectId: 'proj-default' };
+      }
+      return t;
+    });
+    if (updated) {
+      localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(sanitized));
+    }
+    return sanitized;
   } catch {
     return INITIAL_TASKS;
   }
@@ -993,8 +1288,10 @@ export async function createTask(
       ? taskData.completedAt || nowIso
       : undefined;
 
+  const projectId = taskData.projectId || getActiveProjectId();
   const newTask: Task = {
     ...taskData,
+    projectId,
     id: `task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     createdAt: nowIso,
     updatedAt: nowIso,
@@ -1019,6 +1316,7 @@ export async function createTask(
   if (client) {
     const payload: Record<string, unknown> = {
       id: newTask.id,
+      project_id: newTask.projectId || 'proj-default',
       title: newTask.title,
       description: newTask.description || '',
       status: newTask.status,
@@ -1108,6 +1406,7 @@ export async function updateTask(
     const payload: Record<string, unknown> = {
       updated_at: updatedTask.updatedAt,
     };
+    if (updates.projectId !== undefined) payload.project_id = updates.projectId;
     if (updates.title !== undefined) payload.title = updates.title;
     if (updates.description !== undefined) payload.description = updates.description;
     if (updates.status !== undefined) payload.status = updates.status;

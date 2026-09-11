@@ -17,8 +17,20 @@ export interface User {
   lastLogin?: string;
 }
 
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  createdBy: string;
+  memberIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Task {
   id: string;
+  projectId?: string; // ID del Proyecto al que pertenece
   title: string;
   description?: string;
   status: TaskStatus;

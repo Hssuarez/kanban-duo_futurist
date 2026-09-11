@@ -10,6 +10,7 @@ import {
   TaskPriority,
   SpaceFilter,
   AppView,
+  Project,
 } from '@/lib/types';
 import {
   getTasks,
@@ -23,6 +24,13 @@ import {
   getActivityLogs,
   subscribeToSync,
   initializeDefaultUsers,
+  getProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+  getActiveProjectId,
+  setActiveProjectId,
+  DEFAULT_PROJECTS,
 } from '@/lib/storage';
 import { LoginForm } from './auth/LoginForm';
 import { Navbar } from './Navbar';
@@ -33,6 +41,7 @@ import { UserProfileModal } from './UserProfileModal';
 import { AdminPanel } from './admin/AdminPanel';
 import { TaskCalendar } from './calendar/TaskCalendar';
 import { TaskDashboard } from './dashboard/TaskDashboard';
+import { ProjectModal } from './project/ProjectModal';
 import { initPresence } from '@/lib/presence';
 import { Filter } from 'lucide-react';
 
@@ -44,6 +53,8 @@ export const KanbanBoard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProjectId, setActiveProjectIdState] = useState<string>('proj-default');
 
   // UI state
   const [spaceFilter, setSpaceFilter] = useState<SpaceFilter>('mine');
@@ -55,6 +66,8 @@ export const KanbanBoard: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [targetColumnStatus, setTargetColumnStatus] = useState<TaskStatus>('iniciado');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   // Load and refresh data
   const refreshData = useCallback(() => {
@@ -62,11 +75,15 @@ export const KanbanBoard: React.FC = () => {
     const loadedSession = getSessionUser();
     const loadedTasks = getTasks();
     const loadedLogs = getActivityLogs();
+    const loadedProjects = getProjects();
+    const loadedActiveProjId = getActiveProjectId();
 
     setUsers(loadedUsers);
     setSessionUser(loadedSession);
     setTasks(loadedTasks);
     setLogs(loadedLogs);
+    setProjects(loadedProjects);
+    setActiveProjectIdState(loadedActiveProjId);
   }, []);
 
   useEffect(() => {
@@ -118,6 +135,85 @@ export const KanbanBoard: React.FC = () => {
     return false;
   };
 
+  // Filtro de proyectos accesibles para el usuario conectado
+  // (Admin ve todos, creador ve el suyo, miembros con acceso ven el compartido)
+  const accessibleProjects = useMemo(() => {
+    if (!sessionUser) return [];
+    return projects.filter(
+      (p) =>
+        sessionUser.role === 'admin' ||
+        p.createdBy === sessionUser.id ||
+        p.memberIds?.includes(sessionUser.id)
+    );
+  }, [projects, sessionUser]);
+
+  // Proyecto activo actual
+  const activeProject = useMemo(() => {
+    const found = accessibleProjects.find((p) => p.id === activeProjectId);
+    return found || accessibleProjects[0] || DEFAULT_PROJECTS[0];
+  }, [accessibleProjects, activeProjectId]);
+
+  // Tareas pertenecientes al proyecto activo
+  const projectTasks = useMemo(() => {
+    return tasks.filter((t) => (t.projectId || 'proj-default') === activeProject.id);
+  }, [tasks, activeProject.id]);
+
+  // Miembros del proyecto activo
+  const projectMembers = useMemo(() => {
+    return users.filter(
+      (u) =>
+        activeProject.memberIds?.includes(u.id) ||
+        u.id === activeProject.createdBy
+    );
+  }, [users, activeProject]);
+
+  // Peer dentro del proyecto activo
+  const peerUser = useMemo(() => {
+    return (
+      projectMembers.find((u) => u.id !== sessionUser?.id) ||
+      users.find((u) => u.id !== sessionUser?.id) ||
+      users[0]
+    );
+  }, [projectMembers, users, sessionUser]);
+
+  // Control de selección y gestión de proyectos
+  const handleSelectProject = (projId: string) => {
+    setActiveProjectId(projId);
+    setActiveProjectIdState(projId);
+  };
+
+  const handleOpenCreateProject = () => {
+    setEditingProject(null);
+    setIsProjectModalOpen(true);
+  };
+
+  const handleOpenEditProject = (proj: Project) => {
+    setEditingProject(proj);
+    setIsProjectModalOpen(true);
+  };
+
+  const handleSaveProject = async (data: {
+    name: string;
+    description?: string;
+    color: string;
+    memberIds: string[];
+  }) => {
+    if (!sessionUser) return;
+    if (editingProject) {
+      await updateProject(editingProject.id, data, sessionUser);
+    } else {
+      const created = await createProject(data, sessionUser);
+      handleSelectProject(created.id);
+    }
+    refreshData();
+  };
+
+  const handleDeleteProject = async (projId: string) => {
+    if (!sessionUser) return;
+    await deleteProject(projId, sessionUser);
+    refreshData();
+  };
+
   // Manejo de tareas
   const handleSaveTask = async (taskData: {
     title: string;
@@ -126,11 +222,19 @@ export const KanbanBoard: React.FC = () => {
     status: TaskStatus;
     assignedTo: string;
     dueDate?: string;
+    projectId?: string;
   }) => {
     if (!sessionUser) return;
 
     if (editingTask) {
-      await updateTask(editingTask.id, taskData, sessionUser);
+      await updateTask(
+        editingTask.id,
+        {
+          ...taskData,
+          projectId: taskData.projectId || editingTask.projectId || activeProject.id,
+        },
+        sessionUser
+      );
       if (taskData.status === 'finalizado' && editingTask.status !== 'finalizado') {
         confetti({
           particleCount: 100,
@@ -143,6 +247,7 @@ export const KanbanBoard: React.FC = () => {
       await createTask(
         {
           ...taskData,
+          projectId: activeProject.id,
           createdBy: sessionUser.id,
         },
         sessionUser
@@ -192,13 +297,11 @@ export const KanbanBoard: React.FC = () => {
     setIsTaskModalOpen(true);
   };
 
-  // Filtrado de tareas
-  const peerUser = users.find((u) => u.id !== sessionUser?.id) || users[0];
-
+  // Filtrado de tareas dentro del proyecto activo
   const filteredTasks = useMemo(() => {
     if (!sessionUser) return [];
 
-    return tasks.filter((task) => {
+    return projectTasks.filter((task) => {
       // 1. Filtro por espacio
       if (spaceFilter === 'mine' && task.assignedTo !== sessionUser.id) {
         return false;
@@ -222,7 +325,7 @@ export const KanbanBoard: React.FC = () => {
 
       return true;
     });
-  }, [tasks, spaceFilter, sessionUser, peerUser, searchQuery, priorityFilter]);
+  }, [projectTasks, spaceFilter, sessionUser, peerUser, searchQuery, priorityFilter]);
 
   const iniciadoTasks = useMemo(
     () => filteredTasks.filter((t) => t.status === 'iniciado'),
@@ -271,6 +374,11 @@ export const KanbanBoard: React.FC = () => {
       <Navbar
         currentUser={sessionUser}
         users={users}
+        projects={accessibleProjects}
+        activeProject={activeProject}
+        onSelectProject={handleSelectProject}
+        onOpenCreateProject={handleOpenCreateProject}
+        onOpenEditProject={handleOpenEditProject}
         currentView={currentView}
         setCurrentView={setCurrentView}
         spaceFilter={spaceFilter}
@@ -287,22 +395,37 @@ export const KanbanBoard: React.FC = () => {
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 flex flex-col">
         {currentView === 'board' && (
           <>
-            {/* Peer Activity Bar */}
+            {/* Peer Activity Bar enfocada en miembros y tareas del proyecto activo */}
             <PeerActivityBar
               currentUser={sessionUser}
-              users={users}
-              tasks={tasks}
+              users={projectMembers}
+              tasks={projectTasks}
               logs={logs}
             />
 
             {/* Board Controls & Subheader */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold"
+                  style={{
+                    backgroundColor: `${activeProject.color || '#06b6d4'}15`,
+                    borderColor: `${activeProject.color || '#06b6d4'}50`,
+                    color: activeProject.color || '#06b6d4',
+                  }}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: activeProject.color || '#06b6d4' }}
+                  />
+                  <span>PROYECTO: {activeProject.name.toUpperCase()}</span>
+                </div>
+
                 <h2 className="text-base sm:text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
                   <span>
                     {spaceFilter === 'mine' && `// MI ESPACIO: ${sessionUser.name.toUpperCase()}`}
                     {spaceFilter === 'peer' && `// ESPACIO PEER: ${peerUser?.name?.toUpperCase() || 'COMPAÑERO'}`}
-                    {spaceFilter === 'all' && '// REJILLA DE EQUIPO (GLOBAL)'}
+                    {spaceFilter === 'all' && '// REJILLA DE EQUIPO'}
                   </span>
                 </h2>
                 <span className="text-[10px] bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
@@ -376,7 +499,7 @@ export const KanbanBoard: React.FC = () => {
 
         {currentView === 'calendar' && (
           <TaskCalendar
-            tasks={tasks}
+            tasks={projectTasks}
             users={users}
             currentUser={sessionUser}
             onOpenNewTask={() => handleOpenAddNew('iniciado')}
@@ -386,7 +509,7 @@ export const KanbanBoard: React.FC = () => {
 
         {currentView === 'dashboard' && (
           <TaskDashboard
-            tasks={tasks}
+            tasks={projectTasks}
             users={users}
             currentUser={sessionUser}
             onOpenTaskDetail={handleOpenEdit}
@@ -403,6 +526,7 @@ export const KanbanBoard: React.FC = () => {
         defaultStatus={targetColumnStatus}
         users={users}
         currentUser={sessionUser}
+        activeProject={activeProject}
       />
 
       {/* User Self-Profile Modal */}
@@ -411,6 +535,17 @@ export const KanbanBoard: React.FC = () => {
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={sessionUser}
         onUpdateProfile={handleUpdateSelfProfile}
+      />
+
+      {/* Project Management Modal */}
+      <ProjectModal
+        isOpen={isProjectModalOpen}
+        onClose={() => setIsProjectModalOpen(false)}
+        currentUser={sessionUser}
+        users={users}
+        editingProject={editingProject}
+        onSaveProject={handleSaveProject}
+        onDeleteProject={handleDeleteProject}
       />
     </div>
   );

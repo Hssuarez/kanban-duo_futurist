@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Task, User, TaskStatus, TaskPriority } from '@/lib/types';
-import { X, Calendar, AlertCircle, Terminal } from 'lucide-react';
+import { Task, User, TaskStatus, TaskPriority, Project } from '@/lib/types';
+import { X, Calendar, AlertCircle, Terminal, FolderKanban } from 'lucide-react';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -14,11 +14,13 @@ interface TaskModalProps {
     priority: TaskPriority;
     assignedTo: string;
     dueDate?: string;
+    projectId?: string;
   }) => void;
   editingTask?: Task | null;
   defaultStatus?: TaskStatus;
   users: User[];
   currentUser: User;
+  activeProject?: Project | null;
 }
 
 export const TaskModal: React.FC<TaskModalProps> = ({
@@ -29,6 +31,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   defaultStatus = 'iniciado',
   users,
   currentUser,
+  activeProject,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -59,6 +62,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   if (!isOpen) return null;
 
+  const eligibleUsers = React.useMemo(() => {
+    if (!activeProject) return users;
+    return users.filter(
+      (u) =>
+        activeProject.memberIds?.includes(u.id) ||
+        u.id === activeProject.createdBy ||
+        u.id === editingTask?.assignedTo
+    );
+  }, [users, activeProject, editingTask]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
@@ -72,6 +85,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       priority,
       assignedTo,
       dueDate: dueDate || undefined,
+      projectId: activeProject?.id,
     });
     onClose();
   };
@@ -84,11 +98,24 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-cyan-500/20 bg-[#090c15]">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Terminal className="w-4 h-4 text-cyan-400" />
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
               {editingTask ? '// EDITAR TAREA' : '// REGISTRAR NUEVA TAREA'}
             </h3>
+            {activeProject && (
+              <span
+                className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase tracking-wider"
+                style={{
+                  backgroundColor: `${activeProject.color || '#06b6d4'}20`,
+                  borderColor: `${activeProject.color || '#06b6d4'}60`,
+                  color: activeProject.color || '#06b6d4',
+                }}
+              >
+                <FolderKanban className="w-3 h-3" />
+                {activeProject.name}
+              </span>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -180,7 +207,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 onChange={(e) => setAssignedTo(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-cyan-300 rounded-xl focus:outline-none focus:border-cyan-400 transition-colors uppercase tracking-wider"
               >
-                {users.map((u) => (
+                {eligibleUsers.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name} {u.id === currentUser.id ? '(TÚ)' : ''}
                   </option>

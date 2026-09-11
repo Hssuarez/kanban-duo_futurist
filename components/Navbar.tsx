@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, SpaceFilter, AppView } from '@/lib/types';
+import { User, SpaceFilter, AppView, Project } from '@/lib/types';
 import { subscribeToPresence } from '@/lib/presence';
+import { ProjectSelector } from './project/ProjectSelector';
 import {
   Kanban,
   Plus,
@@ -22,6 +23,11 @@ import {
 interface NavbarProps {
   currentUser: User;
   users: User[];
+  projects: Project[];
+  activeProject: Project;
+  onSelectProject: (projectId: string) => void;
+  onOpenCreateProject: () => void;
+  onOpenEditProject: (project: Project) => void;
   currentView: AppView;
   setCurrentView: (view: AppView) => void;
   spaceFilter: SpaceFilter;
@@ -37,6 +43,11 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   users,
+  projects,
+  activeProject,
+  onSelectProject,
+  onOpenCreateProject,
+  onOpenEditProject,
   currentView,
   setCurrentView,
   spaceFilter,
@@ -56,7 +67,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => unsub();
   }, []);
 
-  const peerUser = users.find((u) => u.id !== currentUser.id) || users[0];
+  const projectMembers = users.filter(
+    (u) =>
+      activeProject.memberIds?.includes(u.id) ||
+      u.id === activeProject.createdBy
+  );
+  const peerUser =
+    projectMembers.find((u) => u.id !== currentUser.id) ||
+    users.find((u) => u.id !== currentUser.id) ||
+    users[0];
 
   return (
     <header className="sticky top-0 z-30 bg-[#0b0e17]/90 backdrop-blur-md border-b border-cyan-500/20 shadow-[0_4px_25px_rgba(0,0,0,0.5)] font-mono">
@@ -72,14 +91,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <h1 className="font-bold text-white text-base sm:text-lg tracking-wider uppercase">
                   KANBAN<span className="text-cyan-400">//DUO</span>
                 </h1>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[9px] font-semibold bg-cyan-950/60 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                <span className="hidden xl:inline-flex items-center gap-1 text-[9px] font-semibold bg-cyan-950/60 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-full uppercase tracking-wider">
                   <Cpu className="w-3 h-3 text-cyan-400" /> VERCEL_READY
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400 hidden sm:block tracking-wider uppercase">
+              <p className="text-[10px] text-slate-400 hidden md:block tracking-wider uppercase">
                 // PROTOCOLO COLABORATIVO CYBERPUNK
               </p>
             </div>
+          </div>
+
+          {/* Project Selector Switcher */}
+          <div className="shrink-0">
+            <ProjectSelector
+              projects={projects}
+              activeProject={activeProject}
+              onSelectProject={onSelectProject}
+              onOpenCreateProject={onOpenCreateProject}
+              onOpenEditProject={onOpenEditProject}
+              currentUser={currentUser}
+              users={users}
+            />
           </div>
 
           {/* Search Bar (center) */}
