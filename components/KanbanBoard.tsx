@@ -405,38 +405,53 @@ export const KanbanBoard: React.FC = () => {
 
             {/* Board Controls & Subheader */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                {/* Project Badge with max-width and truncate on mobile */}
                 <div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold max-w-[200px] sm:max-w-xs truncate shrink-0"
                   style={{
                     backgroundColor: `${activeProject.color || '#06b6d4'}15`,
                     borderColor: `${activeProject.color || '#06b6d4'}50`,
                     color: activeProject.color || '#06b6d4',
                   }}
+                  title={activeProject.name}
                 >
                   <span
-                    className="w-2 h-2 rounded-full"
+                    className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: activeProject.color || '#06b6d4' }}
                   />
-                  <span>PROYECTO: {activeProject.name.toUpperCase()}</span>
+                  <span className="truncate">{activeProject.name.toUpperCase()}</span>
                 </div>
 
-                <h2 className="text-base sm:text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <span>
-                    {spaceFilter === 'mine' && `// MI ESPACIO: ${sessionUser.name.toUpperCase()}`}
-                    {spaceFilter === 'peer' && `// ESPACIO PEER: ${peerUser?.name?.toUpperCase() || 'COMPAÑERO'}`}
+                <h2 className="text-xs sm:text-base font-bold text-white uppercase tracking-wider flex items-center gap-1.5 truncate">
+                  <span className="truncate">
+                    {spaceFilter === 'mine' && (
+                      <>
+                        <span className="sm:hidden">// MI ESPACIO: {sessionUser.name.split(' ')[0].toUpperCase()}</span>
+                        <span className="hidden sm:inline">// MI ESPACIO: {sessionUser.name.toUpperCase()}</span>
+                      </>
+                    )}
+                    {spaceFilter === 'peer' && (
+                      <>
+                        <span className="sm:hidden">// PEER: {peerUser?.name?.split(' ')[0]?.toUpperCase() || 'COMPAÑERO'}</span>
+                        <span className="hidden sm:inline">// ESPACIO PEER: {peerUser?.name?.toUpperCase() || 'COMPAÑERO'}</span>
+                      </>
+                    )}
                     {spaceFilter === 'all' && '// REJILLA DE EQUIPO'}
                   </span>
                 </h2>
-                <span className="text-[10px] bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
+
+                <span className="text-[10px] bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider shrink-0">
                   {filteredTasks.length} TAREAS
                 </span>
               </div>
 
               {/* Priority filter selector */}
-              <div className="flex items-center gap-2">
-                <Filter className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">PRIORIDAD:</span>
+              <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-1 sm:pt-0">
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                  <Filter className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>PRIORIDAD:</span>
+                </div>
                 <select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}

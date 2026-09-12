@@ -115,8 +115,8 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
             </div>
 
             {activeTask ? (
-              <div className="flex items-center gap-2 mt-1">
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-950/80 border border-amber-500/50 px-2 py-0.5 rounded uppercase tracking-wider shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-950/80 border border-amber-500/50 px-2 py-0.5 rounded uppercase tracking-wider shadow-[0_0_10px_rgba(245,158,11,0.2)] shrink-0">
                   <Clock className="w-3 h-3 animate-spin text-amber-400" style={{ animationDuration: '3s' }} />
                   EJECUTANDO AHORA:
                 </span>
@@ -124,7 +124,7 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
                   "{activeTask.title}"
                 </span>
                 {peerWorkingTasks.length > 1 && (
-                  <span className="text-[10px] text-cyan-400/80 font-normal">
+                  <span className="text-[10px] text-cyan-400/80 font-normal shrink-0">
                     (+{peerWorkingTasks.length - 1} en cola)
                   </span>
                 )}
@@ -170,17 +170,17 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
               logs.map((log) => (
                 <div
                   key={log.id}
-                  className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-[#0e1220] border border-slate-800 hover:border-cyan-500/30 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-[#0e1220] border border-slate-800 hover:border-cyan-500/30 transition-colors gap-1 sm:gap-2"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]"></span>
+                  <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4] shrink-0"></span>
                     <span className="font-bold text-cyan-300">{log.userName}</span>
                     <span className="text-slate-400">{log.action}</span>
-                    <span className="font-bold text-white bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-[11px]">
+                    <span className="font-bold text-white bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-[11px] truncate max-w-[200px] sm:max-w-xs">
                       "{log.taskTitle}"
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-mono shrink-0 ml-2">
+                  <span className="text-[10px] text-slate-500 font-mono shrink-0 self-end sm:self-auto">
                     {formatTimeAgo(log.timestamp)}
                   </span>
                 </div>
