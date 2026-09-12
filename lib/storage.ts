@@ -1301,46 +1301,59 @@ export async function createTask(
   tasks.unshift(newTask);
   saveTasks(tasks);
 
-  // Registrar histórico inicial inmutable
-  await recordStatusHistory({
-    taskId: newTask.id,
-    previousStatus: null,
-    newStatus: newTask.status,
-    changedBy: actorUser.id,
-    changedByName: actorUser.name,
-    createdAt: nowIso,
-    observations: taskData.observations || 'Creación de la tarea en el sistema.',
-  });
-
+  // 1. Guardar primero la tarea en Supabase (para cumplir clave foránea)
   const client = await getOrInitSupabase();
   if (client) {
-    const payload: Record<string, unknown> = {
-      id: newTask.id,
-      project_id: newTask.projectId || 'proj-default',
-      title: newTask.title,
-      description: newTask.description || '',
-      status: newTask.status,
-      priority: newTask.priority,
-      assigned_to: newTask.assignedTo,
-      created_by: newTask.createdBy,
-      due_date: newTask.dueDate || null,
-      created_at: newTask.createdAt,
-      updated_at: newTask.updatedAt,
-      started_at: newTask.startedAt || null,
-      completed_at: newTask.completedAt || null,
-    };
-    const { error } = await client.from('tasks').insert(payload);
-    if (error) {
-      console.warn('Error creando tarea en Supabase:', error);
+    try {
+      const payload: Record<string, unknown> = {
+        id: newTask.id,
+        project_id: newTask.projectId || 'proj-default',
+        title: newTask.title,
+        description: newTask.description || '',
+        status: newTask.status,
+        priority: newTask.priority,
+        assigned_to: newTask.assignedTo,
+        created_by: newTask.createdBy,
+        due_date: newTask.dueDate || null,
+        created_at: newTask.createdAt,
+        updated_at: newTask.updatedAt,
+        started_at: newTask.startedAt || null,
+        completed_at: newTask.completedAt || null,
+      };
+      const { error } = await client.from('tasks').insert(payload);
+      if (error) {
+        console.warn('Error creando tarea en Supabase:', error);
+      }
+    } catch (err) {
+      console.warn('Fallo de red creando tarea en Supabase:', err);
     }
   }
 
-  logActivity({
-    userId: actorUser.id,
-    userName: actorUser.name,
-    action: 'ha creado la tarea',
-    taskTitle: newTask.title,
-  });
+  // 2. Registrar histórico inicial inmutable (ahora que la tarea ya existe en Supabase y localmente)
+  try {
+    await recordStatusHistory({
+      taskId: newTask.id,
+      previousStatus: null,
+      newStatus: newTask.status,
+      changedBy: actorUser.id,
+      changedByName: actorUser.name,
+      createdAt: nowIso,
+      observations: taskData.observations || 'Creación de la tarea en el sistema.',
+    });
+  } catch (err) {
+    console.warn('Error registrando histórico inicial:', err);
+  }
+
+  try {
+    logActivity({
+      userId: actorUser.id,
+      userName: actorUser.name,
+      action: 'ha creado la tarea',
+      taskTitle: newTask.title,
+    });
+  } catch (err) {
+    console.warn('Error registrando log de actividad:', err);
+  }
 
   return newTask;
 }

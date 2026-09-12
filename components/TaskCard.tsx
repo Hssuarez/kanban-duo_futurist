@@ -38,7 +38,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     baja: 'PRIORIDAD // BAJA',
   };
 
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'finalizado';
+  const priorityKey = (task.priority in priorityColors ? task.priority : 'media') as keyof typeof priorityColors;
+
+  const isOverdue = Boolean(
+    task.dueDate &&
+    !isNaN(new Date(task.dueDate).getTime()) &&
+    new Date(task.dueDate) < new Date() &&
+    task.status !== 'finalizado'
+  );
 
   return (
     <div
@@ -49,9 +56,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       {/* Top Meta: Priority & Actions */}
       <div className="flex items-center justify-between gap-2 mb-2.5">
         <span
-          className={`text-[10px] font-bold px-2 py-0.5 rounded-md border tracking-wider uppercase ${priorityColors[task.priority]}`}
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-md border tracking-wider uppercase ${priorityColors[priorityKey]}`}
         >
-          {priorityLabels[task.priority]}
+          {priorityLabels[priorityKey]}
         </span>
 
         <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
@@ -122,7 +129,18 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             }`}
           >
             <Calendar className="w-3 h-3" />
-            <span>{new Date(task.dueDate).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}</span>
+            <span>
+              {(() => {
+                try {
+                  const d = new Date(task.dueDate);
+                  return isNaN(d.getTime())
+                    ? task.dueDate
+                    : d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+                } catch {
+                  return task.dueDate;
+                }
+              })()}
+            </span>
           </div>
         )}
       </div>

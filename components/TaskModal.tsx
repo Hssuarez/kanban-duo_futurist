@@ -37,9 +37,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>(defaultStatus);
   const [priority, setPriority] = useState<TaskPriority>('media');
-  const [assignedTo, setAssignedTo] = useState(currentUser.id);
+  const [assignedTo, setAssignedTo] = useState(currentUser?.id || '');
   const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState('');
+
+  const eligibleUsers = React.useMemo(() => {
+    if (!activeProject) return users;
+    const memberIds = Array.isArray(activeProject.memberIds) ? activeProject.memberIds : [];
+    const list = users.filter(
+      (u) =>
+        memberIds.includes(u.id) ||
+        u.id === activeProject.createdBy ||
+        u.id === editingTask?.assignedTo
+    );
+    return list.length > 0 ? list : users;
+  }, [users, activeProject, editingTask]);
 
   useEffect(() => {
     if (editingTask) {
@@ -54,23 +66,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setDescription('');
       setStatus(defaultStatus);
       setPriority('media');
-      setAssignedTo(currentUser.id);
+      const isCurrentEligible = eligibleUsers.some((u) => u.id === currentUser?.id);
+      setAssignedTo(isCurrentEligible ? currentUser.id : eligibleUsers[0]?.id || currentUser?.id || '');
       setDueDate('');
     }
     setError('');
-  }, [editingTask, defaultStatus, currentUser, isOpen]);
+  }, [editingTask, defaultStatus, currentUser, isOpen, eligibleUsers]);
 
   if (!isOpen) return null;
-
-  const eligibleUsers = React.useMemo(() => {
-    if (!activeProject) return users;
-    return users.filter(
-      (u) =>
-        activeProject.memberIds?.includes(u.id) ||
-        u.id === activeProject.createdBy ||
-        u.id === editingTask?.assignedTo
-    );
-  }, [users, activeProject, editingTask]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,12 +81,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setError('El título de la tarea es obligatorio.');
       return;
     }
+    const finalAssignee = assignedTo || eligibleUsers[0]?.id || currentUser?.id || '';
     onSave({
       title: title.trim(),
       description: description.trim(),
       status,
       priority,
-      assignedTo,
+      assignedTo: finalAssignee,
       dueDate: dueDate || undefined,
       projectId: activeProject?.id,
     });

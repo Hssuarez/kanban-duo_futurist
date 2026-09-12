@@ -143,28 +143,32 @@ export const KanbanBoard: React.FC = () => {
       (p) =>
         sessionUser.role === 'admin' ||
         p.createdBy === sessionUser.id ||
-        p.memberIds?.includes(sessionUser.id)
+        (Array.isArray(p.memberIds) && p.memberIds.includes(sessionUser.id))
     );
   }, [projects, sessionUser]);
 
-  // Proyecto activo actual
+  // Proyecto activo actual con múltiples capas de respaldo
   const activeProject = useMemo(() => {
     const found = accessibleProjects.find((p) => p.id === activeProjectId);
-    return found || accessibleProjects[0] || DEFAULT_PROJECTS[0];
-  }, [accessibleProjects, activeProjectId]);
+    return found || accessibleProjects[0] || projects[0] || DEFAULT_PROJECTS[0];
+  }, [accessibleProjects, activeProjectId, projects]);
 
   // Tareas pertenecientes al proyecto activo
   const projectTasks = useMemo(() => {
-    return tasks.filter((t) => (t.projectId || 'proj-default') === activeProject.id);
-  }, [tasks, activeProject.id]);
+    const projId = activeProject?.id || 'proj-default';
+    return tasks.filter((t) => (t.projectId || 'proj-default') === projId);
+  }, [tasks, activeProject?.id]);
 
   // Miembros del proyecto activo
   const projectMembers = useMemo(() => {
-    return users.filter(
+    if (!activeProject) return users;
+    const memberIds = Array.isArray(activeProject.memberIds) ? activeProject.memberIds : [];
+    const list = users.filter(
       (u) =>
-        activeProject.memberIds?.includes(u.id) ||
+        memberIds.includes(u.id) ||
         u.id === activeProject.createdBy
     );
+    return list.length > 0 ? list : users;
   }, [users, activeProject]);
 
   // Peer dentro del proyecto activo
@@ -226,34 +230,52 @@ export const KanbanBoard: React.FC = () => {
   }) => {
     if (!sessionUser) return;
 
-    if (editingTask) {
-      await updateTask(
-        editingTask.id,
-        {
-          ...taskData,
-          projectId: taskData.projectId || editingTask.projectId || activeProject.id,
-        },
-        sessionUser
-      );
-      if (taskData.status === 'finalizado' && editingTask.status !== 'finalizado') {
-        confetti({
-          particleCount: 100,
-          spread: 80,
-          origin: { y: 0.6 },
-          colors: ['#06b6d4', '#ec4899', '#10b981', '#f59e0b'],
-        });
+    try {
+      const targetProjectId =
+        taskData.projectId ||
+        activeProject?.id ||
+        getActiveProjectId() ||
+        'proj-default';
+
+      if (editingTask) {
+        await updateTask(
+          editingTask.id,
+          {
+            ...taskData,
+            projectId: targetProjectId,
+          },
+          sessionUser
+        );
+        if (taskData.status === 'finalizado' && editingTask.status !== 'finalizado') {
+          confetti({
+            particleCount: 100,
+            spread: 80,
+            origin: { y: 0.6 },
+            colors: ['#06b6d4', '#ec4899', '#10b981', '#f59e0b'],
+          });
+        }
+      } else {
+        await createTask(
+          {
+            ...taskData,
+            projectId: targetProjectId,
+            createdBy: sessionUser.id,
+          },
+          sessionUser
+        );
       }
-    } else {
-      await createTask(
-        {
-          ...taskData,
-          projectId: activeProject.id,
-          createdBy: sessionUser.id,
-        },
-        sessionUser
-      );
+
+      // Si la tarea creada/editada no está asignada al usuario actual y estaba en 'mine',
+      // cambiar automáticamente el filtro a 'all' para que el usuario VEA INMEDIATAMENTE
+      // la tarea que acaba de guardar y no piense que "desapareció o se estalló"
+      if (taskData.assignedTo !== sessionUser.id && spaceFilter === 'mine') {
+        setSpaceFilter('all');
+      }
+
+      refreshData();
+    } catch (err) {
+      console.error('Error al procesar tarea en tablero:', err);
     }
-    refreshData();
   };
 
   const handleDeleteTask = async (taskId: string) => {

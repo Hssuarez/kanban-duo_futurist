@@ -34,7 +34,7 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
     return list.length > 0 ? list : users;
   }, [users, currentUser]);
 
-  const peerUser = peers.find((p) => p.id === selectedPeerId) || peers[0] || users[0];
+  const peerUser = peers.find((p) => p.id === selectedPeerId) || peers[0] || users[0] || currentUser;
   const isOnline = Boolean(peerUser && onlineUserIds.includes(peerUser.id));
 
   const peerWorkingTasks = tasks.filter(
@@ -99,7 +99,7 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
                     ))}
                   </select>
                 ) : (
-                  <span>{peerUser?.name?.toUpperCase()}</span>
+                  <span>{peerUser?.name?.toUpperCase() || 'COMPAÑERO'}</span>
                 )}
               </div>
 

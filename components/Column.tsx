@@ -57,7 +57,14 @@ export const Column: React.FC<ColumnProps> = ({
       titleColor: 'text-emerald-300',
       glow: 'shadow-[0_0_20px_rgba(16,185,129,0.12)]',
     },
-  }[status];
+  }[status] || {
+    borderColor: 'border-t-cyan-400',
+    badgeBg: 'bg-cyan-950/80 text-cyan-300 border-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.3)]',
+    icon: ListTodo,
+    iconColor: 'text-cyan-400',
+    titleColor: 'text-cyan-300',
+    glow: 'shadow-[0_0_20px_rgba(6,182,212,0.12)]',
+  };
 
   const IconComponent = columnConfig.icon;
 
