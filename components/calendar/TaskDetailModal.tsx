@@ -9,6 +9,7 @@ import {
   formatBogotaTime,
   calculateDuration,
   isTaskOverdue,
+  isTaskDueToday,
 } from '@/lib/dateUtils';
 import {
   X,
@@ -59,6 +60,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const assignedUser = users.find((u) => u.id === task.assignedTo);
   const createdByUser = users.find((u) => u.id === task.createdBy);
   const overdue = isTaskOverdue(task.dueDate, task.status);
+  const dueToday = isTaskDueToday(task.dueDate, task.status);
 
   const statusConfig: Record<
     TaskStatus,
@@ -237,10 +239,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </span>
                 <span
                   className={`text-[11px] font-bold ${
-                    overdue ? 'text-rose-400' : 'text-slate-200'
+                    overdue
+                      ? 'text-rose-400'
+                      : dueToday
+                      ? 'text-amber-300'
+                      : 'text-slate-200'
                   }`}
                 >
-                  {formatBogotaDate(task.dueDate)}
+                  {formatBogotaDate(task.dueDate)} {dueToday ? '(HOY)' : overdue ? '(VENCIDA)' : ''}
                 </span>
               </div>
             </div>

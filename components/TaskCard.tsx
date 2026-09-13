@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Task, User, TaskStatus } from '@/lib/types';
+import { isTaskOverdue, isTaskDueToday, formatDueDateBadge } from '@/lib/dateUtils';
 import { Calendar, CheckCircle2, Play, RotateCcw, Trash2, Edit3, User as UserIcon } from 'lucide-react';
 
 interface TaskCardProps {
@@ -40,12 +41,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
   const priorityKey = (task.priority in priorityColors ? task.priority : 'media') as keyof typeof priorityColors;
 
-  const isOverdue = Boolean(
-    task.dueDate &&
-    !isNaN(new Date(task.dueDate).getTime()) &&
-    new Date(task.dueDate) < new Date() &&
-    task.status !== 'finalizado'
-  );
+  const overdue = isTaskOverdue(task.dueDate, task.status);
+  const dueToday = isTaskDueToday(task.dueDate, task.status);
 
   return (
     <div
@@ -122,25 +119,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         {/* Due Date */}
         {task.dueDate && (
           <div
-            className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-              isOverdue
+            className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
+              overdue
                 ? 'bg-rose-950/80 text-rose-400 border border-rose-500/50 shadow-[0_0_8px_rgba(244,63,94,0.3)]'
+                : dueToday
+                ? 'bg-amber-950/80 text-amber-300 border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.25)]'
                 : 'bg-slate-900 text-slate-400 border border-slate-800'
             }`}
+            title={overdue ? 'Tarea vencida' : dueToday ? 'Vence hoy' : 'Fecha límite'}
           >
-            <Calendar className="w-3 h-3" />
-            <span>
-              {(() => {
-                try {
-                  const d = new Date(task.dueDate);
-                  return isNaN(d.getTime())
-                    ? task.dueDate
-                    : d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
-                } catch {
-                  return task.dueDate;
-                }
-              })()}
-            </span>
+            <Calendar className="w-3 h-3 shrink-0" />
+            <span>{formatDueDateBadge(task.dueDate)}</span>
           </div>
         )}
       </div>

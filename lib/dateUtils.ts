@@ -44,6 +44,13 @@ export function formatBogotaDateTime(isoString?: string | null): string {
 export function formatBogotaDate(isoString?: string | null): string {
   if (!isoString) return '--';
   try {
+    const clean = isoString.trim();
+    // Prevenir desfase horario UTC-5 en strings de solo fecha YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+      const [y, m, d] = clean.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return '--';
 
@@ -237,10 +244,74 @@ export function getFilterDateRange(
 }
 
 /**
- * Checks if a task is overdue (due_date in the past and status !== 'finalizado')
+ * Formats a due date (YYYY-MM-DD) into a clean, timezone-safe short badge
+ * e.g. 'HOY, 13 SEP', 'MAÑANA, 14 SEP', '15 SEP'
+ */
+export function formatDueDateBadge(dueDate?: string | null): string {
+  if (!dueDate) return '--';
+  try {
+    const clean = dueDate.trim();
+    const match = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const year = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      const day = parseInt(match[3], 10);
+
+      const MONTHS = [
+        'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN',
+        'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'
+      ];
+      const monthName = MONTHS[month - 1] || `${month}`;
+
+      const todayKey = getBogotaDayKey(new Date().toISOString());
+      const [ty, tm, td] = todayKey.split('-').map(Number);
+      const todayDateUtc = Date.UTC(ty, tm - 1, td);
+      const dueDateUtc = Date.UTC(year, month - 1, day);
+      const diffDays = Math.round((dueDateUtc - todayDateUtc) / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 0) {
+        return `HOY, ${day} ${monthName}`;
+      }
+      if (diffDays === 1) {
+        return `MAÑANA, ${day} ${monthName}`;
+      }
+      if (diffDays === -1) {
+        return `AYER, ${day} ${monthName}`;
+      }
+
+      return `${day} ${monthName}`;
+    }
+
+    const d = new Date(dueDate);
+    if (isNaN(d.getTime())) return dueDate;
+
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+      timeZone: BOGOTA_TZ,
+      day: 'numeric',
+      month: 'short',
+    });
+    return formatter.format(d).toUpperCase();
+  } catch {
+    return dueDate;
+  }
+}
+
+/**
+ * Checks if a task is due today in America/Bogota
+ */
+export function isTaskDueToday(dueDate?: string, status?: string): boolean {
+  if (!dueDate || status === 'finalizado') return false;
+  const todayKey = getBogotaDayKey(new Date().toISOString());
+  const dueKey = dueDate.trim().substring(0, 10);
+  return dueKey === todayKey;
+}
+
+/**
+ * Checks if a task is overdue (due_date in the past relative to America/Bogota and status !== 'finalizado')
  */
 export function isTaskOverdue(dueDate?: string, status?: string): boolean {
   if (!dueDate || status === 'finalizado') return false;
   const todayKey = getBogotaDayKey(new Date().toISOString());
-  return dueDate < todayKey;
+  const dueKey = dueDate.trim().substring(0, 10);
+  return dueKey < todayKey;
 }
