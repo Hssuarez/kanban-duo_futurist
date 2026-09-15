@@ -149,17 +149,37 @@ export const Column: React.FC<ColumnProps> = ({
           />
         ))}
 
-        {tasks.length === 0 && (
+        {/* Drop Insertion Target Cue when dragging over */}
+        {isDragOver && (
+          <div className="border-2 border-dashed border-cyan-400/60 bg-cyan-950/20 rounded-xl p-3 text-center text-cyan-300 text-xs font-medium flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.15)] animate-pulse">
+            <span>Soltar tarea en ${title}</span>
+          </div>
+        )}
+
+        {/* Intentional, Context-Specific Empty State */}
+        {tasks.length === 0 && !isDragOver && (
           <div
             onClick={() => onAddNew(status)}
-            className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/[0.08] hover:border-white/[0.16] hover:bg-zinc-900/30 rounded-xl p-6 text-center text-zinc-500 text-xs min-h-[140px] cursor-pointer transition-colors group select-none"
+            className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/[0.08] hover:border-white/[0.18] hover:bg-zinc-900/30 rounded-xl p-6 text-center text-xs min-h-[160px] cursor-pointer transition-all group select-none"
           >
-            <p className="text-zinc-500 group-hover:text-zinc-400 font-medium transition-colors">
-              Sin tareas
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2.5 border transition-transform group-hover:scale-110 ${columnConfig.iconBg}`}>
+              <IconComponent className="w-4 h-4" />
+            </div>
+            <p className="text-zinc-300 font-medium group-hover:text-white transition-colors">
+              {status === 'iniciado' && 'Sin tareas por iniciar'}
+              {status === 'trabajando' && 'Sin tareas en curso'}
+              {status === 'finalizado' && 'Sin tareas finalizadas'}
             </p>
-            <span className="text-[11px] text-zinc-600 group-hover:text-zinc-400 mt-1 inline-flex items-center gap-1 transition-colors">
-              <Plus className="w-3 h-3" /> Crear tarea aquí
-            </span>
+            <p className="text-[11px] text-zinc-500 max-w-[200px] mt-1 leading-relaxed">
+              {status === 'iniciado' && 'Crea tareas pendientes para comenzar a planificar'}
+              {status === 'trabajando' && 'Inicia una tarea de la columna anterior para empezar'}
+              {status === 'finalizado' && 'Las tareas completadas y su tiempo aparecerán aquí'}
+            </p>
+            {status !== 'finalizado' && (
+              <span className="text-[11px] text-zinc-400 group-hover:text-cyan-400 mt-2.5 inline-flex items-center gap-1 font-medium transition-colors">
+                <Plus className="w-3 h-3" /> Crear tarea aquí
+              </span>
+            )}
           </div>
         )}
       </div>

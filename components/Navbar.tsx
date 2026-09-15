@@ -65,6 +65,28 @@ export const Navbar: React.FC<NavbarProps> = ({
   const userMenuRef = useRef<HTMLDivElement>(null);
   const peerMenuRef = useRef<HTMLDivElement>(null);
 
+  // Aceternity Animated Tabs sliding pill indicators
+  const viewTabsRef = useRef<HTMLDivElement>(null);
+  const [viewIndicator, setViewIndicator] = useState<{ left: number; width: number; ready: boolean }>({ left: 0, width: 0, ready: false });
+
+  const spaceTabsRef = useRef<HTMLDivElement>(null);
+  const [spaceIndicator, setSpaceIndicator] = useState<{ left: number; width: number; ready: boolean }>({ left: 0, width: 0, ready: false });
+
+  // Update View Tabs sliding pill position
+  useEffect(() => {
+    if (!viewTabsRef.current) return;
+    const activeEl = viewTabsRef.current.querySelector(`[data-view="${currentView}"]`) as HTMLElement;
+    if (activeEl) {
+      setViewIndicator({
+        left: activeEl.offsetLeft,
+        width: activeEl.offsetWidth,
+        ready: true,
+      });
+    }
+  }, [currentView]);
+
+
+
   useEffect(() => {
     const unsub = subscribeToPresence((ids) => setOnlineUserIds(ids));
     return () => unsub();
@@ -108,6 +130,37 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [otherMembers, spaceFilter]);
 
   const isPeerActive = spaceFilter !== 'mine' && spaceFilter !== 'all';
+
+  // Update Space Tabs sliding pill position
+  useEffect(() => {
+    if (!spaceTabsRef.current) return;
+    const spaceKey = spaceFilter === 'mine' ? 'mine' : spaceFilter === 'all' ? 'all' : 'peer';
+    const activeEl = spaceTabsRef.current.querySelector(`[data-space="${spaceKey}"]`) as HTMLElement;
+    if (activeEl) {
+      setSpaceIndicator({
+        left: activeEl.offsetLeft,
+        width: activeEl.offsetWidth,
+        ready: true,
+      });
+    }
+  }, [spaceFilter, otherMembers, selectedTeammate]);
+
+  // Re-measure on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (viewTabsRef.current) {
+        const activeEl = viewTabsRef.current.querySelector(`[data-view="${currentView}"]`) as HTMLElement;
+        if (activeEl) setViewIndicator({ left: activeEl.offsetLeft, width: activeEl.offsetWidth, ready: true });
+      }
+      if (spaceTabsRef.current) {
+        const spaceKey = spaceFilter === 'mine' ? 'mine' : spaceFilter === 'all' ? 'all' : 'peer';
+        const activeEl = spaceTabsRef.current.querySelector(`[data-space="${spaceKey}"]`) as HTMLElement;
+        if (activeEl) setSpaceIndicator({ left: activeEl.offsetLeft, width: activeEl.offsetWidth, ready: true });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [currentView, spaceFilter]);
 
   return (
     <header className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-xl border-b border-white/[0.08] shadow-sm font-sans">
@@ -268,14 +321,30 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Navigation Bar: Section Tabs & Space Navigation */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-white/[0.06] py-2 overflow-visible gap-2 sm:gap-3">
-          {/* Main App Section Tabs (Board / Calendar / Dashboard) */}
-          <div className="flex items-center gap-1 p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 self-start sm:self-auto max-w-full relative">
+          {/* Main App Section Tabs with Aceternity Animated Sliding Pill */}
+          <div
+            ref={viewTabsRef}
+            className="flex items-center gap-1 p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 self-start sm:self-auto max-w-full relative"
+          >
+            {/* Sliding Pill Indicator */}
+            {viewIndicator.ready && (
+              <div
+                className="absolute top-0.5 bottom-0.5 rounded-lg bg-zinc-800 border border-white/10 shadow-sm transition-all duration-200 pointer-events-none"
+                style={{
+                  transform: `translateX(${viewIndicator.left}px)`,
+                  width: `${viewIndicator.width}px`,
+                  transitionTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)',
+                }}
+              />
+            )}
+
             <button
+              data-view="board"
               onClick={() => setCurrentView('board')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
+              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                 currentView === 'board'
-                  ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                  ? 'text-white font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <Kanban className="w-3.5 h-3.5" />
@@ -283,11 +352,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             <button
+              data-view="calendar"
               onClick={() => setCurrentView('calendar')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
+              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                 currentView === 'calendar'
-                  ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                  ? 'text-white font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
@@ -295,11 +365,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             <button
+              data-view="dashboard"
               onClick={() => setCurrentView('dashboard')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
+              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                 currentView === 'dashboard'
-                  ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                  ? 'text-white font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
@@ -307,15 +378,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
 
-          {/* Space Navigation Tabs (Mine / Teammate(s) / All) */}
-          <div className="flex items-center gap-1 p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 self-start sm:self-auto max-w-full relative overflow-visible">
+          {/* Space Navigation Tabs with Aceternity Animated Sliding Pill */}
+          <div
+            ref={spaceTabsRef}
+            className="flex items-center gap-1 p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 self-start sm:self-auto max-w-full relative overflow-visible"
+          >
+            {/* Sliding Pill Indicator */}
+            {spaceIndicator.ready && (
+              <div
+                className="absolute top-0.5 bottom-0.5 rounded-lg bg-zinc-800 border border-white/10 shadow-sm transition-all duration-200 pointer-events-none"
+                style={{
+                  transform: `translateX(${spaceIndicator.left}px)`,
+                  width: `${spaceIndicator.width}px`,
+                  transitionTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)',
+                }}
+              />
+            )}
+
             {/* Mis tareas */}
             <button
+              data-space="mine"
               onClick={() => setSpaceFilter('mine')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
+              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                 spaceFilter === 'mine'
-                  ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                  ? 'text-white font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <UserIcon className="w-3.5 h-3.5" />
@@ -325,15 +412,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Teammate(s) selector */}
             {otherMembers.length <= 1 ? (
               <button
+                data-space="peer"
                 onClick={() => {
                   if (otherMembers[0]) {
                     setSpaceFilter(otherMembers[0].id);
                   }
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
+                className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                   isPeerActive
-                    ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                    ? 'text-white font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
@@ -346,13 +434,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             ) : (
               /* Multiple teammates: interactive dropdown */
-              <div className="relative" ref={peerMenuRef}>
+              <div className="relative z-10" ref={peerMenuRef}>
                 <button
+                  data-space="peer"
                   onClick={() => setShowPeerDropdown(!showPeerDropdown)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                     isPeerActive
-                      ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                      ? 'text-white font-semibold'
+                      : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   <Users className="w-3.5 h-3.5" />
@@ -417,11 +506,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Todo el equipo */}
             <button
+              data-space="all"
               onClick={() => setSpaceFilter('all')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
+              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                 spaceFilter === 'all'
-                  ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                  ? 'text-white font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />

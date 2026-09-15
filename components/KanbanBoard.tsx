@@ -327,11 +327,10 @@ export const KanbanBoard: React.FC = () => {
   };
 
   // Filtrado de tareas dentro del proyecto activo
-  const filteredTasks = useMemo(() => {
+  // Tareas filtradas por espacio de trabajo (Mis tareas / Duvan / Todo el equipo)
+  const spaceFilteredTasks = useMemo(() => {
     if (!sessionUser) return [];
-
     return projectTasks.filter((task) => {
-      // 1. Filtro por espacio
       if (spaceFilter === 'mine' && task.assignedTo !== sessionUser.id) {
         return false;
       } else if (spaceFilter !== 'mine' && spaceFilter !== 'all') {
@@ -340,8 +339,16 @@ export const KanbanBoard: React.FC = () => {
           return false;
         }
       }
+      return true;
+    });
+  }, [projectTasks, spaceFilter, sessionUser, peerUser]);
 
-      // 2. Búsqueda
+  // Filtrado de tareas dentro del proyecto activo para el tablero Kanban (espacio + búsqueda + prioridad)
+  const filteredTasks = useMemo(() => {
+    if (!sessionUser) return [];
+
+    return spaceFilteredTasks.filter((task) => {
+      // 1. Búsqueda
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesTitle = task.title.toLowerCase().includes(q);
@@ -349,14 +356,14 @@ export const KanbanBoard: React.FC = () => {
         if (!matchesTitle && !matchesDesc) return false;
       }
 
-      // 3. Prioridad
+      // 2. Prioridad
       if (priorityFilter !== 'all' && task.priority !== priorityFilter) {
         return false;
       }
 
       return true;
     });
-  }, [projectTasks, spaceFilter, sessionUser, peerUser, searchQuery, priorityFilter]);
+  }, [spaceFilteredTasks, sessionUser, searchQuery, priorityFilter]);
 
   const iniciadoTasks = useMemo(
     () => filteredTasks.filter((t) => t.status === 'iniciado'),
@@ -544,7 +551,7 @@ export const KanbanBoard: React.FC = () => {
         {currentView === 'calendar' && (
           <div className="animate-view-fade">
             <TaskCalendar
-              tasks={projectTasks}
+              tasks={spaceFilteredTasks}
               users={users}
               currentUser={sessionUser}
               onOpenNewTask={() => handleOpenAddNew('iniciado')}
@@ -557,7 +564,7 @@ export const KanbanBoard: React.FC = () => {
         {currentView === 'dashboard' && (
           <div className="animate-view-fade">
             <TaskDashboard
-              tasks={projectTasks}
+              tasks={spaceFilteredTasks}
               users={users}
               currentUser={sessionUser}
               onOpenTaskDetail={handleOpenEdit}

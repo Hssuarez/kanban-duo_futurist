@@ -57,6 +57,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
     () => new Date(initialTodayParts[0], initialTodayParts[1] - 1, initialTodayParts[2], 12, 0, 0)
   );
   const [selectedDateKey, setSelectedDateKey] = useState<string>(realTodayKey);
+  const [justClickedToday, setJustClickedToday] = useState(false);
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -96,7 +97,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
     return map;
   }, [filteredTasks]);
 
-  // Navigation handlers
+  // Navigation handlers with Day View synchronization
   const handlePrev = () => {
     const d = new Date(currentDate);
     if (viewMode === 'month') {
@@ -107,6 +108,9 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
       d.setDate(d.getDate() - 1);
     }
     setCurrentDate(d);
+    if (viewMode === 'day') {
+      setSelectedDateKey(formatDayKey(d.getFullYear(), d.getMonth(), d.getDate()));
+    }
   };
 
   const handleNext = () => {
@@ -119,15 +123,20 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
       d.setDate(d.getDate() + 1);
     }
     setCurrentDate(d);
+    if (viewMode === 'day') {
+      setSelectedDateKey(formatDayKey(d.getFullYear(), d.getMonth(), d.getDate()));
+    }
   };
 
-  // 100% Reliable "Hoy" handler
+  // 100% Reliable "Hoy" handler with instant Bogota real-time calculation and visual focus pulse
   const handleToday = () => {
     const nowIso = new Date().toISOString();
     const todayStr = getBogotaDayKey(nowIso);
     const [y, m, d] = todayStr.split('-').map(Number);
     setCurrentDate(new Date(y, m - 1, d, 12, 0, 0));
     setSelectedDateKey(todayStr);
+    setJustClickedToday(true);
+    setTimeout(() => setJustClickedToday(false), 1500);
   };
 
   const handleTaskClick = (task: Task) => {
@@ -300,9 +309,14 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
           <button
             onClick={handleToday}
-            className="px-3 py-1.5 text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-white/[0.08] hover:border-cyan-500/30 rounded-lg transition-all active:scale-[0.96]"
+            className={`px-3 py-1.5 text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border rounded-lg transition-all active:scale-[0.96] flex items-center gap-1.5 ${
+              justClickedToday
+                ? 'border-cyan-400 text-cyan-300 ring-2 ring-cyan-500/20'
+                : 'border-white/[0.08] hover:border-cyan-500/30'
+            }`}
           >
-            Hoy
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+            <span>Hoy</span>
           </button>
 
           <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight ml-1">
@@ -431,7 +445,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                     <span
                       className={`text-xs font-mono font-medium inline-flex items-center justify-center ${
                         day.isToday
-                          ? 'w-6 h-6 rounded-md bg-cyan-400 text-zinc-950 font-bold shadow-[0_0_10px_rgba(6,182,212,0.4)]'
+                          ? `w-6 h-6 rounded-md bg-cyan-400 text-zinc-950 font-bold shadow-[0_0_12px_rgba(6,182,212,0.5)] ${justClickedToday ? 'ring-4 ring-cyan-400/50 animate-pulse' : ''}`
                           : day.isSelected
                           ? 'text-cyan-300 font-bold'
                           : day.isCurrentMonth
@@ -532,7 +546,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                     <span
                       className={`text-sm font-mono font-medium inline-flex items-center justify-center mt-1 ${
                         day.isToday
-                          ? 'w-7 h-7 rounded-md bg-cyan-400 text-zinc-950 font-bold'
+                          ? `w-7 h-7 rounded-md bg-cyan-400 text-zinc-950 font-bold ${justClickedToday ? 'ring-4 ring-cyan-400/50 animate-pulse' : ''}`
                           : 'text-zinc-200'
                       }`}
                     >

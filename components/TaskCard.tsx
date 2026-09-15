@@ -1,5 +1,7 @@
 'use client';
 
+import confetti from 'canvas-confetti';
+
 import React, { useState } from 'react';
 import { Task, User, TaskStatus } from '@/lib/types';
 import { isTaskOverdue, isTaskDueToday, formatDueDateBadge } from '@/lib/dateUtils';
@@ -53,19 +55,36 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const overdue = isTaskOverdue(task.dueDate, task.status);
   const dueToday = isTaskDueToday(task.dueDate, task.status);
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty('--mouse-x', `${x}px`);
+    e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
+  };
+
   const handleComplete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isCompleting) return;
     setIsCompleting(true);
+
+    confetti({
+      particleCount: 28,
+      spread: 50,
+      origin: { y: 0.65 },
+      colors: ['#10b981', '#34d399', '#06b6d4'],
+    });
+
     setTimeout(() => {
       onMoveStatus(task.id, 'finalizado');
       setIsCompleting(false);
-    }, 180);
+    }, 200);
   };
 
   return (
     <div
       draggable
+      onMouseMove={handleMouseMove}
       onDragStart={(e) => {
         onDragStart(e, task.id);
         (e.currentTarget as HTMLElement).classList.add('dragging');
@@ -73,10 +92,24 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       onDragEnd={(e) => {
         (e.currentTarget as HTMLElement).classList.remove('dragging');
       }}
-      className={`group relative bg-zinc-900/80 hover:bg-zinc-900/95 border border-white/[0.08] hover:border-cyan-500/30 rounded-xl p-3.5 shadow-sm hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 hover:ring-1 hover:ring-white/[0.08] transition-[transform,background-color,border-color,box-shadow] duration-150 cursor-grab active:cursor-grabbing font-sans select-none ${
+      className={`group relative bg-zinc-900/80 hover:bg-zinc-900/95 border border-white/[0.08] hover:border-cyan-500/40 rounded-xl p-3.5 shadow-sm hover:shadow-[0_10px_28px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 hover:ring-1 hover:ring-cyan-500/20 transition-[transform,background-color,border-color,box-shadow] duration-150 cursor-grab active:cursor-grabbing font-sans select-none overflow-hidden ${
         isCompleting ? 'animate-card-complete bg-emerald-950/30 border-emerald-500/60 ring-1 ring-emerald-500/40' : ''
       }`}
     >
+      {/* Aceternity Spotlight: Smooth Cursor-Tracking Radial Halo (GPU Accelerated) */}
+      <div
+        className="pointer-events-none absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-0"
+        style={{
+          background: 'radial-gradient(220px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), rgba(255, 255, 255, 0.05), transparent 80%)',
+        }}
+      />
+      <div
+        className="pointer-events-none absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 ring-1 ring-cyan-400/20 z-0"
+        style={{
+          maskImage: 'radial-gradient(150px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), black 30%, transparent 80%)',
+          WebkitMaskImage: 'radial-gradient(150px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), black 30%, transparent 80%)',
+        }}
+      />
       {/* Top Meta: Priority & Actions */}
       <div className="flex items-center justify-between gap-2 mb-2">
         <span
@@ -202,10 +235,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <button
               onClick={handleComplete}
               disabled={isCompleting}
-              className="flex items-center gap-1 text-[11px] font-medium bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 px-2.5 py-0.5 rounded-md transition-all active:scale-[0.96]"
+              className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-md transition-all active:scale-[0.95] ${
+                isCompleting
+                  ? 'bg-emerald-500 text-white font-semibold ring-2 ring-emerald-400/50 shadow-md scale-95'
+                  : 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30'
+              }`}
             >
-              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-              {isCompleting ? 'Finalizando...' : 'Completar'}
+              <CheckCircle2 className={`w-3.5 h-3.5 transition-transform ${isCompleting ? 'text-white scale-110' : 'text-emerald-400'}`} />
+              <span>{isCompleting ? '¡Completada!' : 'Completar'}</span>
             </button>
           </>
         )}
