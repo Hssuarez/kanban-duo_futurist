@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import createGlobe, { COBEOptions, Arc } from 'cobe';
+import createGlobe, { COBEOptions, Marker, Arc } from 'cobe';
 
 interface GlobeProps {
   className?: string;
@@ -58,14 +58,28 @@ const CHANNELS: { from: [number, number]; to: [number, number]; id: string }[] =
   { from: [51.5074, -0.1278], to: [1.3521, 103.8198], id: 'lon-sgp' }, // London -> Singapore
   { from: [1.3521, 103.8198], to: [35.6762, 139.6503], id: 'sgp-tokyo' }, // Singapore -> Tokyo
   { from: [4.711, -74.0721], to: [51.5074, -0.1278], id: 'bog-lon' }, // Bogotá -> London
-  { from: [40.4168, -3.7038], to: [-33.9249, 18.4241], id: 'mad-cpt' }, // Madrid -> Cape Town
+  { from: [40.7128, -74.006], to: [4.711, -74.0721], id: 'ny-bog' }, // NY -> Bogotá
 ];
 
-// Faint static baseline orbital network (subtle, razor-fine background mesh that does not collide with active channels)
+// Persistent base hub markers: tiny, highly brilliant pinpoints of light (sparkling starbursts, size 0.008 - 0.009)
+const BASE_MARKERS: Marker[] = [
+  { location: [4.711, -74.0721], size: 0.009, color: [1.0, 0.88, 0.42] }, // Bogotá (radiant amber)
+  { location: [37.7749, -122.4194], size: 0.009, color: [0.85, 1.0, 1.0] }, // San Francisco (brilliant white-cyan)
+  { location: [40.7128, -74.006], size: 0.009, color: [1.0, 1.0, 1.0] }, // New York (pure white)
+  { location: [40.4168, -3.7038], size: 0.008, color: [1.0, 0.85, 0.40] }, // Madrid (radiant amber)
+  { location: [35.6762, 139.6503], size: 0.009, color: [0.85, 1.0, 1.0] }, // Tokyo (brilliant white-cyan)
+  { location: [51.5074, -0.1278], size: 0.009, color: [1.0, 1.0, 1.0] }, // London (pure white)
+  { location: [1.3521, 103.8198], size: 0.008, color: [1.0, 0.88, 0.42] }, // Singapore (amber)
+  { location: [-23.5505, -46.6333], size: 0.009, color: [0.80, 1.0, 1.0] }, // São Paulo (cyan)
+  { location: [-33.9249, 18.4241], size: 0.008, color: [1.0, 0.85, 0.40] }, // Cape Town (amber)
+];
+
+// Static baseline orbital network (bright, razor-fine luminous filaments that do not collide with active channels)
 const BASE_ARCS: Arc[] = [
-  { from: [37.7749, -122.4194], to: [35.6762, 139.6503], color: [0.08, 0.42, 0.60] }, // SF <-> Tokyo
-  { from: [-23.5505, -46.6333], to: [40.4168, -3.7038], color: [0.08, 0.42, 0.60] }, // São Paulo <-> Madrid
-  { from: [51.5074, -0.1278], to: [-33.9249, 18.4241], color: [0.40, 0.30, 0.12] }, // London <-> Cape Town (subtle gold)
+  { from: [37.7749, -122.4194], to: [35.6762, 139.6503], color: [0.25, 0.90, 1.0] }, // SF <-> Tokyo (bright electric cyan)
+  { from: [-23.5505, -46.6333], to: [40.4168, -3.7038], color: [0.30, 0.92, 1.0] }, // São Paulo <-> Madrid (bright electric cyan)
+  { from: [51.5074, -0.1278], to: [-33.9249, 18.4241], color: [1.0, 0.85, 0.42] }, // London <-> Cape Town (radiant gold)
+  { from: [40.4168, -3.7038], to: [1.3521, 103.8198], color: [0.28, 0.88, 1.0] }, // Madrid <-> Singapore (bright cyan)
 ];
 
 interface ActiveTransmission {
@@ -159,24 +173,24 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
         phi: 0,
         theta: 0.20,
         dark: 1,
-        diffuse: 1.18,
+        diffuse: 1.20,
         mapSamples: 16000,
-        mapBrightness: 4.25,
+        mapBrightness: 4.35,
         baseColor: [0.06, 0.09, 0.16],
-        markerColor: [0.20, 0.90, 1.0],
-        glowColor: [0.08, 0.42, 0.76],
-        opacity: 0.84,
-        markers: [], // Eliminates flat circular sticker markers completely (no "puntos redondeados")
+        markerColor: [0.30, 0.95, 1.0],
+        glowColor: [0.10, 0.48, 0.82],
+        opacity: 0.86,
+        markers: BASE_MARKERS,
         arcs: BASE_ARCS,
-        arcColor: [0.15, 0.85, 1.0],
-        arcWidth: 0.14, // Ultra-fine, razor-thin luminous filaments
+        arcColor: [0.30, 0.92, 1.0],
+        arcWidth: 0.18, // Crisp, highly luminous filaments
         arcHeight: 0.22,
-        markerElevation: 0,
+        markerElevation: 0.015,
       };
 
       globe = createGlobe(canvasRef.current, options);
 
-      // 60FPS WebGL Render Loop with Clean, Single-Arc Luminous Tracing (No Double Lines, No Markers)
+      // 60FPS WebGL Render Loop with Clean Single-Arc Luminous Tracing & Pinpoint Star Sparks
       const render = () => {
         if (!prefersReducedMotion) {
           currentPhi += 0.0016;
@@ -185,8 +199,9 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
         // Smooth lerp for subtle mouse interaction
         smoothNudge += (mouseDeltaRef.current - smoothNudge) * 0.05;
 
-        // Dynamic Arc array initialized with background mesh
+        // Dynamic Arc and Marker arrays initialized with background mesh
         const dynamicArcs: Arc[] = [...BASE_ARCS];
+        const dynamicMarkers: Marker[] = [...BASE_MARKERS];
 
         if (!prefersReducedMotion) {
           for (let i = 0; i < transmissions.length; i++) {
@@ -219,11 +234,18 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
               const currentHead = slerp(channel.from, channel.to, Math.min(1.0, tx.progress));
 
               // Hyper-brilliant laser streak tracing across the world (Single clean arc, NO duplicate loops)
-              const pulse = 0.90 + Math.sin(tx.progress * Math.PI * 3) * 0.10;
+              const pulse = 0.92 + Math.sin(tx.progress * Math.PI * 3) * 0.08;
               dynamicArcs.push({
                 from: channel.from,
                 to: currentHead,
-                color: [0.75 * pulse, 0.98 * pulse, 1.0], // Radiant incandescent white-cyan beam
+                color: [0.85 * pulse, 1.0, 1.0], // High-brilliance white-cyan beam
+              });
+
+              // Tiny, highly brilliant pinpoint spark at the leading tip (diminuta pero muy brillante)
+              dynamicMarkers.push({
+                location: currentHead,
+                size: 0.009, // Tiny 3px pinpoint, sharp specular star
+                color: [1.0, 1.0, 1.0], // Pure incandescent white
               });
             } else if (tx.state === 'holding') {
               tx.holdTimer--;
@@ -231,7 +253,14 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
               dynamicArcs.push({
                 from: channel.from,
                 to: channel.to,
-                color: [0.45, 0.95, 1.0], // Radiant electric cyan
+                color: [0.60, 0.98, 1.0], // Radiant electric cyan
+              });
+
+              // Arrival beacon at destination station (tiny, highly brilliant starburst spark)
+              dynamicMarkers.push({
+                location: channel.to,
+                size: 0.012,
+                color: [1.0, 1.0, 1.0],
               });
 
               if (tx.holdTimer <= 0) {
@@ -248,7 +277,7 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
                 dynamicArcs.push({
                   from: channel.from,
                   to: channel.to,
-                  color: [0.45 * alpha, 0.95 * alpha, 1.0 * alpha], // Smooth dissipation into space
+                  color: [0.60 * alpha, 0.98 * alpha, 1.0 * alpha], // Smooth dissipation into space
                 });
               }
             }
@@ -259,7 +288,7 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
           globe.update({
             phi: currentPhi + smoothNudge,
             arcs: dynamicArcs,
-            markers: [], // ZERO flat circular markers - purely razor-fine luminous lines
+            markers: dynamicMarkers,
           });
         }
 
@@ -290,7 +319,7 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
         className="absolute inset-0 rounded-full pointer-events-none -z-10"
         style={{
           background:
-            'radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.20) 0%, rgba(14, 165, 233, 0.10) 48%, rgba(2, 132, 199, 0.04) 65%, transparent 72%)',
+            'radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.22) 0%, rgba(14, 165, 233, 0.12) 48%, rgba(2, 132, 199, 0.04) 65%, transparent 72%)',
           filter: 'blur(30px)',
           transform: 'scale(1.04)',
         }}
