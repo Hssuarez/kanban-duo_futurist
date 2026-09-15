@@ -15,9 +15,14 @@ interface ConstellationNode {
   radius: number;
   baseAlpha: number;
   currentAlpha: number;
+  interactiveBoost: number; // Smooth lerp for radial mouse influence
   pulsePhase: number;
   pulseSpeed: number;
   colorType: 'cyan' | 'white' | 'slate';
+  // Staggered random ambient flare (1-2 seconds per node)
+  ambientFlare: number;
+  flareTarget: number;
+  flareTimer: number;
 }
 
 export const InteractiveConstellationBackground: React.FC<InteractiveConstellationBackgroundProps> = ({
@@ -53,29 +58,39 @@ export const InteractiveConstellationBackground: React.FC<InteractiveConstellati
       canvas.height = height * dpr;
       ctx.scale(dpr, dpr);
 
-      // Determine density based on viewport size (moderate, never crowded)
-      let nodeCount = 70;
+      // Balanced density based on viewport size (moderate, clean, never noisy)
+      let nodeCount = 72;
       if (width < 640) {
-        nodeCount = 24;
+        nodeCount = 26;
       } else if (width < 1024) {
-        nodeCount = 44;
+        nodeCount = 46;
       }
 
       nodes = [];
       for (let i = 0; i < nodeCount; i++) {
         const randType = Math.random();
         const colorType: 'cyan' | 'white' | 'slate' =
-          randType < 0.35 ? 'cyan' : randType < 0.7 ? 'white' : 'slate';
+          randType < 0.38 ? 'cyan' : randType < 0.72 ? 'white' : 'slate';
 
+        // Increased baseline visibility by ~35% - 45% as requested
+        // Clearly perceptible at rest without becoming blinding
         const baseAlpha =
           colorType === 'cyan'
-            ? 0.22 + Math.random() * 0.18
+            ? 0.35 + Math.random() * 0.22 // 0.35 - 0.57
             : colorType === 'white'
-            ? 0.18 + Math.random() * 0.18
-            : 0.10 + Math.random() * 0.12;
+            ? 0.28 + Math.random() * 0.20 // 0.28 - 0.48
+            : 0.18 + Math.random() * 0.14; // 0.18 - 0.32
+
+        // Distinct sizing for anchor and secondary stars
+        const radius =
+          colorType === 'cyan'
+            ? 1.4 + Math.random() * 0.9 // 1.4 - 2.3px
+            : colorType === 'white'
+            ? 1.2 + Math.random() * 0.8 // 1.2 - 2.0px
+            : 0.9 + Math.random() * 0.7; // 0.9 - 1.6px
 
         // Very slow, ambient organic drift
-        const speedMultiplier = prefersReducedMotion ? 0 : 0.06 + Math.random() * 0.07;
+        const speedMultiplier = prefersReducedMotion ? 0 : 0.05 + Math.random() * 0.06;
         const angle = Math.random() * Math.PI * 2;
 
         nodes.push({
@@ -83,19 +98,23 @@ export const InteractiveConstellationBackground: React.FC<InteractiveConstellati
           y: Math.random() * height,
           vx: Math.cos(angle) * speedMultiplier,
           vy: Math.sin(angle) * speedMultiplier,
-          radius: 1.0 + Math.random() * 1.1,
+          radius,
           baseAlpha,
           currentAlpha: baseAlpha,
+          interactiveBoost: 0,
           pulsePhase: Math.random() * Math.PI * 2,
-          pulseSpeed: 0.01 + Math.random() * 0.015,
+          pulseSpeed: 0.008 + Math.random() * 0.012,
           colorType,
+          ambientFlare: 0,
+          flareTarget: 0,
+          flareTimer: Math.floor(Math.random() * 200),
         });
       }
     };
 
     initNodes();
 
-    // Mouse tracking on window (Zero React re-renders)
+    // Mouse tracking on window (Zero React re-renders, 60fps)
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       mousePosRef.current = {
@@ -117,8 +136,8 @@ export const InteractiveConstellationBackground: React.FC<InteractiveConstellati
     window.addEventListener('resize', handleResize, { passive: true });
 
     // Constants for constellation dynamics
-    const maxConnectionDist = width < 640 ? 75 : 110;
-    const radialInfluenceRadius = width < 640 ? 100 : 155;
+    const maxConnectionDist = width < 640 ? 80 : 115;
+    const radialInfluenceRadius = width < 640 ? 110 : 160;
 
     // 60FPS Render Loop
     const render = () => {
@@ -126,7 +145,7 @@ export const InteractiveConstellationBackground: React.FC<InteractiveConstellati
 
       const mouse = mousePosRef.current;
 
-      // 1. Update node positions & ambient pulse
+      // 1. Update node positions, ambient flares & radial mouse influence
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
 
@@ -140,71 +159,91 @@ export const InteractiveConstellationBackground: React.FC<InteractiveConstellati
           if (node.y < -10) node.y = height + 10;
           if (node.y > height + 10) node.y = -10;
 
-          // Ambient subtle twinkle
-          node.pulsePhase += node.pulseSpeed;
+          // Staggered random ambient flare (only 1-2 stars in the entire sky at a time)
+          if (node.flareTimer > 0) {
+            node.flareTimer--;
+          } else if (Math.random() < 0.0006) {
+            // Trigger 1-2 second gentle flare
+            node.flareTarget = 0.24 + Math.random() * 0.16;
+            node.flareTimer = 180 + Math.floor(Math.random() * 300);
+          }
+
+          if (node.ambientFlare >= node.flareTarget - 0.02) {
+            node.flareTarget = 0; // fade back down
+          }
+
+          node.ambientFlare +=
+            (node.flareTarget - node.ambientFlare) *
+            (node.flareTarget > node.ambientFlare ? 0.025 : 0.012);
         }
 
-        const twinkle = Math.sin(node.pulsePhase) * 0.06;
-        let targetAlpha = node.baseAlpha + twinkle;
-        let scale = 1;
-
-        // Radial influence from mouse
+        // Calculate radial influence from cursor
+        let targetBoost = 0;
         if (mouse) {
           const dx = node.x - mouse.x;
           const dy = node.y - mouse.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < radialInfluenceRadius) {
-            const influence = 1 - dist / radialInfluenceRadius;
-            // Smooth ease-out curve for influence
-            const smoothInfluence = influence * influence * (3 - 2 * influence);
-            targetAlpha += smoothInfluence * 0.52;
-            scale += smoothInfluence * 0.8;
-
-            // Draw faint aura around nodes closest to cursor
-            if (smoothInfluence > 0.4) {
-              const auraRadius = (node.radius * scale) * 3.5;
-              const auraGrad = ctx.createRadialGradient(
-                node.x,
-                node.y,
-                0,
-                node.x,
-                node.y,
-                auraRadius
-              );
-              auraGrad.addColorStop(
-                0,
-                node.colorType === 'cyan'
-                  ? 'rgba(6, 182, 212, 0.25)'
-                  : 'rgba(255, 255, 255, 0.18)'
-              );
-              auraGrad.addColorStop(1, 'rgba(6, 182, 212, 0)');
-
-              ctx.beginPath();
-              ctx.arc(node.x, node.y, auraRadius, 0, Math.PI * 2);
-              ctx.fillStyle = auraGrad;
-              ctx.fill();
-            }
+            const rawInfluence = 1 - dist / radialInfluenceRadius;
+            // Smooth ease-out polynomial
+            targetBoost = rawInfluence * rawInfluence * (3 - 2 * rawInfluence);
           }
         }
 
-        node.currentAlpha = targetAlpha;
+        // Organic lerp: fast smooth fade-in (0.12), gentle delayed fade-out (0.04)
+        const lerpFactor = targetBoost > node.interactiveBoost ? 0.12 : 0.04;
+        node.interactiveBoost += (targetBoost - node.interactiveBoost) * lerpFactor;
 
-        // Draw star node
+        // Effective alpha and scale
+        const totalAlpha =
+          node.baseAlpha +
+          node.ambientFlare +
+          node.interactiveBoost * 0.45;
+
+        node.currentAlpha = Math.min(totalAlpha, 0.95);
+        const scale = 1 + node.interactiveBoost * 0.75;
+
+        // Draw soft aura around closest nodes
+        if (node.interactiveBoost > 0.35) {
+          const auraRadius = node.radius * scale * 3.4;
+          const auraGrad = ctx.createRadialGradient(
+            node.x,
+            node.y,
+            0,
+            node.x,
+            node.y,
+            auraRadius
+          );
+          auraGrad.addColorStop(
+            0,
+            node.colorType === 'cyan'
+              ? 'rgba(6, 182, 212, 0.28)'
+              : 'rgba(255, 255, 255, 0.20)'
+          );
+          auraGrad.addColorStop(1, 'rgba(6, 182, 212, 0)');
+
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, auraRadius, 0, Math.PI * 2);
+          ctx.fillStyle = auraGrad;
+          ctx.fill();
+        }
+
+        // Draw node body
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius * scale, 0, Math.PI * 2);
 
         if (node.colorType === 'cyan') {
-          ctx.fillStyle = `rgba(6, 182, 212, ${Math.min(node.currentAlpha, 0.95)})`;
+          ctx.fillStyle = `rgba(6, 182, 212, ${node.currentAlpha})`;
         } else if (node.colorType === 'white') {
-          ctx.fillStyle = `rgba(240, 244, 248, ${Math.min(node.currentAlpha, 0.9)})`;
+          ctx.fillStyle = `rgba(240, 244, 248, ${node.currentAlpha})`;
         } else {
-          ctx.fillStyle = `rgba(148, 163, 184, ${Math.min(node.currentAlpha, 0.7)})`;
+          ctx.fillStyle = `rgba(148, 163, 184, ${node.currentAlpha * 0.85})`;
         }
         ctx.fill();
       }
 
-      // 2. Draw connections between nearby nodes
+      // 2. Draw connections between nearby nodes with organic lerp and smooth fade-out
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i];
@@ -215,33 +254,25 @@ export const InteractiveConstellationBackground: React.FC<InteractiveConstellati
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < maxConnectionDist) {
-            let lineAlpha = (1 - dist / maxConnectionDist) * 0.10;
+            // Subtle baseline connection at rest (0.04 - 0.12)
+            const baseLineAlpha = (1 - dist / maxConnectionDist) * 0.10;
 
-            // Check if connection is within mouse radial influence
-            if (mouse) {
-              const midX = (a.x + b.x) / 2;
-              const midY = (a.y + b.y) / 2;
-              const distToMouse = Math.hypot(midX - mouse.x, midY - mouse.y);
-
-              if (distToMouse < radialInfluenceRadius) {
-                const mouseInfluence = 1 - distToMouse / radialInfluenceRadius;
-                lineAlpha += mouseInfluence * 0.30;
-              }
-            }
+            // Connection smoothly intensifies via the nodes' lerped interactiveBoost
+            const connectionBoost = Math.max(a.interactiveBoost, b.interactiveBoost);
+            const lineAlpha = baseLineAlpha + connectionBoost * 0.32;
 
             if (lineAlpha > 0.02) {
               ctx.beginPath();
               ctx.moveTo(a.x, a.y);
               ctx.lineTo(b.x, b.y);
 
-              // Use Cyan tint if either node is cyan, otherwise subtle slate
               if (a.colorType === 'cyan' || b.colorType === 'cyan') {
-                ctx.strokeStyle = `rgba(6, 182, 212, ${Math.min(lineAlpha, 0.50)})`;
+                ctx.strokeStyle = `rgba(6, 182, 212, ${Math.min(lineAlpha, 0.52)})`;
               } else {
-                ctx.strokeStyle = `rgba(148, 163, 184, ${Math.min(lineAlpha, 0.35)})`;
+                ctx.strokeStyle = `rgba(148, 163, 184, ${Math.min(lineAlpha, 0.38)})`;
               }
 
-              ctx.lineWidth = 0.6;
+              ctx.lineWidth = 0.65;
               ctx.stroke();
             }
           }
@@ -254,17 +285,20 @@ export const InteractiveConstellationBackground: React.FC<InteractiveConstellati
         for (let i = 0; i < nodes.length && connectionCount < 3; i++) {
           const node = nodes[i];
           const dist = Math.hypot(node.x - mouse.x, node.y - mouse.y);
-          const cursorConnectionLimit = 105;
+          const cursorConnectionLimit = 110;
 
           if (dist < cursorConnectionLimit) {
-            const alpha = (1 - dist / cursorConnectionLimit) * 0.20;
-            ctx.beginPath();
-            ctx.moveTo(mouse.x, mouse.y);
-            ctx.lineTo(node.x, node.y);
-            ctx.strokeStyle = `rgba(6, 182, 212, ${alpha})`;
-            ctx.lineWidth = 0.55;
-            ctx.stroke();
-            connectionCount++;
+            // Use node's smoothed interactiveBoost for smooth line fade
+            const alpha = (1 - dist / cursorConnectionLimit) * 0.22 * node.interactiveBoost;
+            if (alpha > 0.01) {
+              ctx.beginPath();
+              ctx.moveTo(mouse.x, mouse.y);
+              ctx.lineTo(node.x, node.y);
+              ctx.strokeStyle = `rgba(6, 182, 212, ${alpha})`;
+              ctx.lineWidth = 0.6;
+              ctx.stroke();
+              connectionCount++;
+            }
           }
         }
       }
@@ -285,7 +319,7 @@ export const InteractiveConstellationBackground: React.FC<InteractiveConstellati
   return (
     <div
       className={`pointer-events-none select-none transition-opacity duration-700 ${
-        isDimmed ? 'opacity-30' : 'opacity-80'
+        isDimmed ? 'opacity-35' : 'opacity-90'
       } ${className}`}
       aria-hidden="true"
     >

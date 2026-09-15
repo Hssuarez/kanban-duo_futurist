@@ -54,7 +54,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   return (
     <div
       onMouseMove={handleMouseMove}
-      className="min-h-screen bg-[#09090b] flex flex-col justify-center items-center p-4 sm:p-6 relative font-sans selection:bg-zinc-800 overflow-hidden"
+      className="min-h-screen bg-[#09090b] flex flex-col justify-center items-center p-4 sm:p-6 relative font-sans selection:bg-zinc-800 overflow-x-hidden overflow-y-auto"
     >
       {/* 1. FONDO: Subtle Atmospheric Deep Space Vignette */}
       <div
@@ -71,12 +71,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
         className="absolute inset-0 z-0"
       />
 
-      {/* 3. GLOBE: Aceternity COBE WebGL Globe Layer (Behind the card, offset to the right) */}
+      {/* 3. GLOBE: Aceternity COBE WebGL Globe Layer */}
+      {/* Mobile: Anchored at top (top-4 sm:top-8), centered horizontally so top hemisphere floats proudly above the card */}
+      {/* Desktop (md+): Centered vertically (md:top-1/2 md:-translate-y-1/2), positioned behind/right of the card */}
       <div
-        className={`absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-[2%] lg:right-[8%] xl:right-[12%] w-[380px] h-[380px] sm:w-[520px] sm:h-[520px] lg:w-[680px] lg:h-[680px] xl:w-[740px] xl:h-[740px] pointer-events-none transition-opacity duration-700 z-0 ${
+        className={`absolute top-4 sm:top-8 md:top-1/2 md:-translate-y-1/2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-[2%] lg:right-[8%] xl:right-[12%] w-[330px] h-[330px] sm:w-[440px] sm:h-[440px] md:w-[560px] md:h-[560px] lg:w-[680px] lg:h-[680px] xl:w-[740px] xl:h-[740px] pointer-events-none transition-opacity duration-700 z-0 ${
           isCardHovered
-            ? 'opacity-40 sm:opacity-60 lg:opacity-75'
-            : 'opacity-55 sm:opacity-80 lg:opacity-95'
+            ? 'opacity-65 sm:opacity-75 lg:opacity-85'
+            : 'opacity-85 sm:opacity-90 lg:opacity-95'
         }`}
         aria-hidden="true"
       >
@@ -87,7 +89,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
       <div
         onMouseEnter={() => setIsCardHovered(true)}
         onMouseLeave={() => setIsCardHovered(false)}
-        className="w-full max-w-sm relative z-10 py-2 animate-modal-enter transition-transform duration-300 ease-out"
+        className="w-full max-w-sm relative z-10 py-2 mt-28 sm:mt-24 md:mt-0 animate-modal-enter transition-transform duration-300 ease-out"
         style={{
           transform: `perspective(1000px) rotateX(${mousePos.y * -2.5}deg) rotateY(${mousePos.x * 2.5}deg)`,
         }}

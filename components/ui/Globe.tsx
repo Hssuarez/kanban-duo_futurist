@@ -26,29 +26,45 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
     let currentPhi = 0;
     let smoothNudge = 0;
     let animationFrameId: number;
+    let globe: ReturnType<typeof createGlobe> | null = null;
+
+    const getMeasuredWidth = () => {
+      if (!canvasRef.current) return 360;
+      return (
+        canvasRef.current.offsetWidth ||
+        canvasRef.current.clientWidth ||
+        canvasRef.current.parentElement?.clientWidth ||
+        360
+      );
+    };
+
+    width = getMeasuredWidth();
 
     const onResize = () => {
-      if (canvasRef.current) {
-        width = canvasRef.current.offsetWidth;
+      width = getMeasuredWidth();
+      const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 2);
+      if (globe && width > 0) {
+        globe.update({
+          width: width * dpr,
+          height: width * dpr,
+        });
       }
     };
     window.addEventListener('resize', onResize);
-    onResize();
 
     // Respect accessibility: prefers-reduced-motion
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    let globe: ReturnType<typeof createGlobe> | null = null;
-
-    if (canvasRef.current && width > 0) {
+    if (canvasRef.current) {
       const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 2);
+      const initialSize = width > 0 ? width : 360;
 
       const options: COBEOptions = {
         devicePixelRatio: dpr,
-        width: width * dpr,
-        height: width * dpr,
+        width: initialSize * dpr,
+        height: initialSize * dpr,
         phi: 0,
         theta: 0.18,
         dark: 1,
