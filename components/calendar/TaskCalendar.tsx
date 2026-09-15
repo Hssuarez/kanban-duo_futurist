@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Task, User, TaskStatus, TaskPriority, SpaceFilter } from '@/lib/types';
+import { Task, User, TaskStatus, TaskPriority } from '@/lib/types';
 import {
   BOGOTA_TZ,
   getBogotaDayKey,
@@ -21,11 +21,10 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
-  Flame,
   LayoutGrid,
   Columns,
   List,
-  Sparkles,
+  Plus,
 } from 'lucide-react';
 
 interface TaskCalendarProps {
@@ -34,6 +33,7 @@ interface TaskCalendarProps {
   currentUser: User;
   onOpenNewTask?: () => void;
   onOpenEditTask?: (task: Task) => void;
+  onUpdateTaskDueDate?: (taskId: string, newDueDate: string) => void;
 }
 
 type CalendarViewMode = 'month' | 'week' | 'day';
@@ -44,14 +44,28 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
   currentUser,
   onOpenNewTask,
   onOpenEditTask,
+  onUpdateTaskDueDate,
 }) => {
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+
+  // Real today key in America/Bogota
+  const realTodayKey = useMemo(() => getBogotaDayKey(new Date().toISOString()), []);
+  const initialTodayParts = useMemo(() => realTodayKey.split('-').map(Number), [realTodayKey]);
+
+  // Current viewed date and selected day key
+  const [currentDate, setCurrentDate] = useState<Date>(
+    () => new Date(initialTodayParts[0], initialTodayParts[1] - 1, initialTodayParts[2], 12, 0, 0)
+  );
+  const [selectedDateKey, setSelectedDateKey] = useState<string>(realTodayKey);
+
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [filterUser, setFilterUser] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+
+  // Drag over target for calendar drag-and-drop
+  const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
 
   // Helper to get deterministic single date key (YYYY-MM-DD) in Bogota for a task
   const getTaskDateKey = (task: Task): string => {
@@ -82,10 +96,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
     return map;
   }, [filteredTasks]);
 
-  // Current today key in Bogota
-  const todayKey = getBogotaDayKey(new Date().toISOString());
-
-  // Date navigation handlers
+  // Navigation handlers
   const handlePrev = () => {
     const d = new Date(currentDate);
     if (viewMode === 'month') {
@@ -110,8 +121,13 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
     setCurrentDate(d);
   };
 
+  // 100% Reliable "Hoy" handler
   const handleToday = () => {
-    setCurrentDate(new Date());
+    const nowIso = new Date().toISOString();
+    const todayStr = getBogotaDayKey(nowIso);
+    const [y, m, d] = todayStr.split('-').map(Number);
+    setCurrentDate(new Date(y, m - 1, d, 12, 0, 0));
+    setSelectedDateKey(todayStr);
   };
 
   const handleTaskClick = (task: Task) => {
@@ -119,13 +135,20 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
     setIsDetailModalOpen(true);
   };
 
-  // Month grid calculation
+  // Deterministic date string builder: YYYY-MM-DD
+  const formatDayKey = (year: number, monthZeroIndexed: number, day: number): string => {
+    const mStr = String(monthZeroIndexed + 1).padStart(2, '0');
+    const dStr = String(day).padStart(2, '0');
+    return `${year}-${mStr}-${dStr}`;
+  };
+
+  // Month grid calculation without timezone offset shifting
   const monthData = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
+    const firstDay = new Date(year, month, 1, 12, 0, 0);
+    const lastDay = new Date(year, month + 1, 0, 12, 0, 0);
 
     // Monday-based day of week (0 = Monday, 6 = Sunday)
     const firstDayIndex = (firstDay.getDay() + 6) % 7;
@@ -137,51 +160,62 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
       dayNumber: number;
       isCurrentMonth: boolean;
       isToday: boolean;
+      isSelected: boolean;
     }[] = [];
 
     // Previous month padding
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    const prevMonthDate = new Date(year, month, 0, 12, 0, 0);
+    const prevMonthLastDay = prevMonthDate.getDate();
+    const prevMonthYear = prevMonthDate.getFullYear();
+    const prevMonthIndex = prevMonthDate.getMonth();
+
     for (let i = firstDayIndex - 1; i >= 0; i--) {
-      const d = new Date(year, month - 1, prevMonthLastDay - i);
-      const k = getBogotaDayKey(d.toISOString());
+      const dayNum = prevMonthLastDay - i;
+      const k = formatDayKey(prevMonthYear, prevMonthIndex, dayNum);
       days.push({
-        date: d,
+        date: new Date(prevMonthYear, prevMonthIndex, dayNum, 12, 0, 0),
         dateKey: k,
-        dayNumber: prevMonthLastDay - i,
+        dayNumber: dayNum,
         isCurrentMonth: false,
-        isToday: k === todayKey,
+        isToday: k === realTodayKey,
+        isSelected: k === selectedDateKey,
       });
     }
 
     // Current month days
     for (let i = 1; i <= totalDays; i++) {
-      const d = new Date(year, month, i);
-      const k = getBogotaDayKey(d.toISOString());
+      const k = formatDayKey(year, month, i);
       days.push({
-        date: d,
+        date: new Date(year, month, i, 12, 0, 0),
         dateKey: k,
         dayNumber: i,
         isCurrentMonth: true,
-        isToday: k === todayKey,
+        isToday: k === realTodayKey,
+        isSelected: k === selectedDateKey,
       });
     }
 
-    // Next month padding to complete full 35 or 42 grid
-    const remaining = (7 - (days.length % 7)) % 7;
+    // Next month padding to complete standard grid (35 or 42 cells)
+    const totalGridCells = days.length <= 35 ? 35 : 42;
+    const remaining = totalGridCells - days.length;
+    const nextMonthDate = new Date(year, month + 1, 1, 12, 0, 0);
+    const nextMonthYear = nextMonthDate.getFullYear();
+    const nextMonthIndex = nextMonthDate.getMonth();
+
     for (let i = 1; i <= remaining; i++) {
-      const d = new Date(year, month + 1, i);
-      const k = getBogotaDayKey(d.toISOString());
+      const k = formatDayKey(nextMonthYear, nextMonthIndex, i);
       days.push({
-        date: d,
+        date: new Date(nextMonthYear, nextMonthIndex, i, 12, 0, 0),
         dateKey: k,
         dayNumber: i,
         isCurrentMonth: false,
-        isToday: k === todayKey,
+        isToday: k === realTodayKey,
+        isSelected: k === selectedDateKey,
       });
     }
 
     return days;
-  }, [currentDate, todayKey]);
+  }, [currentDate, realTodayKey, selectedDateKey]);
 
   // Week days calculation
   const weekData = useMemo(() => {
@@ -195,6 +229,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
       dayName: string;
       dayNumber: number;
       isToday: boolean;
+      isSelected: boolean;
     }[] = [];
 
     const names = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
@@ -202,286 +237,252 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
     for (let i = 0; i < 7; i++) {
       const dayDate = new Date(d);
       dayDate.setDate(d.getDate() + i);
-      const k = getBogotaDayKey(dayDate.toISOString());
+      const k = formatDayKey(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
       days.push({
         date: dayDate,
         dateKey: k,
         dayName: names[i],
         dayNumber: dayDate.getDate(),
-        isToday: k === todayKey,
+        isToday: k === realTodayKey,
+        isSelected: k === selectedDateKey,
       });
     }
 
     return days;
-  }, [currentDate, todayKey]);
+  }, [currentDate, realTodayKey, selectedDateKey]);
 
   // Status visual styles
   const statusColors: Record<TaskStatus, { bg: string; border: string; text: string; dot: string }> = {
     iniciado: {
-      bg: 'bg-zinc-800/80 hover:bg-zinc-800',
-      border: 'border-zinc-700/60',
-      text: 'text-zinc-200',
-      dot: 'bg-zinc-400',
+      bg: 'bg-cyan-500/10 hover:bg-cyan-500/20',
+      border: 'border-cyan-500/20',
+      text: 'text-cyan-300',
+      dot: 'bg-cyan-400',
     },
     trabajando: {
-      bg: 'bg-amber-950/40 hover:bg-amber-900/50',
-      border: 'border-amber-500/30',
+      bg: 'bg-amber-500/10 hover:bg-amber-500/20',
+      border: 'border-amber-500/20',
       text: 'text-amber-300',
       dot: 'bg-amber-400',
     },
     finalizado: {
-      bg: 'bg-emerald-950/40 hover:bg-emerald-900/50',
-      border: 'border-emerald-500/30',
+      bg: 'bg-emerald-500/10 hover:bg-emerald-500/20',
+      border: 'border-emerald-500/20',
       text: 'text-emerald-300',
       dot: 'bg-emerald-400',
     },
   };
 
-  // Header Title
-  const getPeriodTitle = (): string => {
-    if (viewMode === 'month') {
-      return formatBogotaMonthYear(currentDate);
-    }
-    if (viewMode === 'week') {
-      const first = weekData[0];
-      const last = weekData[6];
-      return `${first.dayNumber} - ${last.dayNumber} ${formatBogotaMonthYear(last.date)}`;
-    }
-    return formatBogotaDateTime(currentDate.toISOString()).split(',')[0] || 'Día seleccionado';
-  };
+  const weekDayHeaders = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
 
   return (
-    <div className="w-full flex-1 flex flex-col font-sans">
-      {/* Calendar Top Control Bar */}
-      <div className="bg-zinc-900/60 border border-white/[0.06] rounded-xl p-3.5 mb-5 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {/* Left: Month/Period Navigator */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/[0.1] flex items-center justify-center text-zinc-300">
-              <CalendarIcon className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-zinc-400 font-medium">
-                  Calendario
-                </span>
-                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-mono font-medium">
-                  {filteredTasks.length} tareas
-                </span>
-              </div>
-              <h2 className="text-base font-semibold text-zinc-100">
-                {getPeriodTitle()}
-              </h2>
-            </div>
-          </div>
-
-          {/* Center: Navigation Buttons */}
-          <div className="flex items-center gap-2">
+    <div className="space-y-4 font-sans animate-view-fade">
+      {/* Top Controls Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-900/40 border border-white/[0.08] p-3 sm:p-4 rounded-2xl shadow-sm">
+        {/* Navigation & Month */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center p-0.5 bg-zinc-900 rounded-lg border border-white/[0.08]">
             <button
               onClick={handlePrev}
-              className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/60 transition-all text-xs font-medium active:scale-[0.98]"
-              title="Período anterior"
+              title="Periodo anterior"
+              className="p-1.5 text-zinc-400 hover:text-white rounded-md hover:bg-zinc-800 transition-colors active:scale-[0.95]"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-
-            <button
-              onClick={handleToday}
-              className="px-3 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/60 transition-all text-xs font-medium active:scale-[0.98]"
-            >
-              Hoy
-            </button>
-
             <button
               onClick={handleNext}
-              className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/60 transition-all text-xs font-medium active:scale-[0.98]"
-              title="Período siguiente"
+              title="Periodo siguiente"
+              className="p-1.5 text-zinc-400 hover:text-white rounded-md hover:bg-zinc-800 transition-colors active:scale-[0.95]"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
-
-            {/* View Mode Switcher */}
-            <div className="flex items-center p-0.5 bg-zinc-950/60 rounded-lg border border-white/[0.06] ml-2">
-              <button
-                onClick={() => setViewMode('month')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all active:scale-[0.98] ${
-                  viewMode === 'month'
-                    ? 'bg-zinc-800 text-zinc-100 shadow-sm font-semibold'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Mes</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('week')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all active:scale-[0.98] ${
-                  viewMode === 'week'
-                    ? 'bg-zinc-800 text-zinc-100 shadow-sm font-semibold'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Columns className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Semana</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('day')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all active:scale-[0.98] ${
-                  viewMode === 'day'
-                    ? 'bg-zinc-800 text-zinc-100 shadow-sm font-semibold'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <List className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Día</span>
-              </button>
-            </div>
           </div>
 
-          {/* Right: Quick Filters */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Filter by Operator */}
-            <select
-              value={filterUser}
-              onChange={(e) => setFilterUser(e.target.value)}
-              className="text-xs bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-zinc-500 cursor-pointer"
-            >
-              <option value="all">Todos los miembros</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
+          <button
+            onClick={handleToday}
+            className="px-3 py-1.5 text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-white/[0.08] hover:border-cyan-500/30 rounded-lg transition-all active:scale-[0.96]"
+          >
+            Hoy
+          </button>
 
-            {/* Filter by Status */}
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="text-xs bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-zinc-500 cursor-pointer"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="iniciado">Por hacer</option>
-              <option value="trabajando">En curso</option>
-              <option value="finalizado">Finalizado</option>
-            </select>
-          </div>
+          <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight ml-1">
+            {formatBogotaMonthYear(currentDate)}
+          </h2>
         </div>
 
-        {/* Legend status indicators */}
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-800/80 text-[10px] text-slate-400 flex-wrap">
-          <span className="uppercase tracking-widest font-bold text-slate-500">// ESTADO ACTUAL:</span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]"></span>
-            <span className="text-cyan-300 font-semibold">INICIADO</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]"></span>
-            <span className="text-amber-300 font-semibold">TRABAJANDO</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]"></span>
-            <span className="text-emerald-300 font-semibold">FINALIZADO</span>
-          </span>
-          <span className="text-[10px] text-slate-500 ml-auto hidden md:inline">
-            * Cada tarea se muestra exactamente una sola vez de acuerdo a su estado y fecha actual.
-          </span>
+        {/* View Mode & Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* User Filter */}
+          <select
+            value={filterUser}
+            onChange={(e) => setFilterUser(e.target.value)}
+            className="text-xs bg-zinc-900 border border-white/[0.08] text-zinc-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-white/30"
+          >
+            <option value="all">Todos los miembros</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="text-xs bg-zinc-900 border border-white/[0.08] text-zinc-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-white/30"
+          >
+            <option value="all">Todos los estados</option>
+            <option value="iniciado">Iniciado</option>
+            <option value="trabajando">En progreso</option>
+            <option value="finalizado">Finalizado</option>
+          </select>
+
+          {/* View mode segmented tabs */}
+          <div className="flex items-center p-0.5 bg-zinc-900 rounded-lg border border-white/[0.08]">
+            <button
+              onClick={() => setViewMode('month')}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all active:scale-[0.98] ${
+                viewMode === 'month'
+                  ? 'bg-zinc-800 text-white font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Mes
+            </button>
+            <button
+              onClick={() => setViewMode('week')}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all active:scale-[0.98] ${
+                viewMode === 'week'
+                  ? 'bg-zinc-800 text-white font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Semana
+            </button>
+            <button
+              onClick={() => setViewMode('day')}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all active:scale-[0.98] ${
+                viewMode === 'day'
+                  ? 'bg-zinc-800 text-white font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Día
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* VIEW: MONTH */}
+      {/* VIEW: MONTH GRID */}
       {viewMode === 'month' && (
-        <div className="bg-[#0b0e17] border border-cyan-500/30 rounded-2xl overflow-hidden shadow-[0_0_35px_rgba(0,0,0,0.8)]">
-          {/* Day Names Header */}
-          <div className="grid grid-cols-7 bg-[#0e121e] border-b border-cyan-500/20 text-center py-2.5 text-[11px] font-bold text-cyan-400/80 uppercase tracking-widest">
-            <div>LUN</div>
-            <div>MAR</div>
-            <div>MIÉ</div>
-            <div>JUE</div>
-            <div>VIE</div>
-            <div className="text-fuchsia-400/80">SÁB</div>
-            <div className="text-rose-400/80">DOM</div>
+        <div className="bg-zinc-900/40 border border-white/[0.08] rounded-2xl overflow-hidden shadow-sm">
+          {/* Day Headers */}
+          <div className="grid grid-cols-7 border-b border-white/[0.06] bg-zinc-900/80 text-[11px] font-medium text-zinc-400 text-center py-2.5">
+            {weekDayHeaders.map((dayName, idx) => (
+              <div key={idx} className="uppercase tracking-wider">
+                {dayName}
+              </div>
+            ))}
           </div>
 
-          {/* Days Grid */}
-          <div className="grid grid-cols-7 auto-rows-fr gap-px bg-slate-800/40">
-            {monthData.map((day, idx) => {
+          {/* Day Cells */}
+          <div className="grid grid-cols-7 divide-x divide-y divide-white/[0.04]">
+            {monthData.map((day) => {
               const dayTasks = tasksByDay.get(day.dateKey) || [];
+              const isOver = dragOverDayKey === day.dateKey;
+
               return (
                 <div
-                  key={idx}
-                  className={`min-h-[115px] p-2 flex flex-col transition-colors ${
-                    day.isCurrentMonth ? 'bg-[#0b0e17]' : 'bg-[#080a11]/80 text-slate-600'
-                  } ${day.isToday ? 'ring-1 ring-inset ring-cyan-400 bg-cyan-950/20' : ''}`}
+                  key={day.dateKey}
+                  onClick={() => setSelectedDateKey(day.dateKey)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverDayKey !== day.dateKey) setDragOverDayKey(day.dateKey);
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setDragOverDayKey(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOverDayKey(null);
+                    const taskId = e.dataTransfer.getData('text/plain');
+                    if (taskId && onUpdateTaskDueDate) {
+                      onUpdateTaskDueDate(taskId, day.dateKey);
+                    }
+                  }}
+                  className={`min-h-[105px] sm:min-h-[120px] p-2 flex flex-col justify-between transition-all relative group cursor-pointer ${
+                    !day.isCurrentMonth
+                      ? 'bg-zinc-950/40 text-zinc-600'
+                      : 'bg-zinc-900/20 hover:bg-zinc-900/50'
+                  } ${
+                    day.isSelected
+                      ? 'ring-1 ring-cyan-500/40 bg-zinc-900/60'
+                      : ''
+                  } ${
+                    isOver ? 'bg-cyan-950/30 ring-2 ring-cyan-400/50' : ''
+                  }`}
                 >
-                  {/* Day Number Header */}
+                  {/* Day Header */}
                   <div className="flex items-center justify-between mb-1.5">
                     <span
-                      className={`text-xs font-bold rounded-md px-1.5 py-0.5 ${
+                      className={`text-xs font-mono font-medium inline-flex items-center justify-center ${
                         day.isToday
-                          ? 'bg-cyan-500 text-black shadow-[0_0_8px_#06b6d4]'
+                          ? 'w-6 h-6 rounded-md bg-cyan-400 text-zinc-950 font-bold shadow-[0_0_10px_rgba(6,182,212,0.4)]'
+                          : day.isSelected
+                          ? 'text-cyan-300 font-bold'
                           : day.isCurrentMonth
-                          ? 'text-slate-200'
-                          : 'text-slate-600'
+                          ? 'text-zinc-300'
+                          : 'text-zinc-600'
                       }`}
                     >
                       {day.dayNumber}
                     </span>
+
                     {dayTasks.length > 0 && (
-                      <span className="text-[9px] font-bold text-slate-400 font-mono">
-                        {dayTasks.length} {dayTasks.length === 1 ? 'task' : 'tasks'}
+                      <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded-full bg-zinc-800 text-zinc-400">
+                        {dayTasks.length}
                       </span>
                     )}
                   </div>
 
-                  {/* Tasks in Day */}
-                  <div className="flex-1 space-y-1.5 overflow-y-auto no-scrollbar">
+                  {/* Task Pills */}
+                  <div className="flex-1 space-y-1 overflow-hidden">
                     {dayTasks.slice(0, 3).map((task) => {
-                      const cfg = statusColors[task.status];
-                      const assignedUser = users.find((u) => u.id === task.assignedTo);
+                      const cfg = statusColors[task.status] || statusColors.iniciado;
                       const overdue = isTaskOverdue(task.dueDate, task.status);
 
                       return (
                         <div
                           key={task.id}
-                          onClick={() => handleTaskClick(task)}
-                          className={`p-1.5 rounded-lg border text-left cursor-pointer transition-all active:scale-98 shadow-xs ${cfg.bg} ${cfg.border}`}
+                          draggable
+                          onDragStart={(e) => {
+                            e.stopPropagation();
+                            e.dataTransfer.setData('text/plain', task.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTaskClick(task);
+                          }}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium border truncate transition-all cursor-grab active:cursor-grabbing flex items-center gap-1.5 ${cfg.bg} ${cfg.border} ${cfg.text} ${
+                            overdue ? 'ring-1 ring-rose-500/40' : ''
+                          }`}
+                          title={`${task.title} (${task.status})`}
                         >
-                          <div className="flex items-center justify-between gap-1 mb-0.5">
-                            <div className="flex items-center gap-1.5 truncate">
-                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
-                              <span className={`text-[11px] font-bold truncate ${cfg.text}`}>
-                                {task.title}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between text-[9px] text-slate-400 mt-1">
-                            <span className="truncate max-w-[90px]">
-                              {assignedUser?.name.split(' ')[0] || 'Operador'}
-                            </span>
-                            {overdue && (
-                              <span className="text-rose-400 font-bold flex items-center gap-0.5">
-                                <AlertTriangle className="w-2.5 h-2.5" /> VENCE
-                              </span>
-                            )}
-                          </div>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+                          <span className="truncate">{task.title}</span>
                         </div>
                       );
                     })}
 
                     {dayTasks.length > 3 && (
-                      <button
-                        onClick={() => {
-                          setCurrentDate(day.date);
-                          setViewMode('day');
-                        }}
-                        className="w-full text-center text-[9px] font-bold text-cyan-400 hover:text-cyan-300 py-0.5 bg-cyan-950/40 rounded border border-cyan-500/30 tracking-wider"
-                      >
-                        +{dayTasks.length - 3} MÁS // VER DÍA
-                      </button>
+                      <span className="text-[9px] text-zinc-500 font-mono block pl-1">
+                        +{dayTasks.length - 3} más
+                      </span>
                     )}
                   </div>
                 </div>
@@ -491,192 +492,148 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
         </div>
       )}
 
-      {/* VIEW: WEEK */}
+      {/* VIEW: WEEK GRID */}
       {viewMode === 'week' && (
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-          {weekData.map((day, idx) => {
-            const dayTasks = tasksByDay.get(day.dateKey) || [];
-            return (
-              <div
-                key={idx}
-                className={`bg-[#0b0e17] border rounded-2xl p-3 flex flex-col min-h-[350px] transition-all ${
-                  day.isToday
-                    ? 'border-cyan-400/80 shadow-[0_0_20px_rgba(6,182,212,0.15)] bg-cyan-950/10'
-                    : 'border-slate-800'
-                }`}
-              >
-                {/* Week Day Header */}
-                <div className="border-b border-slate-800/80 pb-2.5 mb-3 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold text-cyan-400/80 uppercase tracking-widest block">
+        <div className="bg-zinc-900/40 border border-white/[0.08] rounded-2xl overflow-hidden shadow-sm">
+          <div className="grid grid-cols-7 divide-x divide-white/[0.04]">
+            {weekData.map((day) => {
+              const dayTasks = tasksByDay.get(day.dateKey) || [];
+              const isOver = dragOverDayKey === day.dateKey;
+
+              return (
+                <div
+                  key={day.dateKey}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverDayKey !== day.dateKey) setDragOverDayKey(day.dateKey);
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setDragOverDayKey(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOverDayKey(null);
+                    const taskId = e.dataTransfer.getData('text/plain');
+                    if (taskId && onUpdateTaskDueDate) {
+                      onUpdateTaskDueDate(taskId, day.dateKey);
+                    }
+                  }}
+                  className={`min-h-[380px] p-2.5 flex flex-col transition-colors ${
+                    day.isSelected ? 'bg-zinc-900/60' : 'bg-zinc-900/20'
+                  } ${isOver ? 'bg-cyan-950/30 ring-2 ring-cyan-400/50' : ''}`}
+                >
+                  <div className="text-center pb-2.5 mb-2 border-b border-white/[0.06]">
+                    <span className="text-[10px] text-zinc-500 font-medium block uppercase tracking-wider">
                       {day.dayName}
                     </span>
                     <span
-                      className={`text-lg font-black ${
-                        day.isToday ? 'text-cyan-300' : 'text-white'
+                      className={`text-sm font-mono font-medium inline-flex items-center justify-center mt-1 ${
+                        day.isToday
+                          ? 'w-7 h-7 rounded-md bg-cyan-400 text-zinc-950 font-bold'
+                          : 'text-zinc-200'
                       }`}
                     >
                       {day.dayNumber}
                     </span>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-500 bg-[#121625] px-2 py-0.5 rounded-full border border-slate-700">
-                    {dayTasks.length}
-                  </span>
-                </div>
 
-                {/* Day Tasks */}
-                <div className="space-y-2 flex-1 overflow-y-auto no-scrollbar">
-                  {dayTasks.length === 0 ? (
-                    <div className="text-[11px] text-slate-600 text-center py-8 italic">
-                      // Sin tareas
-                    </div>
-                  ) : (
-                    dayTasks.map((task) => {
-                      const cfg = statusColors[task.status];
-                      const assignedUser = users.find((u) => u.id === task.assignedTo);
-                      const overdue = isTaskOverdue(task.dueDate, task.status);
-
+                  <div className="flex-1 space-y-1.5 overflow-y-auto custom-scrollbar">
+                    {dayTasks.map((task) => {
+                      const cfg = statusColors[task.status] || statusColors.iniciado;
                       return (
                         <div
                           key={task.id}
+                          draggable
+                          onDragStart={(e) => {
+                            e.stopPropagation();
+                            e.dataTransfer.setData('text/plain', task.id);
+                          }}
                           onClick={() => handleTaskClick(task)}
-                          className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all hover:scale-[1.02] shadow-sm ${cfg.bg} ${cfg.border}`}
+                          className={`p-2 rounded-lg text-xs font-medium border cursor-pointer hover:scale-[1.01] transition-all ${cfg.bg} ${cfg.border} ${cfg.text}`}
                         >
-                          <div className="flex items-center justify-between gap-1 mb-1">
-                            <span
-                              className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded ${cfg.text}`}
-                            >
-                              // {task.status}
-                            </span>
-                            {overdue && (
-                              <span className="text-[9px] text-rose-400 font-bold flex items-center gap-0.5">
-                                <AlertTriangle className="w-2.5 h-2.5" />
-                              </span>
-                            )}
-                          </div>
-
-                          <h4 className="text-xs font-bold text-white mb-1.5 line-clamp-2">
-                            {task.title}
-                          </h4>
-
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800/60">
-                            <div className="flex items-center gap-1.5 truncate">
-                              <img
-                                src={assignedUser?.avatar}
-                                alt={assignedUser?.name}
-                                className="w-4 h-4 rounded-full object-cover ring-1 ring-cyan-500/50"
-                              />
-                              <span className="truncate max-w-[80px]">
-                                {assignedUser?.name.split(' ')[0]}
-                              </span>
-                            </div>
-                            <span className="text-[9px] uppercase font-bold text-slate-400">
-                              {task.priority}
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                            <span className="text-[10px] uppercase font-semibold text-zinc-400">
+                              {task.status}
                             </span>
                           </div>
+                          <p className="font-semibold text-white line-clamp-2">{task.title}</p>
                         </div>
                       );
-                    })
-                  )}
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* VIEW: DAY */}
+      {/* VIEW: DAY VIEW */}
       {viewMode === 'day' && (
-        <div className="bg-[#0b0e17] border border-cyan-500/30 rounded-2xl p-5 shadow-[0_0_35px_rgba(0,0,0,0.8)]">
-          <div className="border-b border-cyan-500/20 pb-3 mb-5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl font-black text-cyan-300">
-                {currentDate.getDate()}
+        <div className="bg-zinc-900/40 border border-white/[0.08] rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/[0.06]">
+            <div>
+              <span className="text-xs text-zinc-500 font-medium uppercase tracking-wider block">
+                Tareas programadas para
               </span>
-              <div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  AGENDA DEL DÍA // {formatBogotaDateTime(currentDate.toISOString()).split(',')[0]}
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Consolidado de tareas programadas o activas para esta fecha en Colombia.
-                </p>
-              </div>
+              <h3 className="text-lg font-bold text-white mt-0.5">
+                {formatBogotaDate(selectedDateKey)}
+                {selectedDateKey === realTodayKey && (
+                  <span className="ml-2 text-xs font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md">
+                    Hoy
+                  </span>
+                )}
+              </h3>
             </div>
-
-            <span className="text-xs font-bold text-cyan-400 bg-cyan-950/80 px-3 py-1 rounded-xl border border-cyan-500/40">
-              {tasksByDay.get(getBogotaDayKey(currentDate.toISOString()))?.length || 0} TAREAS
+            <span className="text-xs text-zinc-400 font-mono">
+              {(tasksByDay.get(selectedDateKey) || []).length} tareas registradas
             </span>
           </div>
 
-          {/* List of Tasks for Single Day */}
-          {(() => {
-            const dayKey = getBogotaDayKey(currentDate.toISOString());
-            const dayTasks = tasksByDay.get(dayKey) || [];
-
-            if (dayTasks.length === 0) {
-              return (
-                <div className="py-16 text-center text-slate-500 text-xs">
-                  // No hay tareas programadas para esta fecha.
-                </div>
-              );
-            }
-
-            return (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dayTasks.map((task) => {
-                  const cfg = statusColors[task.status];
-                  const assignedUser = users.find((u) => u.id === task.assignedTo);
-                  const duration = calculateDuration(task.startedAt || task.createdAt, task.completedAt || undefined);
-
-                  return (
-                    <div
-                      key={task.id}
-                      onClick={() => handleTaskClick(task)}
-                      className={`p-4 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01] shadow-md ${cfg.bg} ${cfg.border}`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${cfg.border} ${cfg.text}`}
-                        >
-                          // {task.status.toUpperCase()}
-                        </span>
-                        <span className="text-[10px] uppercase font-bold text-slate-400 bg-[#090b12] px-2 py-0.5 rounded border border-slate-800">
-                          PRIORIDAD: {task.priority}
-                        </span>
-                      </div>
-
-                      <h4 className="text-sm font-bold text-white mb-2">{task.title}</h4>
-                      {task.description && (
-                        <p className="text-xs text-slate-300 line-clamp-2 mb-3">
-                          {task.description}
-                        </p>
-                      )}
-
-                      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={assignedUser?.avatar}
-                            alt={assignedUser?.name}
-                            className="w-5 h-5 rounded-md object-cover ring-1 ring-cyan-500/50"
-                          />
-                          <span className="font-semibold text-white">
-                            {assignedUser?.name}
-                          </span>
-                        </div>
-                        <span className="text-[11px] font-mono text-cyan-300">
-                          ⏱ {duration}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+          <div className="space-y-2.5 max-h-[500px] overflow-y-auto custom-scrollbar">
+            {(tasksByDay.get(selectedDateKey) || []).length === 0 ? (
+              <div className="py-12 text-center text-zinc-500 text-xs">
+                No hay tareas programadas para este día.
               </div>
-            );
-          })()}
+            ) : (
+              (tasksByDay.get(selectedDateKey) || []).map((task) => {
+                const cfg = statusColors[task.status] || statusColors.iniciado;
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => handleTaskClick(task)}
+                    className={`p-3.5 rounded-xl border flex items-center justify-between cursor-pointer hover:bg-zinc-800/40 transition-all ${cfg.border} bg-zinc-900/60`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase px-2 py-0.5 rounded border ${cfg.bg} ${cfg.border} ${cfg.text}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                          {task.status}
+                        </span>
+                        <span className="text-xs text-zinc-400 capitalize">
+                          Prioridad: {task.priority}
+                        </span>
+                      </div>
+                      <h4 className="font-semibold text-white text-sm">{task.title}</h4>
+                    </div>
+
+                    <div className="text-right text-xs text-zinc-400 font-mono">
+                      {task.startedAt && <div>Inicio: {formatBogotaDateTime(task.startedAt)}</div>}
+                      {task.completedAt && <div className="text-emerald-400">Fin: {formatBogotaDateTime(task.completedAt)}</div>}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
 
-      {/* Task Detail Modal with Complete Status History */}
+      {/* Task Detail Modal */}
       <TaskDetailModal
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}

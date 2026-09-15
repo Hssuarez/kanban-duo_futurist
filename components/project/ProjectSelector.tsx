@@ -145,6 +145,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
       {/* Dropdown Menu */}
       {isOpen && (
         <div
+          style={{ transformOrigin: 'top left' }}
           className={`absolute mt-2 bg-zinc-900/95 backdrop-blur-xl border border-white/[0.1] rounded-xl shadow-2xl py-1 z-50 animate-modal-enter text-zinc-200 ${
             isMobile ? 'left-0 right-0 w-full' : 'left-0 w-72 sm:w-80'
           }`}

@@ -313,6 +313,13 @@ export const KanbanBoard: React.FC = () => {
     setIsTaskModalOpen(true);
   };
 
+  
+  const handleUpdateTaskDueDate = async (taskId: string, newDueDate: string) => {
+    if (!sessionUser) return;
+    await updateTask(taskId, { dueDate: newDueDate }, sessionUser);
+    refreshData();
+  };
+
   const handleOpenEdit = (task: Task) => {
     setEditingTask(task);
     setTargetColumnStatus(task.status);
@@ -327,9 +334,11 @@ export const KanbanBoard: React.FC = () => {
       // 1. Filtro por espacio
       if (spaceFilter === 'mine' && task.assignedTo !== sessionUser.id) {
         return false;
-      }
-      if (spaceFilter === 'peer' && task.assignedTo !== peerUser?.id) {
-        return false;
+      } else if (spaceFilter !== 'mine' && spaceFilter !== 'all') {
+        const targetUserId = spaceFilter === 'peer' ? peerUser?.id : spaceFilter;
+        if (task.assignedTo !== targetUserId) {
+          return false;
+        }
       }
 
       // 2. Búsqueda
@@ -448,12 +457,15 @@ export const KanbanBoard: React.FC = () => {
                         <span className="hidden sm:inline">Mis tareas ({sessionUser.name})</span>
                       </>
                     )}
-                    {spaceFilter === 'peer' && (
-                      <>
-                        <span className="sm:hidden">Tareas: {peerUser?.name?.split(' ')[0] || 'Compañero'}</span>
-                        <span className="hidden sm:inline">Tareas de {peerUser?.name || 'Compañero'}</span>
-                      </>
-                    )}
+                    {spaceFilter !== 'mine' && spaceFilter !== 'all' && (() => {
+                      const activeFilterUser = users.find((u) => u.id === spaceFilter) || peerUser;
+                      return (
+                        <>
+                          <span className="sm:hidden">Tareas: {activeFilterUser?.name?.split(' ')[0] || 'Compañero'}</span>
+                          <span className="hidden sm:inline">Tareas de {activeFilterUser?.name || 'Compañero'}</span>
+                        </>
+                      );
+                    })()}
                     {spaceFilter === 'all' && 'Tablero del equipo'}
                   </span>
                 </h2>

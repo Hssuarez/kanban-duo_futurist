@@ -75,6 +75,6 @@ export interface SecurityLog {
   timestamp: string;
 }
 
-export type SpaceFilter = 'all' | 'mine' | 'peer';
+export type SpaceFilter = 'all' | 'mine' | 'peer' | string;
 
 export type AppView = 'board' | 'calendar' | 'dashboard' | 'admin';
