@@ -106,6 +106,19 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Close dropdowns on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowUserDropdown(false);
+        setShowPeerDropdown(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+
   // Project members with robust fallback
   const otherMembers = useMemo(() => {
     const memberIds = Array.isArray(activeProject?.memberIds) ? activeProject.memberIds : [];
@@ -165,7 +178,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="w-full bg-[#070c18]/90 backdrop-blur-xl border-b border-white/[0.08] shadow-sm font-sans relative z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4 relative z-30">
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-center text-zinc-100 shadow-[0_0_15px_rgba(6,182,212,0.18)]">
@@ -185,7 +198,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Project Selector Switcher (Desktop only) */}
-          <div className="hidden md:block shrink-0">
+          <div className="hidden md:block shrink-0 relative z-30">
             <ProjectSelector
               projects={projects}
               activeProject={activeProject}
@@ -236,7 +249,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {/* Current User Dropdown */}
-            <div className="relative" ref={userMenuRef}>
+            <div className="relative z-30" ref={userMenuRef}>
               <button
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
                 className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1.5 bg-zinc-900/70 hover:bg-zinc-900 border border-white/[0.08] rounded-lg text-xs font-medium text-zinc-200 transition-all active:scale-[0.98]"
@@ -255,9 +268,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* User Dropdown */}
               {showUserDropdown && (
                 <div
-                  style={{ transformOrigin: 'top right' }}
-                  className="absolute right-0 mt-2 w-60 bg-[#070c18]/95 backdrop-blur-2xl border border-cyan-500/22 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_25px_rgba(6,182,212,0.08)] py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs"
+                  style={{
+                    transformOrigin: 'top right',
+                    backgroundColor: 'rgba(8, 12, 20, 0.98)',
+                  }}
+                  className="absolute right-0 mt-2 w-60 backdrop-blur-2xl border border-cyan-500/25 rounded-xl shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.1)] py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs ring-1 ring-cyan-500/20"
                   onClick={() => setShowUserDropdown(false)}
+                  role="menu"
                 >
                   <div className="px-3 py-2 border-b border-white/[0.06]">
                     <div className="flex items-center justify-between mb-1">
@@ -310,7 +327,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Mobile Project Selector Bar (Visible only on mobile < md) */}
-        <div className="block md:hidden border-t border-white/[0.06] py-2">
+        <div className="block md:hidden border-t border-white/[0.06] py-2 relative z-30">
           <ProjectSelector
             projects={projects}
             activeProject={activeProject}
@@ -324,7 +341,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Navigation Bar: Section Tabs & Space Navigation */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-white/[0.06] py-2 overflow-visible gap-2 sm:gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-white/[0.06] py-2 overflow-visible gap-2 sm:gap-3 relative z-20">
           {/* Main App Section Tabs with Aceternity Animated Sliding Pill */}
           <div
             ref={viewTabsRef}
@@ -459,8 +476,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 {showPeerDropdown && (
                   <div
-                    style={{ transformOrigin: 'top left' }}
-                    className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-56 bg-[#070c18]/98 backdrop-blur-2xl border border-cyan-500/25 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_25px_rgba(6,182,212,0.12)] py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs ring-1 ring-cyan-500/20"
+                    style={{
+                      transformOrigin: 'top left',
+                      backgroundColor: 'rgba(8, 12, 20, 0.98)',
+                    }}
+                    className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-56 backdrop-blur-2xl border border-cyan-500/25 rounded-xl shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.12)] py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs ring-1 ring-cyan-500/20"
+                    role="menu"
                   >
                     <div className="px-3 py-1.5 border-b border-white/[0.06] text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">
                       Filtrar por compañero
