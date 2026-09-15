@@ -147,7 +147,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
       {isOpen && (
         <div
           style={{ transformOrigin: 'top left' }}
-          className={`absolute mt-2 bg-zinc-900/95 backdrop-blur-xl border border-white/[0.1] rounded-xl shadow-2xl py-1 z-50 animate-modal-enter text-zinc-200 ${
+          className={`absolute mt-2 bg-[#070c18]/98 backdrop-blur-2xl border border-cyan-500/25 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_25px_rgba(6,182,212,0.1)] py-1 z-50 animate-modal-enter text-zinc-200 ring-1 ring-cyan-500/20 ${
             isMobile ? 'left-0 right-0 w-full' : 'left-0 w-72 sm:w-80'
           }`}
         >

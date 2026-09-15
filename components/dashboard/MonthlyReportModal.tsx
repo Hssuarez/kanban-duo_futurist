@@ -141,7 +141,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-start sm:items-center justify-center font-sans print:p-0 print:bg-white print:text-black animate-fade-in"
+      className="fixed inset-0 z-[60] overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-start sm:items-center justify-center font-sans print:p-0 print:bg-white print:text-black animate-fade-in"
     >
       <div
         className="relative w-full max-w-4xl my-auto bg-zinc-950 border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] print:max-h-none print:border-none print:shadow-none print:bg-white print:text-black animate-modal-enter"

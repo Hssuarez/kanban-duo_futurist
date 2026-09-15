@@ -412,8 +412,8 @@ export const KanbanBoard: React.FC = () => {
       {/* Ambient Network Background (quiet, faint digital universe for the workspace) */}
       <AmbientNetworkBackground variant={currentView} className="fixed inset-0 z-0 pointer-events-none" />
 
-      {/* Top Navbar */}
-      <div className="relative z-10">
+      {/* Top Navbar: Nivel 3 en la jerarquía de apilamiento (z-40) */}
+      <div className="sticky top-0 z-40">
         <Navbar
           currentUser={sessionUser}
           users={users}

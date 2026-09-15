@@ -164,16 +164,16 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
   return (
     <div className="space-y-6 font-sans animate-view-fade">
       {/* Top Header & Report CTA */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-900/40 border border-white/[0.08] p-4 sm:p-5 rounded-2xl shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 p-4 sm:p-5 rounded-2xl shadow-sm transition-colors">
         <div>
-          <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block">
+          <span className="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider block">
             Analítica de rendimiento
           </span>
           <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight mt-0.5">
-            Métricas de productividad y resolución
+            Centro de Control: Productividad y Métricas
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Seguimiento de tiempos, estados y rendimiento del equipo.
+            Seguimiento de tiempos, estados y rendimiento del equipo en tiempo real.
           </p>
         </div>
 
@@ -189,7 +189,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
       </div>
 
       {/* Filter Control Bar */}
-      <div className="bg-zinc-900/40 border border-white/[0.08] p-4 rounded-2xl space-y-3">
+      <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] p-4 rounded-2xl space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Quick Date Filters Segmented Buttons */}
           <div className="flex items-center gap-1 p-0.5 bg-zinc-900 rounded-xl border border-white/[0.08] overflow-x-auto no-scrollbar">
@@ -240,12 +240,12 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
       {/* Executive KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Tasks */}
-        <div className="bg-zinc-900/50 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-cyan-500/30 hover:-translate-y-[2px] hover:shadow-[0_10px_28px_rgba(0,0,0,0.5),0_0_20px_rgba(6,182,212,0.06)] transition-all">
+        <div className="bg-[#070c18]/85 backdrop-blur-xl p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-cyan-500/35 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(6,182,212,0.08)] transition-all">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
               Total gestionadas
             </span>
-            <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300">
+            <div className="p-2 rounded-lg bg-zinc-800/80 text-zinc-300 border border-white/[0.06]">
               <Layers className="w-4 h-4" />
             </div>
           </div>
@@ -258,12 +258,12 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
         </div>
 
         {/* Completed Tasks */}
-        <div className="bg-zinc-900/50 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-cyan-500/30 hover:-translate-y-[2px] hover:shadow-[0_10px_28px_rgba(0,0,0,0.5),0_0_20px_rgba(6,182,212,0.06)] transition-all">
+        <div className="bg-[#070c18]/85 backdrop-blur-xl p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-emerald-500/35 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(16,185,129,0.08)] transition-all">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider">
               Finalizadas
             </span>
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.15)]">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
@@ -281,12 +281,12 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
         </div>
 
         {/* In Progress Tasks */}
-        <div className="bg-zinc-900/50 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-cyan-500/30 hover:-translate-y-[2px] hover:shadow-[0_10px_28px_rgba(0,0,0,0.5),0_0_20px_rgba(6,182,212,0.06)] transition-all">
+        <div className="bg-[#070c18]/85 backdrop-blur-xl p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-amber-500/35 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(245,158,11,0.08)] transition-all">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-amber-400 uppercase tracking-wider">
               En progreso
             </span>
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.15)]">
               <Clock className="w-4 h-4" />
             </div>
           </div>
@@ -299,12 +299,12 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
         </div>
 
         {/* Overdue Tasks */}
-        <div className="bg-zinc-900/50 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-cyan-500/30 hover:-translate-y-[2px] hover:shadow-[0_10px_28px_rgba(0,0,0,0.5),0_0_20px_rgba(6,182,212,0.06)] transition-all">
+        <div className="bg-[#070c18]/85 backdrop-blur-xl p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-rose-500/35 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(244,63,94,0.08)] transition-all">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-rose-400 uppercase tracking-wider">
               Vencidas
             </span>
-            <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.15)]">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
@@ -318,7 +318,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
       </div>
 
       {/* Breakdown per Team Member */}
-      <div className="bg-zinc-900/40 border border-white/[0.08] rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm">
+      <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm transition-colors">
         <h3 className="text-sm font-semibold text-white flex items-center gap-2">
           <Users className="w-4 h-4 text-cyan-400" />
           Rendimiento por colaborador
@@ -328,7 +328,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
           {userMetrics.map((m) => (
             <div
               key={m.user.id}
-              className="p-4 rounded-xl bg-zinc-950/60 border border-white/[0.06] hover:border-white/[0.12] transition-colors space-y-3"
+              className="p-4 rounded-xl bg-[#070c18]/90 border border-white/[0.06] hover:border-cyan-500/25 transition-colors space-y-3"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">

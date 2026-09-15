@@ -67,47 +67,66 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
       canvas.height = height * dpr;
       ctx.scale(dpr, dpr);
 
-      // Very subtle node density (calibrated strictly lower than Login)
-      let nodeCount = 24;
-      if (width < 640) {
-        nodeCount = 9;
-      } else if (width < 1024) {
-        nodeCount = 16;
-      }
-
+      // Generate peripheral micro-constellations (prioritizing corners and outer margins)
       nodes = [];
-      for (let i = 0; i < nodeCount; i++) {
-        const rand = Math.random();
-        const color: 'cyan' | 'slate' | 'white' =
-          rand < 0.35 ? 'cyan' : rand < 0.75 ? 'slate' : 'white';
+      const clusters =
+        width < 640
+          ? [
+              { cx: width * 0.12, cy: height * 0.16, count: 4 },
+              { cx: width * 0.88, cy: height * 0.84, count: 4 },
+            ]
+          : width < 1024
+          ? [
+              { cx: width * 0.08, cy: height * 0.18, count: 4 },
+              { cx: width * 0.92, cy: height * 0.20, count: 4 },
+              { cx: width * 0.09, cy: height * 0.80, count: 4 },
+              { cx: width * 0.91, cy: height * 0.82, count: 4 },
+            ]
+          : [
+              { cx: width * 0.06, cy: height * 0.16, count: 5 }, // Top-Left corner
+              { cx: width * 0.94, cy: height * 0.18, count: 5 }, // Top-Right corner
+              { cx: width * 0.05, cy: height * 0.78, count: 5 }, // Bottom-Left margin
+              { cx: width * 0.95, cy: height * 0.82, count: 5 }, // Bottom-Right margin
+              { cx: width * 0.50, cy: height * 0.03, count: 3 }, // Very top edge negative space
+            ];
 
-        // Low, quiet base opacity
-        const baseAlpha =
-          color === 'cyan'
-            ? 0.16 + Math.random() * 0.12 // 0.16 - 0.28
-            : color === 'white'
-            ? 0.12 + Math.random() * 0.10 // 0.12 - 0.22
-            : 0.08 + Math.random() * 0.08; // 0.08 - 0.16
+      for (const cluster of clusters) {
+        for (let i = 0; i < cluster.count; i++) {
+          const rand = Math.random();
+          const color: 'cyan' | 'slate' | 'white' =
+            rand < 0.4 ? 'cyan' : rand < 0.75 ? 'slate' : 'white';
 
-        const radius =
-          color === 'cyan'
-            ? 1.2 + Math.random() * 0.6 // 1.2 - 1.8px
-            : color === 'white'
-            ? 1.0 + Math.random() * 0.5 // 1.0 - 1.5px
-            : 0.8 + Math.random() * 0.4; // 0.8 - 1.2px
+          // Low, quiet base opacity
+          const baseAlpha =
+            color === 'cyan'
+              ? 0.18 + Math.random() * 0.12 // 0.18 - 0.30
+              : color === 'white'
+              ? 0.13 + Math.random() * 0.09 // 0.13 - 0.22
+              : 0.08 + Math.random() * 0.07; // 0.08 - 0.15
 
-        const speed = prefersReducedMotion ? 0 : 0.02 + Math.random() * 0.03;
-        const angle = Math.random() * Math.PI * 2;
+          const radius =
+            color === 'cyan'
+              ? 1.3 + Math.random() * 0.6 // 1.3 - 1.9px
+              : color === 'white'
+              ? 1.1 + Math.random() * 0.5 // 1.1 - 1.6px
+              : 0.8 + Math.random() * 0.4; // 0.8 - 1.2px
 
-        nodes.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          radius,
-          baseAlpha,
-          color,
-        });
+          const speed = prefersReducedMotion ? 0 : 0.012 + Math.random() * 0.02;
+          const angle = Math.random() * Math.PI * 2;
+          // Cluster radius 20px to 75px
+          const distFromCenter = 15 + Math.random() * 60;
+          const clusterAngle = Math.random() * Math.PI * 2;
+
+          nodes.push({
+            x: Math.max(10, Math.min(width - 10, cluster.cx + Math.cos(clusterAngle) * distFromCenter)),
+            y: Math.max(10, Math.min(height - 10, cluster.cy + Math.sin(clusterAngle) * distFromCenter)),
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            radius,
+            baseAlpha,
+            color,
+          });
+        }
       }
 
       // Initialize staggered signal packets (max 2, slow, with long pauses)
@@ -156,7 +175,7 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
     };
     window.addEventListener('resize', handleResize, { passive: true });
 
-    const maxDist = width < 640 ? 95 : 135;
+    const maxDist = width < 640 ? 75 : 90;
 
     // Helper: Find valid connected node pair
     const pickConnectedPair = (): [number, number] | null => {
@@ -185,6 +204,9 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
       const offsetX = Math.max(-3, Math.min(3, smoothMouseX * 6));
       const offsetY = Math.max(-3, Math.min(3, smoothMouseY * 6));
 
+      const mousePixelX = (targetMouseX + 0.5) * width;
+      const mousePixelY = (targetMouseY + 0.5) * height;
+
       // 1. Update Nodes Drift
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
@@ -202,15 +224,25 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
         const posX = node.x + offsetX;
         const posY = node.y + offsetY;
 
+        // Proximity glow on mouse
+        let proximityBoost = 0;
+        if (!prefersReducedMotion && targetMouseX !== 0) {
+          const distMouse = Math.hypot(posX - mousePixelX, posY - mousePixelY);
+          if (distMouse < 105) {
+            proximityBoost = (1 - distMouse / 105) * 0.22;
+          }
+        }
+        const effectiveAlpha = Math.min(0.75, node.baseAlpha + proximityBoost);
+
         // Draw node
         ctx.beginPath();
-        ctx.arc(posX, posY, node.radius, 0, Math.PI * 2);
+        ctx.arc(posX, posY, node.radius * (1 + proximityBoost * 0.35), 0, Math.PI * 2);
         if (node.color === 'cyan') {
-          ctx.fillStyle = `rgba(6, 182, 212, ${node.baseAlpha})`;
+          ctx.fillStyle = `rgba(6, 182, 212, ${effectiveAlpha})`;
         } else if (node.color === 'white') {
-          ctx.fillStyle = `rgba(244, 244, 245, ${node.baseAlpha})`;
+          ctx.fillStyle = `rgba(244, 244, 245, ${effectiveAlpha})`;
         } else {
-          ctx.fillStyle = `rgba(148, 163, 184, ${node.baseAlpha * 0.8})`;
+          ctx.fillStyle = `rgba(148, 163, 184, ${effectiveAlpha * 0.8})`;
         }
         ctx.fill();
       }

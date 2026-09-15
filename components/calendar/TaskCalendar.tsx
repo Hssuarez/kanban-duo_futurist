@@ -287,7 +287,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
   return (
     <div className="space-y-4 font-sans animate-view-fade">
       {/* Top Controls Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-900/40 border border-white/[0.08] p-3 sm:p-4 rounded-2xl shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 p-3 sm:p-4 rounded-2xl shadow-sm transition-colors">
         {/* Navigation & Month */}
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex items-center p-0.5 bg-zinc-900 rounded-lg border border-white/[0.08]">
@@ -390,7 +390,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
       {/* VIEW: MONTH GRID */}
       {viewMode === 'month' && (
-        <div className="bg-zinc-900/40 border border-white/[0.08] rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl overflow-hidden shadow-sm transition-colors">
           {/* Day Headers */}
           <div className="grid grid-cols-7 border-b border-white/[0.06] bg-zinc-900/80 text-[11px] font-medium text-zinc-400 text-center py-2.5">
             {weekDayHeaders.map((dayName, idx) => (
@@ -508,7 +508,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
       {/* VIEW: WEEK GRID */}
       {viewMode === 'week' && (
-        <div className="bg-zinc-900/40 border border-white/[0.08] rounded-2xl overflow-x-auto custom-scrollbar shadow-sm">
+        <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl overflow-x-auto custom-scrollbar shadow-sm transition-colors">
           <div className="grid grid-cols-7 divide-x divide-white/[0.04] min-w-[720px]">
             {weekData.map((day) => {
               const dayTasks = tasksByDay.get(day.dateKey) || [];
@@ -588,7 +588,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
       {/* VIEW: DAY VIEW */}
       {viewMode === 'day' && (
-        <div className="bg-zinc-900/40 border border-white/[0.08] rounded-2xl p-6 shadow-sm">
+        <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-6 shadow-sm transition-colors">
           <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/[0.06]">
             <div>
               <span className="text-xs text-zinc-500 font-medium uppercase tracking-wider block">

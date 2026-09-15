@@ -163,7 +163,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [currentView, spaceFilter]);
 
   return (
-    <header className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-xl border-b border-white/[0.08] shadow-sm font-sans">
+    <header className="w-full bg-[#070c18]/90 backdrop-blur-xl border-b border-white/[0.08] shadow-sm font-sans relative z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
           {/* Brand Logo & Name */}
@@ -438,7 +438,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             ) : (
               /* Multiple teammates: interactive dropdown */
-              <div className="relative z-10" ref={peerMenuRef}>
+              <div className="relative z-20" ref={peerMenuRef}>
                 <button
                   data-space="peer"
                   onClick={() => setShowPeerDropdown(!showPeerDropdown)}
@@ -460,7 +460,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {showPeerDropdown && (
                   <div
                     style={{ transformOrigin: 'top left' }}
-                    className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-56 bg-zinc-900/95 backdrop-blur-2xl border border-white/[0.12] rounded-xl shadow-2xl py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs ring-1 ring-black/50"
+                    className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-56 bg-[#070c18]/98 backdrop-blur-2xl border border-cyan-500/25 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.95),0_0_25px_rgba(6,182,212,0.12)] py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs ring-1 ring-cyan-500/20"
                   >
                     <div className="px-3 py-1.5 border-b border-white/[0.06] text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">
                       Filtrar por compañero
