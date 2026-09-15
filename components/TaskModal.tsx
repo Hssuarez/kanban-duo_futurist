@@ -43,15 +43,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   const eligibleUsers = React.useMemo(() => {
     if (!activeProject) return users;
-    const memberIds = Array.isArray(activeProject.memberIds) ? activeProject.memberIds : [];
-    const list = users.filter(
-      (u) =>
-        memberIds.includes(u.id) ||
-        u.id === activeProject.createdBy ||
-        u.id === editingTask?.assignedTo
+    const memberIdSet = new Set<string>(
+      Array.isArray(activeProject.memberIds) ? activeProject.memberIds : []
     );
-    return list.length > 0 ? list : users;
-  }, [users, activeProject, editingTask]);
+    if (activeProject.createdBy) memberIdSet.add(activeProject.createdBy);
+    if (editingTask?.assignedTo) memberIdSet.add(editingTask.assignedTo);
+    if (currentUser) memberIdSet.add(currentUser.id);
+
+    const list = users.filter((u) => memberIdSet.has(u.id) && u.isActive !== false);
+    if (list.length > 0) return list;
+    return currentUser ? [currentUser] : users;
+  }, [users, activeProject, editingTask, currentUser]);
 
   useEffect(() => {
     if (editingTask) {

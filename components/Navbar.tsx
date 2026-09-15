@@ -119,19 +119,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, []);
 
 
-  // Project members with robust fallback
+  // Project members strictly belonging to activeProject
   const otherMembers = useMemo(() => {
     const memberIds = Array.isArray(activeProject?.memberIds) ? activeProject.memberIds : [];
-    const directProjectOthers = users.filter(
+    return users.filter(
       (u) =>
         (memberIds.includes(u.id) || u.id === activeProject?.createdBy) &&
         u.id !== currentUser.id &&
         u.isActive !== false
     );
-    if (directProjectOthers.length > 0) return directProjectOthers;
-    // Fallback: all other active users in system
-    return users.filter((u) => u.id !== currentUser.id && u.isActive !== false);
   }, [users, activeProject, currentUser.id]);
+
+  // If filtered teammate is not in active project, sanitize back to 'all'
+  useEffect(() => {
+    if (spaceFilter !== 'mine' && spaceFilter !== 'all') {
+      const exists = otherMembers.some((m) => m.id === spaceFilter);
+      if (!exists) {
+        setSpaceFilter('all');
+      }
+    }
+  }, [otherMembers, spaceFilter, setSpaceFilter]);
 
   // Selected teammate if spaceFilter is a specific user ID or 'peer'
   const selectedTeammate = useMemo(() => {
@@ -431,13 +438,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {/* Teammate(s) selector */}
-            {otherMembers.length <= 1 ? (
+            {otherMembers.length === 1 && (
               <button
                 data-space="peer"
                 onClick={() => {
-                  if (otherMembers[0]) {
-                    setSpaceFilter(otherMembers[0].id);
-                  }
+                  setSpaceFilter(otherMembers[0].id);
                 }}
                 className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                   isPeerActive
@@ -447,13 +452,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Users className="w-3.5 h-3.5" />
                 <span className="flex items-center gap-1.5">
-                  <span>{otherMembers[0]?.name?.split(' ')[0] || 'Compañero'}</span>
-                  {Boolean(otherMembers[0] && onlineUserIds.includes(otherMembers[0].id)) && (
+                  <span>{otherMembers[0].name.split(' ')[0]}</span>
+                  {Boolean(onlineUserIds.includes(otherMembers[0].id)) && (
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-living-signal" title="En línea" />
                   )}
                 </span>
               </button>
-            ) : (
+            )}
+
+            {otherMembers.length > 1 && (
               /* Multiple teammates: interactive dropdown */
               <div className="relative z-20" ref={peerMenuRef}>
                 <button

@@ -218,6 +218,16 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
+  // Sanitize filterUser if selected user is not in current project members
+  useEffect(() => {
+    if (filterUser !== 'all') {
+      const exists = users.some((u) => u.id === filterUser);
+      if (!exists) {
+        setFilterUser('all');
+      }
+    }
+  }, [users, filterUser]);
+
   // Date range from filter
   const { startDate, endDate } = useMemo(() => {
     return getFilterDateRange(quickFilter, customStart, customEnd);

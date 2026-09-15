@@ -160,17 +160,24 @@ export const KanbanBoard: React.FC = () => {
     return tasks.filter((t) => (t.projectId || 'proj-default') === projId);
   }, [tasks, activeProject?.id]);
 
-  // Miembros del proyecto activo
+  // Miembros del proyecto activo (estrictamente filtrados por pertenencia al proyecto)
   const projectMembers = useMemo(() => {
     if (!activeProject) return users;
-    const memberIds = Array.isArray(activeProject.memberIds) ? activeProject.memberIds : [];
-    const list = users.filter(
-      (u) =>
-        memberIds.includes(u.id) ||
-        u.id === activeProject.createdBy
+    const memberIdSet = new Set<string>(
+      Array.isArray(activeProject.memberIds) ? activeProject.memberIds : []
     );
-    return list.length > 0 ? list : users;
-  }, [users, activeProject]);
+    if (activeProject.createdBy) {
+      memberIdSet.add(activeProject.createdBy);
+    }
+    // Incluir usuarios que tienen tareas asignadas en este proyecto para no romper filtros
+    projectTasks.forEach((t) => {
+      if (t.assignedTo) memberIdSet.add(t.assignedTo);
+    });
+
+    const list = users.filter((u) => memberIdSet.has(u.id) && u.isActive !== false);
+    if (list.length > 0) return list;
+    return sessionUser ? [sessionUser] : users;
+  }, [users, activeProject, projectTasks, sessionUser]);
 
   // Peer dentro del proyecto activo
   const peerUser = useMemo(() => {
@@ -185,6 +192,10 @@ export const KanbanBoard: React.FC = () => {
   const handleSelectProject = (projId: string) => {
     setActiveProjectId(projId);
     setActiveProjectIdState(projId);
+    // Si estábamos filtrando por un compañero específico, volver a 'all'
+    if (spaceFilter !== 'mine' && spaceFilter !== 'all') {
+      setSpaceFilter('all');
+    }
   };
 
   const handleOpenCreateProject = () => {
@@ -558,7 +569,7 @@ export const KanbanBoard: React.FC = () => {
           <div className="animate-view-fade">
             <TaskCalendar
               tasks={spaceFilteredTasks}
-              users={users}
+              users={projectMembers}
               currentUser={sessionUser}
               onOpenNewTask={() => handleOpenAddNew('iniciado')}
               onOpenEditTask={handleOpenEdit}
@@ -571,7 +582,7 @@ export const KanbanBoard: React.FC = () => {
           <div className="animate-view-fade">
             <TaskDashboard
               tasks={spaceFilteredTasks}
-              users={users}
+              users={projectMembers}
               currentUser={sessionUser}
               onOpenTaskDetail={handleOpenEdit}
             />
@@ -586,7 +597,7 @@ export const KanbanBoard: React.FC = () => {
         onSave={handleSaveTask}
         editingTask={editingTask}
         defaultStatus={targetColumnStatus}
-        users={users}
+        users={projectMembers}
         currentUser={sessionUser}
         activeProject={activeProject}
       />
