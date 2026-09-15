@@ -309,10 +309,10 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
           <button
             onClick={handleToday}
-            className={`px-3 py-1.5 text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border rounded-lg transition-all active:scale-[0.96] flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all active:scale-[0.96] flex items-center gap-1.5 shadow-sm ${
               justClickedToday
-                ? 'border-cyan-400 text-cyan-300 ring-2 ring-cyan-500/20'
-                : 'border-white/[0.08] hover:border-cyan-500/30'
+                ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400 ring-2 ring-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
+                : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 border border-cyan-500/22 hover:border-cyan-400/40 hover:shadow-[0_0_12px_rgba(6,182,212,0.12)]'
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />

@@ -180,7 +180,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Sticky Top */}
-        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-md">
+        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 border-b border-white/[0.08] bg-[#070c18]/95 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center border"

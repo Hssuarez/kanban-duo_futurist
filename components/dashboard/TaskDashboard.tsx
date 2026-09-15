@@ -180,7 +180,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={() => setIsReportModalOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold bg-white text-zinc-950 hover:bg-zinc-200 rounded-lg shadow-sm transition-all active:scale-[0.98]"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold bg-gradient-to-r from-white via-cyan-50 to-white hover:from-cyan-100 hover:to-white text-slate-950 rounded-lg shadow-[0_0_14px_rgba(6,182,212,0.2)] hover:shadow-[0_0_20px_rgba(6,182,212,0.35)] transition-all active:scale-[0.98]"
           >
             <FileText className="w-3.5 h-3.5" />
             <span>Informe mensual</span>
@@ -199,7 +199,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
                 onClick={() => setQuickFilter(btn.key)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all active:scale-[0.98] ${
                   quickFilter === btn.key
-                    ? 'bg-zinc-800 text-white font-semibold shadow-sm'
+                    ? 'bg-zinc-800/95 text-white font-semibold border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
@@ -240,7 +240,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
       {/* Executive KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Tasks */}
-        <div className="bg-zinc-900/40 p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-white/[0.14] hover:-translate-y-[2px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] transition-all">
+        <div className="bg-zinc-900/50 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-cyan-500/30 hover:-translate-y-[2px] hover:shadow-[0_10px_28px_rgba(0,0,0,0.5),0_0_20px_rgba(6,182,212,0.06)] transition-all">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
               Total gestionadas
@@ -258,7 +258,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
         </div>
 
         {/* Completed Tasks */}
-        <div className="bg-zinc-900/40 p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-white/[0.14] hover:-translate-y-[2px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] transition-all">
+        <div className="bg-zinc-900/50 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-cyan-500/30 hover:-translate-y-[2px] hover:shadow-[0_10px_28px_rgba(0,0,0,0.5),0_0_20px_rgba(6,182,212,0.06)] transition-all">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider">
               Finalizadas
@@ -281,7 +281,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
         </div>
 
         {/* In Progress Tasks */}
-        <div className="bg-zinc-900/40 p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-white/[0.14] hover:-translate-y-[2px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] transition-all">
+        <div className="bg-zinc-900/50 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-cyan-500/30 hover:-translate-y-[2px] hover:shadow-[0_10px_28px_rgba(0,0,0,0.5),0_0_20px_rgba(6,182,212,0.06)] transition-all">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-amber-400 uppercase tracking-wider">
               En progreso
@@ -299,7 +299,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
         </div>
 
         {/* Overdue Tasks */}
-        <div className="bg-zinc-900/40 p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-white/[0.14] hover:-translate-y-[2px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] transition-all">
+        <div className="bg-zinc-900/50 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/[0.08] hover:border-cyan-500/30 hover:-translate-y-[2px] hover:shadow-[0_10px_28px_rgba(0,0,0,0.5),0_0_20px_rgba(6,182,212,0.06)] transition-all">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-rose-400 uppercase tracking-wider">
               Vencidas

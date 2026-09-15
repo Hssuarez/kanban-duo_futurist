@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
 import { loginWithCredentials } from '@/lib/storage';
 import { User } from '@/lib/types';
@@ -21,15 +21,50 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   // Focus state: when mouse is over the login card, background activity dims softly
   const [isCardHovered, setIsCardHovered] = useState(false);
 
-  // Normalized mouse coordinates (-0.5 to 0.5) for ambient Globe tracking & card micro-depth
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  // Target mouse coordinates (-0.5 to 0.5)
+  const targetMouseRef = useRef({ x: 0, y: 0 });
+
+  // Smooth lerped inertia coordinates for layered parallax
+  const [smoothMouse, setSmoothMouse] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    // Accessibility check: prefers-reduced-motion
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) return;
+
+    let animId: number;
+    let currentX = 0;
+    let currentY = 0;
+
+    const loop = () => {
+      const target = targetMouseRef.current;
+      // Gentle inertia interpolation (decay factor 0.055)
+      currentX += (target.x - currentX) * 0.055;
+      currentY += (target.y - currentY) * 0.055;
+
+      setSmoothMouse({ x: currentX, y: currentY });
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+
+    return () => cancelAnimationFrame(animId);
+  }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { clientX, clientY } = e;
     const { innerWidth, innerHeight } = window;
     const normX = clientX / innerWidth - 0.5;
     const normY = clientY / innerHeight - 0.5;
-    setMousePos({ x: normX, y: normY });
+    targetMouseRef.current = { x: normX, y: normY };
+  };
+
+  const handleMouseLeave = () => {
+    // Return smoothly to center rest position when leaving window
+    targetMouseRef.current = { x: 0, y: 0 };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,62 +89,74 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   return (
     <div
       onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       className="min-h-screen md:h-screen md:max-h-screen bg-[#050811] flex flex-col justify-center items-center p-4 sm:p-6 relative font-sans selection:bg-cyan-500/30 selection:text-white overflow-x-hidden overflow-y-auto md:overflow-hidden"
     >
-      {/* 1. FONDO: Deep Space Vignette with Cosmic Glow */}
+      {/* 1. FONDO: Deep Space Vignette with Subtle Layered Parallax (2-3px) */}
       <div
-        className="absolute inset-0 pointer-events-none z-0"
+        className="absolute inset-0 pointer-events-none z-0 transition-transform duration-100 ease-out will-change-transform"
         style={{
           background:
             'radial-gradient(ellipse 70% 60% at 25% 35%, rgba(6, 182, 212, 0.08) 0%, transparent 65%), radial-gradient(ellipse 65% 55% at 85% 50%, rgba(14, 165, 233, 0.05) 0%, transparent 70%)',
+          transform: `translate3d(${smoothMouse.x * 4}px, ${smoothMouse.y * 4}px, 0)`,
         }}
       />
 
-      {/* 2. CONSTELACIONES: Interactive Constellation Background with Radar Waves (Canvas 2D, 60fps) */}
-      <InteractiveConstellationBackground
-        isDimmed={isCardHovered}
-        className="absolute inset-0 z-0"
-      />
-
-      {/* 3. GLOBE: Calibrated Aceternity COBE WebGL Globe Layer */}
-      {/* Desktop (md+): Scale 700px-920px, positioned in center-right behind the card */}
-      {/* Mobile (<md): Anchored at top (top-4 sm:top-8), centered horizontally so upper hemisphere crowns the card */}
+      {/* 2. CONSTELACIONES: Interactive Constellation Background with Parallax (4-6px) */}
       <div
-        className={`absolute top-4 sm:top-8 md:top-1/2 md:-translate-y-1/2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-[-6%] lg:right-[0%] xl:right-[5%] w-[340px] h-[340px] sm:w-[460px] sm:h-[460px] md:w-[700px] md:h-[700px] lg:w-[820px] lg:h-[820px] xl:w-[920px] xl:h-[920px] pointer-events-none transition-opacity duration-700 z-0 ${
-          isCardHovered
-            ? 'opacity-65 sm:opacity-75 lg:opacity-80'
-            : 'opacity-80 sm:opacity-85 lg:opacity-90'
-        }`}
-        aria-hidden="true"
+        className="absolute inset-0 z-0 pointer-events-none transition-transform duration-100 ease-out will-change-transform"
+        style={{
+          transform: `translate3d(${smoothMouse.x * 8}px, ${smoothMouse.y * 8}px, 0)`,
+        }}
       >
-        <Globe mousePosition={mousePos} className="w-full h-full" />
+        <InteractiveConstellationBackground
+          isDimmed={isCardHovered}
+          className="w-full h-full"
+        />
       </div>
 
-      {/* 4. LOGIN CARD: Glassmorphism Calibrado (Alta legibilidad, fondo obsidiana, sombra profunda) (z-10) */}
+      {/* 3. GLOBE: Cinematic Globe Layer with Traveling Paths and Depth Parallax (8-10px) */}
+      {/* Desktop (md+): Scale 720px-940px, positioned in center-right behind the card */}
+      {/* Mobile (<md): Anchored at top (top-4 sm:top-8), centered horizontally so upper hemisphere crowns the card */}
+      <div
+        className={`absolute top-4 sm:top-8 md:top-1/2 md:-translate-y-1/2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-[-6%] lg:right-[0%] xl:right-[5%] w-[340px] h-[340px] sm:w-[460px] sm:h-[460px] md:w-[720px] md:h-[720px] lg:w-[840px] lg:h-[840px] xl:w-[940px] xl:h-[940px] pointer-events-none transition-[opacity,transform] duration-700 z-0 will-change-transform ${
+          isCardHovered
+            ? 'opacity-65 sm:opacity-75 lg:opacity-80'
+            : 'opacity-82 sm:opacity-88 lg:opacity-95'
+        }`}
+        style={{
+          transform: `translate3d(${smoothMouse.x * 14}px, ${smoothMouse.y * 14}px, 0)`,
+        }}
+        aria-hidden="true"
+      >
+        <Globe mousePosition={smoothMouse} className="w-full h-full" />
+      </div>
+
+      {/* 4. LOGIN CARD: Presence augmented by ~10% (max-w-[420px], p-8 sm:p-10), 3D micro-tilt (±4-6 deg) and deep glassmorphism (z-10) */}
       <div
         onMouseEnter={() => setIsCardHovered(true)}
         onMouseLeave={() => setIsCardHovered(false)}
-        className="w-full max-w-[400px] relative z-10 py-2 mt-28 sm:mt-24 md:mt-0 animate-modal-enter transition-transform duration-300 ease-out"
+        className="w-full max-w-[420px] relative z-10 py-2 mt-28 sm:mt-24 md:mt-0 animate-modal-enter transition-[transform,box-shadow] duration-200 ease-out will-change-transform"
         style={{
-          transform: `perspective(1000px) rotateX(${mousePos.y * -2.5}deg) rotateY(${mousePos.x * 2.5}deg)`,
+          transform: `perspective(1000px) rotateX(${smoothMouse.y * -4.5}deg) rotateY(${smoothMouse.x * 4.5}deg) translate3d(${smoothMouse.x * -6}px, ${smoothMouse.y * -6}px, 0)`,
         }}
       >
-        <div className="relative w-full bg-[#070c18]/85 backdrop-blur-2xl border border-cyan-500/20 hover:border-cyan-400/35 rounded-3xl shadow-[0_25px_65px_-15px_rgba(0,0,0,0.95),0_0_30px_rgba(6,182,212,0.08)] p-7 sm:p-9 overflow-hidden group transition-all">
+        <div className="relative w-full bg-[#070c18]/88 backdrop-blur-2xl border border-cyan-500/22 hover:border-cyan-400/38 rounded-3xl shadow-[0_25px_65px_-15px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.09)] p-8 sm:p-10 overflow-hidden group transition-all">
           {/* Top Edge Refraction Highlight */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/25 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent pointer-events-none" />
 
           {/* Subtle Radial Glare Tracking Mouse */}
           <div
             className="pointer-events-none absolute -inset-px rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             style={{
-              background: `radial-gradient(400px circle at ${(mousePos.x + 0.5) * 100}% ${(mousePos.y + 0.5) * 100}%, rgba(6, 182, 212, 0.06), transparent 80%)`,
+              background: `radial-gradient(420px circle at ${(smoothMouse.x + 0.5) * 100}% ${(smoothMouse.y + 0.5) * 100}%, rgba(6, 182, 212, 0.07), transparent 80%)`,
             }}
           />
 
           {/* Branding Header */}
           <div className="text-center mb-6 relative z-10">
             {/* Logo Badge */}
-            <div className="w-12 h-12 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-white mx-auto flex items-center justify-center shadow-[0_0_18px_rgba(6,182,212,0.2)] mb-3.5 group-hover:scale-105 group-hover:border-cyan-400/50 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-white mx-auto flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.22)] mb-3.5 group-hover:scale-105 group-hover:border-cyan-400/50 transition-all">
               <div className="flex items-end gap-1 h-5" aria-hidden="true">
                 <div className="w-1 h-5 bg-white rounded-full shadow-[0_0_6px_rgba(255,255,255,0.7)]" />
                 <div className="w-1 h-3.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]" />

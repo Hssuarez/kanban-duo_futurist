@@ -105,7 +105,7 @@ export const Column: React.FC<ColumnProps> = ({
       onDrop={handleDrop}
       className={`flex flex-col bg-zinc-900/40 bg-gradient-to-b ${columnConfig.headerGlow} rounded-2xl p-3 sm:p-3.5 border transition-all duration-200 min-h-[520px] font-sans relative ${
         isDragOver
-          ? 'drop-target bg-zinc-900/60 border-cyan-500/50 shadow-[0_0_25px_rgba(6,182,212,0.12)]'
+          ? 'drop-target bg-zinc-900/70 border-cyan-500/60 shadow-[0_0_30px_rgba(6,182,212,0.18)] ring-1 ring-cyan-500/40'
           : columnConfig.columnBorder
       }`}
     >
@@ -152,7 +152,7 @@ export const Column: React.FC<ColumnProps> = ({
         {/* Drop Insertion Target Cue when dragging over */}
         {isDragOver && (
           <div className="border-2 border-dashed border-cyan-400/60 bg-cyan-950/20 rounded-xl p-3 text-center text-cyan-300 text-xs font-medium flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.15)] animate-pulse">
-            <span>Soltar tarea en ${title}</span>
+            <span>Soltar tarea en {title}</span>
           </div>
         )}
 

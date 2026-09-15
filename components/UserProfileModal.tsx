@@ -159,11 +159,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-start sm:items-center justify-center font-sans"
     >
       <div
-        className="relative w-full max-w-lg my-auto bg-zinc-950 border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden text-zinc-100 flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] animate-modal-enter"
+        className="relative w-full max-w-lg my-auto bg-[#070c18]/95 backdrop-blur-2xl border border-cyan-500/25 rounded-2xl shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.1)] overflow-hidden text-zinc-100 flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Sticky Top */}
-        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-md">
+        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 border-b border-white/[0.08] bg-[#070c18]/95 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-white">
               Configuración de perfil

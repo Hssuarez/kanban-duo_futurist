@@ -168,13 +168,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-zinc-900 border border-white/[0.12] flex items-center justify-center text-zinc-100 shadow-sm">
-              <Kanban className="w-4 h-4 text-zinc-200" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-center text-zinc-100 shadow-[0_0_15px_rgba(6,182,212,0.18)]">
+              <div className="flex items-end gap-0.5 h-3.5" aria-hidden="true">
+                <div className="w-0.5 h-3.5 bg-white rounded-full shadow-[0_0_4px_rgba(255,255,255,0.7)]" />
+                <div className="w-0.5 h-2.5 bg-cyan-400 rounded-full shadow-[0_0_6px_rgba(6,182,212,0.9)]" />
+                <div className="w-0.5 h-3 bg-white/80 rounded-full" />
+              </div>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-semibold text-zinc-100 text-sm sm:text-base tracking-tight">
-                  Kanban<span className="text-zinc-400 font-normal">Duo</span>
+                <h1 className="font-bold text-white text-sm sm:text-base tracking-tight">
+                  Kanban<span className="text-cyan-400 font-semibold drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">Duo</span>
                 </h1>
               </div>
             </div>
@@ -225,9 +229,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onOpenNewTaskModal}
               title="Nueva Tarea"
-              className="inline-flex items-center gap-1.5 bg-white hover:bg-zinc-200 text-zinc-950 font-medium px-3 py-1.5 rounded-lg text-xs shadow-sm hover:shadow active:scale-[0.98] transition-all"
+              className="inline-flex items-center gap-1.5 bg-gradient-to-r from-white via-cyan-50 to-white hover:from-cyan-100 hover:to-white text-slate-950 font-semibold px-3 py-1.5 rounded-lg text-xs shadow-[0_0_14px_rgba(6,182,212,0.2)] hover:shadow-[0_0_22px_rgba(6,182,212,0.38)] active:scale-[0.98] transition-all cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5 text-zinc-950 stroke-[2.5]" />
+              <Plus className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
               <span className="hidden sm:inline">Nueva tarea</span>
             </button>
 
@@ -252,7 +256,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {showUserDropdown && (
                 <div
                   style={{ transformOrigin: 'top right' }}
-                  className="absolute right-0 mt-2 w-60 bg-zinc-900/95 backdrop-blur-xl border border-white/[0.1] rounded-xl shadow-2xl py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs"
+                  className="absolute right-0 mt-2 w-60 bg-[#070c18]/95 backdrop-blur-2xl border border-cyan-500/22 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_25px_rgba(6,182,212,0.08)] py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs"
                   onClick={() => setShowUserDropdown(false)}
                 >
                   <div className="px-3 py-2 border-b border-white/[0.06]">
@@ -329,7 +333,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Sliding Pill Indicator */}
             {viewIndicator.ready && (
               <div
-                className="absolute top-0.5 bottom-0.5 rounded-lg bg-zinc-800 border border-white/10 shadow-sm transition-all duration-200 pointer-events-none"
+                className="absolute top-0.5 bottom-0.5 rounded-lg bg-zinc-800/95 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.18)] transition-all duration-200 pointer-events-none"
                 style={{
                   transform: `translateX(${viewIndicator.left}px)`,
                   width: `${viewIndicator.width}px`,
@@ -386,7 +390,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Sliding Pill Indicator */}
             {spaceIndicator.ready && (
               <div
-                className="absolute top-0.5 bottom-0.5 rounded-lg bg-zinc-800 border border-white/10 shadow-sm transition-all duration-200 pointer-events-none"
+                className="absolute top-0.5 bottom-0.5 rounded-lg bg-zinc-800/95 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.18)] transition-all duration-200 pointer-events-none"
                 style={{
                   transform: `translateX(${spaceIndicator.left}px)`,
                   width: `${spaceIndicator.width}px`,
