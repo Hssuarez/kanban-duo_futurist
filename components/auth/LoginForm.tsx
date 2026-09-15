@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { Kanban, Lock, Mail, Eye, EyeOff, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Kanban, Eye, EyeOff, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
 import { loginWithCredentials } from '@/lib/storage';
 import { User } from '@/lib/types';
+import { Globe } from '@/components/ui/Globe';
 
 interface LoginFormProps {
   onLoginSuccess: (user: User) => void;
@@ -16,41 +17,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Aceternity 3D Card tilt states
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [rotate, setRotate] = useState({ x: 0, y: 0 });
-  const [isHovered, setIsHovered] = useState(false);
-  const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 });
+  // Normalized mouse coordinates (-0.5 to 0.5) for ambient Globe tracking & card micro-depth
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const card = cardRef.current;
-    if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-
-    // Smooth tilt: max 12 degrees
-    const rotX = ((y - centerY) / centerY) * -12;
-    const rotY = ((x - centerX) / centerX) * 12;
-
-    setRotate({ x: rotX, y: rotY });
-    setGlare({
-      x: (x / rect.width) * 100,
-      y: (y / rect.height) * 100,
-      opacity: 0.15,
-    });
-  };
-
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    setRotate({ x: 0, y: 0 });
-    setGlare({ x: 50, y: 50, opacity: 0 });
+    const { clientX, clientY } = e;
+    const { innerWidth, innerHeight } = window;
+    const normX = clientX / innerWidth - 0.5;
+    const normY = clientY / innerHeight - 0.5;
+    setMousePos({ x: normX, y: normY });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,65 +48,45 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] flex flex-col justify-center items-center p-4 relative font-sans selection:bg-zinc-800 overflow-hidden">
-      {/* Aceternity Dot Background with Radial Fade Mask */}
+    <div
+      onMouseMove={handleMouseMove}
+      className="min-h-screen bg-[#09090b] flex flex-col justify-center items-center p-4 sm:p-6 relative font-sans selection:bg-zinc-800 overflow-hidden"
+    >
+      {/* 1. FONDO: Subtle Atmospheric Glow */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-20"
-        style={{
-          backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.3) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-          maskImage: 'radial-gradient(ellipse 70% 60% at 50% 50%, black 25%, transparent 80%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 50% 50%, black 25%, transparent 80%)',
-        }}
-      />
-
-      {/* Aceternity Ambient Spotlight Glow */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[650px] h-[340px] pointer-events-none opacity-40 blur-3xl"
+        className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'radial-gradient(circle, rgba(120, 119, 198, 0.35) 0%, rgba(6, 182, 212, 0.1) 45%, transparent 80%)',
+            'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(6, 182, 212, 0.09) 0%, transparent 65%), radial-gradient(ellipse 60% 40% at 75% 60%, rgba(59, 130, 246, 0.05) 0%, transparent 60%)',
         }}
       />
 
-      {/* 3D Card Container with Perspective */}
+      {/* 2. GLOBE: Aceternity COBE WebGL Globe Layer (Behind the login card) */}
       <div
-        className="w-full max-w-sm relative z-10 py-4"
-        style={{ perspective: '1000px' }}
-        onMouseMove={handleMouseMove}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-[2%] lg:right-[8%] xl:right-[12%] w-[380px] h-[380px] sm:w-[520px] sm:h-[520px] lg:w-[680px] lg:h-[680px] xl:w-[740px] xl:h-[740px] pointer-events-none opacity-50 sm:opacity-75 lg:opacity-90 transition-opacity duration-500 z-0"
+        aria-hidden="true"
       >
-        {/* Aceternity 3D Card Body */}
-        <div
-          ref={cardRef}
-          style={{
-            transform: `perspective(1000px) rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${
-              isHovered ? 1.02 : 1
-            }, ${isHovered ? 1.02 : 1}, 1)`,
-            transition: isHovered
-              ? 'transform 0.08s ease-out'
-              : 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)',
-            transformStyle: 'preserve-3d',
-          }}
-          className="relative w-full bg-zinc-900/90 backdrop-blur-xl border border-white/[0.1] hover:border-cyan-500/30 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] p-6 sm:p-8 overflow-hidden group"
-        >
-          {/* Dynamic Light Glare Overlay */}
+        <Globe mousePosition={mousePos} className="w-full h-full" />
+      </div>
+
+      {/* 3. LOGIN CARD: Refined Studio Glassmorphic Card (z-10) */}
+      <div
+        className="w-full max-w-sm relative z-10 py-2 animate-modal-enter transition-transform duration-300 ease-out"
+        style={{
+          transform: `perspective(1000px) rotateX(${mousePos.y * -2.5}deg) rotateY(${mousePos.x * 2.5}deg)`,
+        }}
+      >
+        <div className="relative w-full bg-zinc-900/85 backdrop-blur-2xl border border-white/[0.1] hover:border-cyan-500/30 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.7)] p-6 sm:p-8 overflow-hidden group transition-colors">
+          {/* Subtle Radial Glare */}
           <div
-            className="pointer-events-none absolute inset-0 rounded-2xl transition-opacity duration-300 z-20"
+            className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             style={{
-              background: `radial-gradient(400px circle at ${glare.x}% ${glare.y}%, rgba(255, 255, 255, ${glare.opacity}), transparent 80%)`,
+              background: `radial-gradient(350px circle at ${(mousePos.x + 0.5) * 100}% ${(mousePos.y + 0.5) * 100}%, rgba(255, 255, 255, 0.06), transparent 80%)`,
             }}
           />
 
-          {/* 3D Card Item 1: Floating Branding (translateZ: 45px) */}
-          <div
-            style={{
-              transform: isHovered ? 'translateZ(45px)' : 'translateZ(0px)',
-              transition: 'transform 0.25s ease-out',
-            }}
-            className="text-center mb-6 relative z-10"
-          >
+          {/* Branding */}
+          <div className="text-center mb-6 relative z-10">
             <div className="w-11 h-11 rounded-xl bg-zinc-800/90 border border-white/[0.12] text-white mx-auto flex items-center justify-center shadow-lg mb-3 group-hover:scale-105 group-hover:border-cyan-500/40 transition-all">
               <Kanban className="w-5 h-5 text-zinc-100" />
             </div>
@@ -145,27 +100,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
 
           {/* Error Alert */}
           {error && (
-            <div
-              style={{
-                transform: isHovered ? 'translateZ(30px)' : 'translateZ(0px)',
-                transition: 'transform 0.2s ease-out',
-              }}
-              className="flex items-start gap-2 p-3 mb-4 text-xs text-rose-300 bg-rose-950/40 border border-rose-500/40 rounded-lg animate-fade-in relative z-10"
-            >
+            <div className="flex items-start gap-2 p-3 mb-4 text-xs text-rose-300 bg-rose-950/40 border border-rose-500/40 rounded-lg animate-fade-in relative z-10">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
               <span className="leading-relaxed">{error}</span>
             </div>
           )}
 
-          {/* 3D Card Item 2: Form Inputs (translateZ: 25px) */}
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              transform: isHovered ? 'translateZ(25px)' : 'translateZ(0px)',
-              transition: 'transform 0.25s ease-out',
-            }}
-            className="space-y-3.5 relative z-10"
-          >
+          {/* Form Inputs */}
+          <form onSubmit={handleSubmit} className="space-y-3.5 relative z-10">
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1">
                 Correo electrónico
@@ -205,14 +147,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
 
-            {/* 3D Card Item 3: Submit Button (translateZ: 38px) */}
-            <div
-              style={{
-                transform: isHovered ? 'translateZ(38px)' : 'translateZ(0px)',
-                transition: 'transform 0.25s ease-out',
-              }}
-              className="pt-2"
-            >
+            {/* Submit Button */}
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={isLoading}
@@ -230,14 +166,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
             </div>
           </form>
 
-          {/* Security Footer (translateZ: 15px) */}
-          <div
-            style={{
-              transform: isHovered ? 'translateZ(15px)' : 'translateZ(0px)',
-              transition: 'transform 0.25s ease-out',
-            }}
-            className="mt-6 pt-4 border-t border-white/[0.06] text-center relative z-10"
-          >
+          {/* Security Footer */}
+          <div className="mt-6 pt-4 border-t border-white/[0.06] text-center relative z-10">
             <p className="text-[11px] text-zinc-500 flex items-center justify-center gap-1.5 font-medium">
               <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
               Acceso seguro con cifrado y presencia activa
