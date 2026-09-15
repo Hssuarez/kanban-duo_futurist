@@ -98,7 +98,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
         style={{
           background:
             'radial-gradient(ellipse 70% 60% at 25% 35%, rgba(6, 182, 212, 0.08) 0%, transparent 65%), radial-gradient(ellipse 65% 55% at 85% 50%, rgba(14, 165, 233, 0.05) 0%, transparent 70%)',
-          transform: `translate3d(${smoothMouse.x * 4}px, ${smoothMouse.y * 4}px, 0)`,
+          transform: `translate3d(${Math.max(-3, Math.min(3, smoothMouse.x * 6))}px, ${Math.max(-2, Math.min(2, smoothMouse.y * 4))}px, 0)`,
         }}
       />
 
@@ -106,7 +106,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
       <div
         className="absolute inset-0 z-0 pointer-events-none transition-transform duration-100 ease-out will-change-transform"
         style={{
-          transform: `translate3d(${smoothMouse.x * 8}px, ${smoothMouse.y * 8}px, 0)`,
+          transform: `translate3d(${Math.max(-5, Math.min(5, smoothMouse.x * 10))}px, ${Math.max(-4, Math.min(4, smoothMouse.y * 8))}px, 0)`,
         }}
       >
         <InteractiveConstellationBackground
@@ -115,21 +115,25 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
         />
       </div>
 
-      {/* 3. GLOBE: Cinematic Globe Layer with Traveling Paths and Depth Parallax (8-10px) */}
-      {/* Desktop (md+): Scale 720px-940px, positioned in center-right behind the card */}
-      {/* Mobile (<md): Anchored at top (top-4 sm:top-8), centered horizontally so upper hemisphere crowns the card */}
+      {/* 3. GLOBE: Arquitectura Separada de Posición Base y Parallax */}
+      {/* 3A. GlobePositionWrapper: Estrictamente responsable de la posición base en el layout (cero transforms en style inline) */}
       <div
-        className={`absolute top-4 sm:top-8 md:top-1/2 md:-translate-y-1/2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-[-6%] lg:right-[0%] xl:right-[5%] w-[340px] h-[340px] sm:w-[460px] sm:h-[460px] md:w-[720px] md:h-[720px] lg:w-[840px] lg:h-[840px] xl:w-[940px] xl:h-[940px] pointer-events-none transition-[opacity,transform] duration-700 z-0 will-change-transform ${
+        className={`absolute top-4 sm:top-8 md:top-1/2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:-translate-y-1/2 md:right-[0%] lg:right-[4%] xl:right-[8%] w-[330px] h-[330px] sm:w-[440px] sm:h-[440px] md:w-[720px] md:h-[720px] lg:w-[840px] lg:h-[840px] xl:w-[940px] xl:h-[940px] pointer-events-none transition-opacity duration-700 z-0 ${
           isCardHovered
             ? 'opacity-65 sm:opacity-75 lg:opacity-80'
             : 'opacity-82 sm:opacity-88 lg:opacity-95'
         }`}
-        style={{
-          transform: `translate3d(${smoothMouse.x * 14}px, ${smoothMouse.y * 14}px, 0)`,
-        }}
         aria-hidden="true"
       >
-        <Globe mousePosition={smoothMouse} className="w-full h-full" />
+        {/* 3B. GlobeParallaxWrapper: Responsable exclusivamente del desplazamiento relativo de parallax, estrictamente limitado a ±10px */}
+        <div
+          className="w-full h-full pointer-events-none transition-transform duration-150 ease-out will-change-transform"
+          style={{
+            transform: `translate3d(${Math.max(-10, Math.min(10, smoothMouse.x * 20))}px, ${Math.max(-8, Math.min(8, smoothMouse.y * 16))}px, 0)`,
+          }}
+        >
+          <Globe mousePosition={smoothMouse} className="w-full h-full" />
+        </div>
       </div>
 
       {/* 4. LOGIN CARD: Presence augmented by ~10% (max-w-[420px], p-8 sm:p-10), 3D micro-tilt (±4-6 deg) and deep glassmorphism (z-10) */}
@@ -138,7 +142,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
         onMouseLeave={() => setIsCardHovered(false)}
         className="w-full max-w-[420px] relative z-10 py-2 mt-28 sm:mt-24 md:mt-0 animate-modal-enter transition-[transform,box-shadow] duration-200 ease-out will-change-transform"
         style={{
-          transform: `perspective(1000px) rotateX(${smoothMouse.y * -4.5}deg) rotateY(${smoothMouse.x * 4.5}deg) translate3d(${smoothMouse.x * -6}px, ${smoothMouse.y * -6}px, 0)`,
+          transform: `perspective(1000px) rotateX(${Math.max(-5, Math.min(5, smoothMouse.y * -4.5))}deg) rotateY(${Math.max(-5, Math.min(5, smoothMouse.x * 4.5))}deg) translate3d(${Math.max(-4, Math.min(4, smoothMouse.x * -6))}px, ${Math.max(-4, Math.min(4, smoothMouse.y * -6))}px, 0)`,
         }}
       >
         <div className="relative w-full bg-[#070c18]/88 backdrop-blur-2xl border border-cyan-500/22 hover:border-cyan-400/38 rounded-3xl shadow-[0_25px_65px_-15px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.09)] p-8 sm:p-10 overflow-hidden group transition-all">
