@@ -42,6 +42,7 @@ import { AdminPanel } from './admin/AdminPanel';
 import { TaskCalendar } from './calendar/TaskCalendar';
 import { TaskDashboard } from './dashboard/TaskDashboard';
 import { ProjectModal } from './project/ProjectModal';
+import { AmbientNetworkBackground } from './ui/AmbientNetworkBackground';
 import { initPresence } from '@/lib/presence';
 import { Filter } from 'lucide-react';
 
@@ -407,30 +408,35 @@ export const KanbanBoard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#09090b] selection:bg-zinc-800 selection:text-zinc-100 pb-12 font-sans">
+    <div className="min-h-screen flex flex-col bg-[#09090b] selection:bg-cyan-900/40 selection:text-cyan-100 pb-12 font-sans relative overflow-x-hidden">
+      {/* Ambient Network Background (quiet, faint digital universe for the workspace) */}
+      <AmbientNetworkBackground variant={currentView} className="fixed inset-0 z-0 pointer-events-none" />
+
       {/* Top Navbar */}
-      <Navbar
-        currentUser={sessionUser}
-        users={users}
-        projects={accessibleProjects}
-        activeProject={activeProject}
-        onSelectProject={handleSelectProject}
-        onOpenCreateProject={handleOpenCreateProject}
-        onOpenEditProject={handleOpenEditProject}
-        currentView={currentView}
-        setCurrentView={setCurrentView}
-        spaceFilter={spaceFilter}
-        setSpaceFilter={setSpaceFilter}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onOpenNewTaskModal={() => handleOpenAddNew('iniciado')}
-        onOpenAdminPanel={() => setCurrentView('admin')}
-        onOpenProfileModal={() => setIsProfileModalOpen(true)}
-        onLogout={handleLogout}
-      />
+      <div className="relative z-10">
+        <Navbar
+          currentUser={sessionUser}
+          users={users}
+          projects={accessibleProjects}
+          activeProject={activeProject}
+          onSelectProject={handleSelectProject}
+          onOpenCreateProject={handleOpenCreateProject}
+          onOpenEditProject={handleOpenEditProject}
+          currentView={currentView}
+          setCurrentView={setCurrentView}
+          spaceFilter={spaceFilter}
+          setSpaceFilter={setSpaceFilter}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onOpenNewTaskModal={() => handleOpenAddNew('iniciado')}
+          onOpenAdminPanel={() => setCurrentView('admin')}
+          onOpenProfileModal={() => setIsProfileModalOpen(true)}
+          onLogout={handleLogout}
+        />
+      </div>
 
       {/* Main Container */}
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 flex flex-col">
+      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 flex flex-col relative z-10">
         {currentView === 'board' && (
           <div className="animate-view-fade flex-1 flex flex-col">
             {/* Peer Activity Bar enfocada en miembros y tareas del proyecto activo */}

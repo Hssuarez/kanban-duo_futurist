@@ -61,7 +61,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         {/* Main Project Trigger Button */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 bg-zinc-900/80 hover:bg-zinc-800/90 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs transition-all shadow-sm group active:scale-[0.98] ${
+          className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 bg-zinc-900/85 hover:bg-zinc-800/95 border border-white/[0.08] hover:border-cyan-500/30 rounded-lg text-xs transition-all shadow-sm group active:scale-[0.98] ${
             isMobile ? 'flex-1 min-w-0 justify-between' : ''
           }`}
           title="Cambiar de Tablero / Proyecto"
@@ -71,7 +71,8 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
             <div
               className="w-2.5 h-2.5 rounded-full shrink-0 transition-transform group-hover:scale-110"
               style={{
-                backgroundColor: activeProject.color || '#3b82f6',
+                backgroundColor: activeProject.color || '#06b6d4',
+                boxShadow: `0 0 8px ${activeProject.color || '#06b6d4'}80`,
               }}
             />
 

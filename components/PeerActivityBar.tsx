@@ -54,7 +54,7 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
   };
 
   return (
-    <div className="bg-zinc-900/60 backdrop-blur-md border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl overflow-hidden mb-6 font-sans transition-colors shadow-sm">
+    <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl overflow-hidden mb-6 font-sans transition-colors shadow-sm">
       {/* Main Focus Strip */}
       <div className="p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -71,7 +71,7 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
             />
             <span
               className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-zinc-950 rounded-full ${
-                isOnline ? 'bg-emerald-500' : 'bg-zinc-600'
+                isOnline ? 'bg-emerald-500 animate-living-signal' : 'bg-zinc-600'
               }`}
               title={isOnline ? 'En línea' : 'Desconectado'}
             />
@@ -99,7 +99,7 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
 
               {isOnline ? (
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium shadow-[0_0_10px_rgba(16,185,129,0.15)]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)]"></span> En línea
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-living-signal"></span> En línea
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-400 bg-zinc-800/80 border border-zinc-700/60 px-2 py-0.5 rounded-full font-medium">

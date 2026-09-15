@@ -103,17 +103,20 @@ export const Column: React.FC<ColumnProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex flex-col bg-zinc-900/40 bg-gradient-to-b ${columnConfig.headerGlow} rounded-2xl p-3 sm:p-3.5 border transition-all duration-200 min-h-[520px] font-sans relative ${
+      className={`flex flex-col bg-[#070c18]/60 backdrop-blur-md bg-gradient-to-b ${columnConfig.headerGlow} rounded-2xl p-3 sm:p-3.5 border transition-all duration-200 min-h-[520px] font-sans relative ${
         isDragOver
-          ? 'drop-target bg-zinc-900/70 border-cyan-500/60 shadow-[0_0_30px_rgba(6,182,212,0.18)] ring-1 ring-cyan-500/40'
+          ? 'drop-target bg-cyan-950/25 border-cyan-500/60 shadow-[0_0_30px_rgba(6,182,212,0.18)] ring-1 ring-cyan-500/40'
           : columnConfig.columnBorder
       }`}
     >
       {/* Column Header */}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-2.5">
-          <div className={`p-1.5 rounded-lg border ${columnConfig.iconBg}`}>
+          <div className={`p-1.5 rounded-lg border relative ${columnConfig.iconBg}`}>
             <IconComponent className="w-3.5 h-3.5" />
+            {status === 'trabajando' && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-working-halo" />
+            )}
           </div>
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-sm text-zinc-200">

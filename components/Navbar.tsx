@@ -432,7 +432,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="flex items-center gap-1.5">
                   <span>{otherMembers[0]?.name?.split(' ')[0] || 'Compañero'}</span>
                   {Boolean(otherMembers[0] && onlineUserIds.includes(otherMembers[0].id)) && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="En línea" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-living-signal" title="En línea" />
                   )}
                 </span>
               </button>
@@ -495,7 +495,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 </span>
                               </div>
                               {isOnline && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="En línea" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-living-signal shrink-0" title="En línea" />
                               )}
                             </div>
                             {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}

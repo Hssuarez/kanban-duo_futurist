@@ -92,7 +92,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       onDragEnd={(e) => {
         (e.currentTarget as HTMLElement).classList.remove('dragging');
       }}
-      className={`group relative bg-zinc-900/80 hover:bg-zinc-900/95 border border-white/[0.08] hover:border-cyan-500/35 rounded-xl p-3.5 shadow-sm hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(6,182,212,0.08)] hover:-translate-y-0.5 hover:ring-1 hover:ring-cyan-500/25 transition-[transform,background-color,border-color,box-shadow] duration-150 cursor-grab active:cursor-grabbing font-sans select-none overflow-hidden ${
+      className={`group relative bg-[#070c18]/85 hover:bg-[#0c1324]/95 border ${
+        task.status === 'trabajando'
+          ? 'border-amber-500/25 shadow-[0_4px_20px_rgba(245,158,11,0.06)]'
+          : 'border-white/[0.08]'
+      } hover:border-cyan-500/35 rounded-xl p-3.5 shadow-sm hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(6,182,212,0.08)] hover:-translate-y-0.5 hover:ring-1 hover:ring-cyan-500/25 transition-[transform,background-color,border-color,box-shadow] duration-150 cursor-grab active:cursor-grabbing font-sans select-none overflow-hidden ${
         isCompleting ? 'animate-card-complete bg-emerald-950/30 border-emerald-500/60 ring-1 ring-emerald-500/40' : ''
       }`}
     >
@@ -112,12 +116,20 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       />
       {/* Top Meta: Priority & Actions */}
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span
-          className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border ${currentPriority.badge}`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${currentPriority.dot}`} />
-          {currentPriority.label}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border ${currentPriority.badge}`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${currentPriority.dot}`} />
+            {currentPriority.label}
+          </span>
+          {task.status === 'trabajando' && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-300 bg-amber-950/40 border border-amber-500/30 px-1.5 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-working-halo" />
+              En curso
+            </span>
+          )}
+        </div>
 
         {/* Action icons or inline confirm */}
         {isConfirmingDelete ? (
