@@ -79,6 +79,15 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     setMemberFilter('');
   }, [editingProject, currentUser, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const isEditing = Boolean(editingProject);
@@ -162,13 +171,16 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity font-sans">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-start sm:items-center justify-center font-sans"
+    >
       <div
-        className="bg-zinc-900 w-full max-w-xl rounded-xl shadow-2xl border border-white/[0.08] overflow-hidden text-zinc-100 max-h-[90vh] flex flex-col animate-modal-enter"
+        className="relative w-full max-w-xl my-auto bg-zinc-950 border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden text-zinc-100 flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-zinc-900/90 shrink-0">
+        {/* Header - Sticky Top */}
+        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center border"
@@ -196,8 +208,9 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           </button>
         </div>
 
-        {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
           {error && (
             <div className="flex items-center gap-2 p-3 bg-rose-950/40 border border-rose-500/40 rounded-lg text-rose-300 text-xs font-medium">
               <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -383,9 +396,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               </span>
             </div>
           )}
+        </div>
 
-          {/* Submit buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.06]">
+        {/* Submit buttons - Sticky Footer */}
+          <div className="shrink-0 sticky bottom-0 z-10 flex items-center justify-end gap-2.5 px-5 py-3.5 border-t border-white/[0.06] bg-zinc-950/95 backdrop-blur-md">
             <button
               type="button"
               onClick={onClose}

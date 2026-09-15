@@ -73,8 +73,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       onDragEnd={(e) => {
         (e.currentTarget as HTMLElement).classList.remove('dragging');
       }}
-      className={`group relative bg-zinc-900/80 hover:bg-zinc-900 border border-white/[0.07] hover:border-cyan-500/25 rounded-xl p-3.5 shadow-sm hover:shadow-[0_8px_24px_rgba(0,0,0,0.45)] hover:-translate-y-[2px] transition-all duration-150 cursor-grab active:cursor-grabbing font-sans select-none ${
-        isCompleting ? 'animate-card-complete bg-emerald-950/20 border-emerald-500/50' : ''
+      className={`group relative bg-zinc-900/80 hover:bg-zinc-900/95 border border-white/[0.08] hover:border-cyan-500/30 rounded-xl p-3.5 shadow-sm hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 hover:ring-1 hover:ring-white/[0.08] transition-[transform,background-color,border-color,box-shadow] duration-150 cursor-grab active:cursor-grabbing font-sans select-none ${
+        isCompleting ? 'animate-card-complete bg-emerald-950/30 border-emerald-500/60 ring-1 ring-emerald-500/40' : ''
       }`}
     >
       {/* Top Meta: Priority & Actions */}

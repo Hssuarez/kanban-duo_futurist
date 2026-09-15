@@ -425,7 +425,7 @@ export const KanbanBoard: React.FC = () => {
       {/* Main Container */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 flex flex-col">
         {currentView === 'board' && (
-          <>
+          <div className="animate-view-fade flex-1 flex flex-col">
             {/* Peer Activity Bar enfocada en miembros y tareas del proyecto activo */}
             <PeerActivityBar
               currentUser={sessionUser}
@@ -538,26 +538,31 @@ export const KanbanBoard: React.FC = () => {
                 onDropTask={handleDropTask}
               />
             </div>
-          </>
+          </div>
         )}
 
         {currentView === 'calendar' && (
-          <TaskCalendar
-            tasks={projectTasks}
-            users={users}
-            currentUser={sessionUser}
-            onOpenNewTask={() => handleOpenAddNew('iniciado')}
-            onOpenEditTask={handleOpenEdit}
-          />
+          <div className="animate-view-fade">
+            <TaskCalendar
+              tasks={projectTasks}
+              users={users}
+              currentUser={sessionUser}
+              onOpenNewTask={() => handleOpenAddNew('iniciado')}
+              onOpenEditTask={handleOpenEdit}
+              onUpdateTaskDueDate={handleUpdateTaskDueDate}
+            />
+          </div>
         )}
 
         {currentView === 'dashboard' && (
-          <TaskDashboard
-            tasks={projectTasks}
-            users={users}
-            currentUser={sessionUser}
-            onOpenTaskDetail={handleOpenEdit}
-          />
+          <div className="animate-view-fade">
+            <TaskDashboard
+              tasks={projectTasks}
+              users={users}
+              currentUser={sessionUser}
+              onOpenTaskDetail={handleOpenEdit}
+            />
+          </div>
         )}
       </main>
 

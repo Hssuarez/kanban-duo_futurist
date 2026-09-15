@@ -494,8 +494,8 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
       {/* VIEW: WEEK GRID */}
       {viewMode === 'week' && (
-        <div className="bg-zinc-900/40 border border-white/[0.08] rounded-2xl overflow-hidden shadow-sm">
-          <div className="grid grid-cols-7 divide-x divide-white/[0.04]">
+        <div className="bg-zinc-900/40 border border-white/[0.08] rounded-2xl overflow-x-auto custom-scrollbar shadow-sm">
+          <div className="grid grid-cols-7 divide-x divide-white/[0.04] min-w-[720px]">
             {weekData.map((day) => {
               const dayTasks = tasksByDay.get(day.dateKey) || [];
               const isOver = dragOverDayKey === day.dateKey;

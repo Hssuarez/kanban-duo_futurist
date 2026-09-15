@@ -51,6 +51,15 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       });
   }, [isOpen, task]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !task) return null;
 
   const assignedUser = users.find((u) => u.id === task.assignedTo);
@@ -100,13 +109,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in font-sans">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-start sm:items-center justify-center font-sans"
+    >
       <div
-        className="bg-zinc-950 border border-white/[0.1] rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-modal-enter"
+        className="relative w-full max-w-2xl my-auto bg-zinc-950 border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-zinc-900/50">
+        {/* Header - Sticky Top */}
+        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-zinc-950/95 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/[0.08] flex items-center justify-center text-zinc-300">
               <Activity className="w-4 h-4 text-cyan-400" />
@@ -136,7 +148,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-6 overflow-y-auto space-y-6 text-zinc-300 text-xs custom-scrollbar">
+        <div className="p-5 sm:p-6 overflow-y-auto flex-1 min-h-0 space-y-5 sm:space-y-6 text-zinc-300 text-xs custom-scrollbar">
           {/* Title & Status Pills */}
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-2.5">
@@ -326,8 +338,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="px-6 py-3.5 bg-zinc-900/50 border-t border-white/[0.08] flex items-center justify-end gap-2">
+        {/* Footer Actions - Sticky Bottom */}
+        <div className="shrink-0 sticky bottom-0 z-10 px-5 sm:px-6 py-3.5 bg-zinc-950/95 backdrop-blur-md border-t border-white/[0.08] flex items-center justify-end gap-2">
           {onOpenEdit && (
             <button
               onClick={() => {

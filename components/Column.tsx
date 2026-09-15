@@ -39,6 +39,8 @@ export const Column: React.FC<ColumnProps> = ({
       iconBg: 'bg-zinc-800 text-zinc-300 border-white/[0.08]',
       badgeBg: 'bg-zinc-800 text-zinc-400',
       dotColor: 'bg-zinc-400',
+      columnBorder: 'border-white/[0.08] hover:border-white/[0.14]',
+      headerGlow: 'from-zinc-800/20 to-transparent',
     },
     trabajando: {
       accentColor: 'bg-amber-400',
@@ -46,6 +48,8 @@ export const Column: React.FC<ColumnProps> = ({
       iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
       badgeBg: 'bg-amber-500/10 text-amber-300',
       dotColor: 'bg-amber-400',
+      columnBorder: 'border-amber-500/15 hover:border-amber-500/30',
+      headerGlow: 'from-amber-500/10 to-transparent',
     },
     finalizado: {
       accentColor: 'bg-emerald-400',
@@ -53,6 +57,8 @@ export const Column: React.FC<ColumnProps> = ({
       iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
       badgeBg: 'bg-emerald-500/10 text-emerald-300',
       dotColor: 'bg-emerald-400',
+      columnBorder: 'border-emerald-500/15 hover:border-emerald-500/30',
+      headerGlow: 'from-emerald-500/10 to-transparent',
     },
   }[status] || {
     accentColor: 'bg-zinc-400',
@@ -60,6 +66,8 @@ export const Column: React.FC<ColumnProps> = ({
     iconBg: 'bg-zinc-800 text-zinc-300 border-white/[0.08]',
     badgeBg: 'bg-zinc-800 text-zinc-400',
     dotColor: 'bg-zinc-400',
+    columnBorder: 'border-white/[0.08] hover:border-white/[0.14]',
+    headerGlow: 'from-zinc-800/20 to-transparent',
   };
 
   const IconComponent = columnConfig.icon;
@@ -95,10 +103,10 @@ export const Column: React.FC<ColumnProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex flex-col bg-zinc-900/40 rounded-2xl p-3 sm:p-3.5 border transition-all duration-200 min-h-[520px] font-sans relative ${
+      className={`flex flex-col bg-zinc-900/40 bg-gradient-to-b ${columnConfig.headerGlow} rounded-2xl p-3 sm:p-3.5 border transition-all duration-200 min-h-[520px] font-sans relative ${
         isDragOver
-          ? 'drop-target bg-zinc-900/60 border-cyan-500/40 shadow-[0_0_25px_rgba(6,182,212,0.08)]'
-          : 'border-white/[0.08] hover:border-white/[0.12]'
+          ? 'drop-target bg-zinc-900/60 border-cyan-500/50 shadow-[0_0_25px_rgba(6,182,212,0.12)]'
+          : columnConfig.columnBorder
       }`}
     >
       {/* Column Header */}

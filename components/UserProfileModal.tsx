@@ -57,6 +57,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setCompressInfo(null);
   }, [currentUser, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleGenerateAvatar = () => {
@@ -69,8 +78,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setError('');
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      setError('Por favor selecciona un archivo de imagen válido (PNG, JPG, WebP).');
+      return;
+    }
+
+    // Validar tamaño máximo antes de procesar (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('La imagen es demasiado grande. El límite máximo es 10MB.');
+      return;
+    }
+
     setIsProcessingImage(true);
+    setError('');
+
     try {
       const result = await compressAndResizeAvatar(file, 128, 0.82);
       setAvatar(result.dataUrl);
@@ -83,6 +105,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setError(msg);
     } finally {
       setIsProcessingImage(false);
+      // Limpiar input file para permitir seleccionar el mismo archivo nuevamente si se desea
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -98,35 +121,32 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       return;
     }
 
-    if (newPassword) {
-      if (newPassword.length < 6) {
-        setError('La nueva clave debe tener al menos 6 caracteres.');
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        setError('Las claves no coinciden.');
-        return;
-      }
+    if (newPassword && newPassword !== confirmPassword) {
+      setError('Las contraseñas no coinciden.');
+      return;
+    }
+
+    if (newPassword && newPassword.length < 4) {
+      setError('La contraseña debe tener al menos 4 caracteres.');
+      return;
     }
 
     setIsLoading(true);
     try {
       const ok = await onUpdateProfile({
         name: name.trim(),
-        avatar: avatar || currentUser.avatar,
+        avatar,
         newPasswordPlain: newPassword || undefined,
       });
-
       if (ok) {
         setSuccess(true);
         setTimeout(() => {
-          setSuccess(false);
           onClose();
         }, 1200);
       } else {
-        setError('Error al actualizar registro.');
+        setError('Error al actualizar el perfil.');
       }
-    } catch {
+    } catch (err) {
       setError('Error al actualizar el perfil.');
     } finally {
       setIsLoading(false);
@@ -134,13 +154,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity font-sans">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-start sm:items-center justify-center font-sans"
+    >
       <div
-        className="bg-zinc-900 w-full max-w-lg rounded-xl shadow-2xl border border-white/[0.08] overflow-hidden text-zinc-100 animate-modal-enter"
+        className="relative w-full max-w-lg my-auto bg-zinc-950 border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden text-zinc-100 flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-zinc-900/90">
+        {/* Header - Sticky Top */}
+        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-white">
               Configuración de perfil
@@ -154,8 +177,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
           {error && (
             <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/40 border border-rose-500/40 rounded-lg">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -314,8 +338,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.06] mt-5">
+        {/* Sticky Footer */}
+          <div className="shrink-0 sticky bottom-0 z-10 flex items-center justify-end gap-2.5 px-5 py-3.5 border-t border-white/[0.06] bg-zinc-950/95 backdrop-blur-md">
             <button
               type="button"
               onClick={onClose}

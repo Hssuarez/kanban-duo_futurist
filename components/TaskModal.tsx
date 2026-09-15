@@ -73,6 +73,15 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     setError('');
   }, [editingTask, defaultStatus, currentUser, isOpen, eligibleUsers]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -95,13 +104,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity font-sans">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-start sm:items-center justify-center font-sans"
+    >
       <div
-        className="bg-zinc-900 w-full max-w-lg rounded-xl shadow-2xl border border-white/[0.08] overflow-hidden text-zinc-100 animate-modal-enter"
+        className="relative w-full max-w-lg my-auto bg-zinc-950 border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden text-zinc-100 flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-zinc-900/90">
+        {/* Header - Sticky Top */}
+        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-white">
               {editingTask ? 'Editar tarea' : 'Nueva tarea'}
@@ -128,8 +140,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
           {error && (
             <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/40 border border-rose-500/40 rounded-lg">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -230,9 +243,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               />
             </div>
           </div>
+        </div>
 
-          {/* Modal Footer */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.06] mt-5">
+        {/* Modal Footer - Sticky Bottom */}
+          <div className="shrink-0 sticky bottom-0 z-10 flex items-center justify-end gap-2.5 px-5 py-3.5 border-t border-white/[0.06] bg-zinc-950/95 backdrop-blur-md">
             <button
               type="button"
               onClick={onClose}

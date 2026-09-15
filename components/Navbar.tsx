@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User, SpaceFilter, AppView, Project } from '@/lib/types';
 import { subscribeToPresence } from '@/lib/presence';
 import { ProjectSelector } from './project/ProjectSelector';
@@ -84,18 +84,28 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Project members
-  const projectMembers = users.filter(
-    (u) =>
-      activeProject.memberIds?.includes(u.id) ||
-      u.id === activeProject.createdBy
-  );
-  const otherMembers = projectMembers.filter((u) => u.id !== currentUser.id);
+  // Project members with robust fallback
+  const otherMembers = useMemo(() => {
+    const memberIds = Array.isArray(activeProject?.memberIds) ? activeProject.memberIds : [];
+    const directProjectOthers = users.filter(
+      (u) =>
+        (memberIds.includes(u.id) || u.id === activeProject?.createdBy) &&
+        u.id !== currentUser.id &&
+        u.isActive !== false
+    );
+    if (directProjectOthers.length > 0) return directProjectOthers;
+    // Fallback: all other active users in system
+    return users.filter((u) => u.id !== currentUser.id && u.isActive !== false);
+  }, [users, activeProject, currentUser.id]);
 
   // Selected teammate if spaceFilter is a specific user ID or 'peer'
-  const selectedTeammate = otherMembers.find(
-    (u) => u.id === spaceFilter || (spaceFilter === 'peer' && u.id === otherMembers[0]?.id)
-  ) || otherMembers[0];
+  const selectedTeammate = useMemo(() => {
+    return (
+      otherMembers.find(
+        (u) => u.id === spaceFilter || (spaceFilter === 'peer' && u.id === otherMembers[0]?.id)
+      ) || otherMembers[0]
+    );
+  }, [otherMembers, spaceFilter]);
 
   const isPeerActive = spaceFilter !== 'mine' && spaceFilter !== 'all';
 
@@ -257,14 +267,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Navigation Bar: Section Tabs & Space Navigation */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-white/[0.06] py-2 overflow-x-auto no-scrollbar gap-2 sm:gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-white/[0.06] py-2 overflow-visible gap-2 sm:gap-3">
           {/* Main App Section Tabs (Board / Calendar / Dashboard) */}
-          <div className="flex items-center gap-1 p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 self-start sm:self-auto overflow-x-auto no-scrollbar max-w-full">
+          <div className="flex items-center gap-1 p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 self-start sm:self-auto max-w-full relative">
             <button
               onClick={() => setCurrentView('board')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
                 currentView === 'board'
-                  ? 'bg-zinc-800 text-white shadow-sm font-semibold'
+                  ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
               }`}
             >
@@ -276,7 +286,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setCurrentView('calendar')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
                 currentView === 'calendar'
-                  ? 'bg-zinc-800 text-white shadow-sm font-semibold'
+                  ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
               }`}
             >
@@ -288,7 +298,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setCurrentView('dashboard')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
                 currentView === 'dashboard'
-                  ? 'bg-zinc-800 text-white shadow-sm font-semibold'
+                  ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
               }`}
             >
@@ -298,13 +308,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Space Navigation Tabs (Mine / Teammate(s) / All) */}
-          <div className="flex items-center gap-1 p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 self-start sm:self-auto overflow-x-auto no-scrollbar max-w-full">
+          <div className="flex items-center gap-1 p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 self-start sm:self-auto max-w-full relative overflow-visible">
             {/* Mis tareas */}
             <button
               onClick={() => setSpaceFilter('mine')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
                 spaceFilter === 'mine'
-                  ? 'bg-zinc-800 text-white shadow-sm font-semibold'
+                  ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
               }`}
             >
@@ -322,7 +332,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
                   isPeerActive
-                    ? 'bg-zinc-800 text-white shadow-sm font-semibold'
+                    ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
                 }`}
               >
@@ -341,7 +351,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => setShowPeerDropdown(!showPeerDropdown)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
                     isPeerActive
-                      ? 'bg-zinc-800 text-white shadow-sm font-semibold'
+                      ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
                   }`}
                 >
@@ -351,18 +361,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                       ? selectedTeammate.name.split(' ')[0]
                       : 'Compañeros'}
                   </span>
-                  <ChevronDown className="w-3 h-3 text-zinc-400" />
+                  <ChevronDown className={`w-3 h-3 text-zinc-400 transition-transform duration-150 ${showPeerDropdown ? 'rotate-180' : ''}`} />
                 </button>
 
                 {showPeerDropdown && (
                   <div
                     style={{ transformOrigin: 'top left' }}
-                    className="absolute left-0 mt-2 w-52 bg-zinc-900/95 backdrop-blur-xl border border-white/[0.1] rounded-xl shadow-2xl py-1 z-50 animate-modal-enter text-zinc-200 text-xs"
+                    className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-56 bg-zinc-900/95 backdrop-blur-2xl border border-white/[0.12] rounded-xl shadow-2xl py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs ring-1 ring-black/50"
                   >
-                    <div className="px-3 py-1.5 border-b border-white/[0.06] text-[10px] uppercase font-semibold text-zinc-500">
+                    <div className="px-3 py-1.5 border-b border-white/[0.06] text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">
                       Filtrar por compañero
                     </div>
-                    <div className="py-1 max-h-48 overflow-y-auto custom-scrollbar">
+                    <div className="py-1 max-h-56 overflow-y-auto custom-scrollbar">
                       {otherMembers.map((member) => {
                         const isSelected = spaceFilter === member.id;
                         const isOnline = onlineUserIds.includes(member.id);
@@ -373,17 +383,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                               setSpaceFilter(member.id);
                               setShowPeerDropdown(false);
                             }}
-                            className="w-full text-left px-3 py-1.5 hover:bg-zinc-800/60 flex items-center justify-between text-xs transition-colors"
+                            className={`w-full text-left px-3 py-2 hover:bg-zinc-800/70 flex items-center justify-between text-xs transition-colors ${
+                              isSelected ? 'bg-zinc-800/50 text-white' : 'text-zinc-300'
+                            }`}
                           >
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-2.5 min-w-0">
                               <img
-                                src={member.avatar}
+                                src={member.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=user'}
                                 alt={member.name}
-                                className="w-5 h-5 rounded-full object-cover shrink-0 ring-1 ring-white/10"
+                                className="w-6 h-6 rounded-full object-cover shrink-0 ring-1 ring-white/10"
                               />
-                              <span className="truncate font-medium text-zinc-200">
-                                {member.name}
-                              </span>
+                              <div className="min-w-0">
+                                <span className="truncate font-medium text-zinc-200 block text-xs">
+                                  {member.name}
+                                </span>
+                                <span className="text-[10px] text-zinc-500 capitalize block">
+                                  {member.role === 'admin' ? 'Admin' : 'Miembro'}
+                                </span>
+                              </div>
                               {isOnline && (
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="En línea" />
                               )}
@@ -403,7 +420,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setSpaceFilter('all')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap active:scale-[0.98] ${
                 spaceFilter === 'all'
-                  ? 'bg-zinc-800 text-white shadow-sm font-semibold'
+                  ? 'bg-zinc-800 text-white shadow-sm font-semibold ring-1 ring-white/10'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
               }`}
             >

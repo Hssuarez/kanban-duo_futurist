@@ -24,6 +24,15 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !user) return null;
 
   const handleGeneratePassword = () => {
@@ -45,6 +54,7 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       setError('La contraseña debe tener al menos 6 caracteres.');
       return;
     }
+
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden.');
       return;
@@ -70,12 +80,16 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in font-sans">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-start sm:items-center justify-center font-sans"
+    >
       <div
-        className="bg-zinc-950 w-full max-w-md rounded-2xl shadow-2xl border border-white/[0.1] overflow-hidden text-zinc-200 animate-modal-enter"
+        className="relative w-full max-w-md my-auto bg-zinc-950 border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden text-zinc-200 flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-zinc-900/50">
+        {/* Header - Sticky Top */}
+        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-zinc-950/95 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/[0.08] flex items-center justify-center text-zinc-300">
               <KeyRound className="w-4 h-4 text-amber-400" />
@@ -91,13 +105,14 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+            className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
           {/* Target User Info */}
           <div className="flex items-center gap-3 p-3 bg-zinc-900/50 border border-white/[0.06] rounded-xl">
             <img
@@ -172,8 +187,10 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               className="w-full px-3 py-2 text-xs bg-zinc-900 border border-white/[0.08] text-white rounded-lg focus:outline-none focus:border-white/30 transition-colors"
             />
           </div>
+          </div>
 
-          <div className="flex items-center justify-end gap-2 pt-4 border-t border-white/[0.08] mt-6">
+          {/* Sticky Footer */}
+          <div className="shrink-0 sticky bottom-0 z-10 flex items-center justify-end gap-2 px-6 py-4 border-t border-white/[0.08] bg-zinc-950/95 backdrop-blur-md">
             <button
               type="button"
               onClick={onClose}

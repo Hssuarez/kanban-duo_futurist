@@ -106,12 +106,15 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in font-sans">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-start sm:items-center justify-center font-sans"
+    >
       <div
-        className="bg-zinc-950 w-full max-w-lg rounded-2xl shadow-2xl border border-white/[0.1] overflow-hidden text-zinc-200 animate-modal-enter"
+        className="relative w-full max-w-lg my-auto bg-zinc-950 border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden text-zinc-200 flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-zinc-900/50">
+        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-zinc-950/95 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/[0.08] flex items-center justify-center text-zinc-300">
               <UserPlus className="w-4 h-4 text-purple-400" />
@@ -127,13 +130,14 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+            className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
           {error && (
             <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-xl">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -305,8 +309,10 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
               </select>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center justify-end gap-2 pt-4 border-t border-white/[0.08] mt-5">
+        {/* Sticky Footer */}
+          <div className="shrink-0 sticky bottom-0 z-10 flex items-center justify-end gap-2 px-6 py-4 border-t border-white/[0.08] bg-zinc-950/95 backdrop-blur-md">
             <button
               type="button"
               onClick={onClose}
