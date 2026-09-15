@@ -54,14 +54,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   return (
     <div
       onMouseMove={handleMouseMove}
-      className="min-h-screen bg-[#050811] flex flex-col justify-center items-center p-4 sm:p-6 relative font-sans selection:bg-cyan-500/30 selection:text-white overflow-x-hidden overflow-y-auto"
+      className="min-h-screen md:h-screen md:max-h-screen bg-[#050811] flex flex-col justify-center items-center p-4 sm:p-6 relative font-sans selection:bg-cyan-500/30 selection:text-white overflow-x-hidden overflow-y-auto md:overflow-hidden"
     >
       {/* 1. FONDO: Deep Space Vignette with Cosmic Glow */}
       <div
         className="absolute inset-0 pointer-events-none z-0"
         style={{
           background:
-            'radial-gradient(ellipse 70% 60% at 25% 35%, rgba(6, 182, 212, 0.09) 0%, transparent 65%), radial-gradient(ellipse 65% 55% at 85% 50%, rgba(14, 165, 233, 0.06) 0%, transparent 70%)',
+            'radial-gradient(ellipse 70% 60% at 25% 35%, rgba(6, 182, 212, 0.08) 0%, transparent 65%), radial-gradient(ellipse 65% 55% at 85% 50%, rgba(14, 165, 233, 0.05) 0%, transparent 70%)',
         }}
       />
 
@@ -71,21 +71,21 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
         className="absolute inset-0 z-0"
       />
 
-      {/* 3. GLOBE: Cinematic Aceternity COBE WebGL Globe Layer */}
-      {/* Desktop (md+): Large scale (720px-960px), centered vertically and hugging the right side behind the card */}
+      {/* 3. GLOBE: Calibrated Aceternity COBE WebGL Globe Layer */}
+      {/* Desktop (md+): Scale 700px-920px, positioned in center-right behind the card */}
       {/* Mobile (<md): Anchored at top (top-4 sm:top-8), centered horizontally so upper hemisphere crowns the card */}
       <div
-        className={`absolute top-4 sm:top-8 md:top-1/2 md:-translate-y-1/2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-[-6%] lg:right-[0%] xl:right-[5%] w-[340px] h-[340px] sm:w-[460px] sm:h-[460px] md:w-[720px] md:h-[720px] lg:w-[840px] lg:h-[840px] xl:w-[960px] xl:h-[960px] pointer-events-none transition-opacity duration-700 z-0 ${
+        className={`absolute top-4 sm:top-8 md:top-1/2 md:-translate-y-1/2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-[-6%] lg:right-[0%] xl:right-[5%] w-[340px] h-[340px] sm:w-[460px] sm:h-[460px] md:w-[700px] md:h-[700px] lg:w-[820px] lg:h-[820px] xl:w-[920px] xl:h-[920px] pointer-events-none transition-opacity duration-700 z-0 ${
           isCardHovered
-            ? 'opacity-70 sm:opacity-80 lg:opacity-90'
-            : 'opacity-90 sm:opacity-95 lg:opacity-100'
+            ? 'opacity-65 sm:opacity-75 lg:opacity-80'
+            : 'opacity-80 sm:opacity-85 lg:opacity-90'
         }`}
         aria-hidden="true"
       >
         <Globe mousePosition={mousePos} className="w-full h-full" />
       </div>
 
-      {/* 4. LOGIN CARD: Cinematic Glassmorphic Card with Micro-Tilt (z-10) */}
+      {/* 4. LOGIN CARD: Glassmorphism Calibrado (Alta legibilidad, fondo obsidiana, sombra profunda) (z-10) */}
       <div
         onMouseEnter={() => setIsCardHovered(true)}
         onMouseLeave={() => setIsCardHovered(false)}
@@ -94,31 +94,31 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
           transform: `perspective(1000px) rotateX(${mousePos.y * -2.5}deg) rotateY(${mousePos.x * 2.5}deg)`,
         }}
       >
-        <div className="relative w-full bg-[#070c18]/80 backdrop-blur-2xl border border-cyan-500/25 hover:border-cyan-400/40 rounded-3xl shadow-[0_25px_65px_-15px_rgba(0,0,0,0.9),0_0_40px_rgba(6,182,212,0.12)] p-7 sm:p-9 overflow-hidden group transition-all">
+        <div className="relative w-full bg-[#070c18]/85 backdrop-blur-2xl border border-cyan-500/20 hover:border-cyan-400/35 rounded-3xl shadow-[0_25px_65px_-15px_rgba(0,0,0,0.95),0_0_30px_rgba(6,182,212,0.08)] p-7 sm:p-9 overflow-hidden group transition-all">
           {/* Top Edge Refraction Highlight */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/25 to-transparent pointer-events-none" />
 
           {/* Subtle Radial Glare Tracking Mouse */}
           <div
             className="pointer-events-none absolute -inset-px rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             style={{
-              background: `radial-gradient(400px circle at ${(mousePos.x + 0.5) * 100}% ${(mousePos.y + 0.5) * 100}%, rgba(6, 182, 212, 0.08), transparent 80%)`,
+              background: `radial-gradient(400px circle at ${(mousePos.x + 0.5) * 100}% ${(mousePos.y + 0.5) * 100}%, rgba(6, 182, 212, 0.06), transparent 80%)`,
             }}
           />
 
           {/* Branding Header */}
           <div className="text-center mb-6 relative z-10">
-            {/* Logo Badge matching the reference image's triple-bar icon */}
-            <div className="w-12 h-12 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-white mx-auto flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.25)] mb-3.5 group-hover:scale-105 group-hover:border-cyan-400/50 transition-all">
+            {/* Logo Badge */}
+            <div className="w-12 h-12 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-white mx-auto flex items-center justify-center shadow-[0_0_18px_rgba(6,182,212,0.2)] mb-3.5 group-hover:scale-105 group-hover:border-cyan-400/50 transition-all">
               <div className="flex items-end gap-1 h-5" aria-hidden="true">
                 <div className="w-1 h-5 bg-white rounded-full shadow-[0_0_6px_rgba(255,255,255,0.7)]" />
-                <div className="w-1 h-3.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.9)]" />
+                <div className="w-1 h-3.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
                 <div className="w-1 h-4 bg-white/80 rounded-full" />
               </div>
             </div>
 
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              Kanban<span className="text-cyan-400 font-semibold drop-shadow-[0_0_12px_rgba(6,182,212,0.6)]">Duo</span>
+              Kanban<span className="text-cyan-400 font-semibold drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">Duo</span>
             </h1>
             <p className="text-xs text-slate-400 mt-1 font-normal">
               Inicia sesión en tu espacio de trabajo colaborativo
@@ -133,7 +133,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
             </div>
           )}
 
-          {/* Form Inputs with Internal Icons matching the reference image */}
+          {/* Form Inputs with Internal Icons */}
           <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
             <div className="group/field">
               <label className="block text-xs font-medium text-slate-300 mb-1.5">
@@ -182,7 +182,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-2.5 bg-gradient-to-r from-white via-cyan-50 to-white hover:from-cyan-100 hover:to-white text-slate-950 font-semibold rounded-xl text-xs shadow-[0_0_24px_rgba(6,182,212,0.3)] hover:shadow-[0_0_34px_rgba(6,182,212,0.5)] transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 group/btn cursor-pointer"
+                className="w-full py-2.5 bg-gradient-to-r from-white via-cyan-50 to-white hover:from-cyan-100 hover:to-white text-slate-950 font-semibold rounded-xl text-xs shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 group/btn cursor-pointer"
               >
                 {isLoading ? (
                   <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
@@ -196,7 +196,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
             </div>
           </form>
 
-          {/* Security Footer matching the reference image */}
+          {/* Security Footer */}
           <div className="mt-6 pt-4 border-t border-white/[0.08] text-center relative z-10">
             <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1.5 font-normal">
               <ShieldCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0 drop-shadow-[0_0_6px_rgba(6,182,212,0.6)]" />

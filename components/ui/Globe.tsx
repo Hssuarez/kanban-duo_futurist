@@ -68,34 +68,35 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
         phi: 0,
         theta: 0.20,
         dark: 1,
-        diffuse: 1.25,
+        diffuse: 1.16,
         mapSamples: 16000,
-        mapBrightness: 4.8,
+        mapBrightness: 4.15, // Calibrated down ~12% for breathing room
         baseColor: [0.06, 0.09, 0.16], // Slate / deep-space subtle base
-        markerColor: [0.05, 0.85, 1.0], // KanbanDuo signature Luminous Cyan
-        glowColor: [0.08, 0.48, 0.78], // Rich atmospheric Cyan limb glow
-        opacity: 0.88,
+        markerColor: [0.05, 0.70, 0.85], // Calibrated luminous cyan (subtle, elegant)
+        glowColor: [0.06, 0.36, 0.62], // Soft atmospheric limb glow (not overpowering)
+        opacity: 0.82,
         markers: [
-          { location: [4.711, -74.0721], size: 0.06 }, // Bogotá
-          { location: [37.7749, -122.4194], size: 0.05 }, // San Francisco
-          { location: [40.7128, -74.006], size: 0.055 }, // New York
-          { location: [51.5074, -0.1278], size: 0.05 }, // London
-          { location: [40.4168, -3.7038], size: 0.045 }, // Madrid
-          { location: [35.6762, 139.6503], size: 0.05 }, // Tokyo
-          { location: [1.3521, 103.8198], size: 0.045 }, // Singapore
-          { location: [-23.5505, -46.6333], size: 0.05 }, // São Paulo
+          { location: [4.711, -74.0721], size: 0.045 }, // Bogotá (anchor)
+          { location: [37.7749, -122.4194], size: 0.038 }, // San Francisco
+          { location: [40.7128, -74.006], size: 0.04 }, // New York
+          { location: [40.4168, -3.7038], size: 0.034 }, // Madrid
+          { location: [35.6762, 139.6503], size: 0.038 }, // Tokyo
+          { location: [-23.5505, -46.6333], size: 0.035 }, // São Paulo
         ],
+        // Arcos calibrados: 2 órbitas principales elegantes y 2 sutiles secundarias
         arcs: [
-          { from: [4.711, -74.0721], to: [37.7749, -122.4194] }, // Bogotá -> SF
-          { from: [40.7128, -74.006], to: [40.4168, -3.7038] }, // New York -> Madrid
-          { from: [37.7749, -122.4194], to: [35.6762, 139.6503] }, // SF -> Tokyo
-          { from: [51.5074, -0.1278], to: [1.3521, 103.8198] }, // London -> Singapore
-          { from: [-23.5505, -46.6333], to: [40.4168, -3.7038] }, // São Paulo -> Madrid
-          { from: [4.711, -74.0721], to: [51.5074, -0.1278] }, // Bogotá -> London
+          // Órbita Principal 1: Bogotá -> San Francisco
+          { from: [4.711, -74.0721], to: [37.7749, -122.4194] },
+          // Órbita Principal 2: New York -> Madrid
+          { from: [40.7128, -74.006], to: [40.4168, -3.7038] },
+          // Órbita Secundaria: San Francisco -> Tokyo
+          { from: [37.7749, -122.4194], to: [35.6762, 139.6503] },
+          // Órbita Secundaria: São Paulo -> Madrid
+          { from: [-23.5505, -46.6333], to: [40.4168, -3.7038] },
         ],
-        arcColor: [0.06, 0.85, 1.0],
-        arcWidth: 0.65,
-        arcHeight: 0.26,
+        arcColor: [0.05, 0.68, 0.84], // Calibrado 25% menos saturado (elegante, no neón)
+        arcWidth: 0.44, // Reducido ~30% respecto a 0.65
+        arcHeight: 0.22,
       };
 
       globe = createGlobe(canvasRef.current, options);
@@ -137,14 +138,14 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
       className={`relative flex items-center justify-center pointer-events-none select-none ${className}`}
       aria-hidden="true"
     >
-      {/* Planetary Atmospheric Limb Halo (Aura radial difusa detrás del globo) */}
+      {/* Planetary Atmospheric Limb Halo calibrado (suave, sin saturar) */}
       <div
         className="absolute inset-0 rounded-full pointer-events-none -z-10"
         style={{
           background:
-            'radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.24) 0%, rgba(14, 165, 233, 0.09) 45%, transparent 72%)',
-          filter: 'blur(36px)',
-          transform: 'scale(1.08)',
+            'radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.16) 0%, rgba(14, 165, 233, 0.06) 45%, transparent 70%)',
+          filter: 'blur(30px)',
+          transform: 'scale(1.04)',
         }}
       />
 
