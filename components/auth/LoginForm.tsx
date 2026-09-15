@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
 import { loginWithCredentials } from '@/lib/storage';
 import { User } from '@/lib/types';
@@ -21,50 +21,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   // Focus state: when mouse is over the login card, background activity dims softly
   const [isCardHovered, setIsCardHovered] = useState(false);
 
-  // Target mouse coordinates (-0.5 to 0.5)
-  const targetMouseRef = useRef({ x: 0, y: 0 });
-
-  // Smooth lerped inertia coordinates for layered parallax
-  const [smoothMouse, setSmoothMouse] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    // Accessibility check: prefers-reduced-motion
-    const prefersReducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (prefersReducedMotion) return;
-
-    let animId: number;
-    let currentX = 0;
-    let currentY = 0;
-
-    const loop = () => {
-      const target = targetMouseRef.current;
-      // Gentle inertia interpolation (decay factor 0.055)
-      currentX += (target.x - currentX) * 0.055;
-      currentY += (target.y - currentY) * 0.055;
-
-      setSmoothMouse({ x: currentX, y: currentY });
-      animId = requestAnimationFrame(loop);
-    };
-
-    animId = requestAnimationFrame(loop);
-
-    return () => cancelAnimationFrame(animId);
-  }, []);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const { clientX, clientY } = e;
-    const { innerWidth, innerHeight } = window;
-    const normX = clientX / innerWidth - 0.5;
-    const normY = clientY / innerHeight - 0.5;
-    targetMouseRef.current = { x: normX, y: normY };
+  // Card-local 3D micro-tilt and spotlight tracking (independent of stars and background)
+  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    // Micro tilt strictly between -3.5deg and 3.5deg
+    const rotateX = ((y - centerY) / centerY) * -3.5;
+    const rotateY = ((x - centerX) / centerX) * 3.5;
+    e.currentTarget.style.setProperty('--card-rotate-x', `${rotateX.toFixed(2)}deg`);
+    e.currentTarget.style.setProperty('--card-rotate-y', `${rotateY.toFixed(2)}deg`);
+    e.currentTarget.style.setProperty('--card-mouse-x', `${x.toFixed(1)}px`);
+    e.currentTarget.style.setProperty('--card-mouse-y', `${y.toFixed(1)}px`);
   };
 
-  const handleMouseLeave = () => {
-    // Return smoothly to center rest position when leaving window
-    targetMouseRef.current = { x: 0, y: 0 };
+  const handleCardMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsCardHovered(false);
+    e.currentTarget.style.setProperty('--card-rotate-x', '0deg');
+    e.currentTarget.style.setProperty('--card-rotate-y', '0deg');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,36 +63,25 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      className="min-h-screen md:h-screen md:max-h-screen bg-[#050811] flex flex-col justify-center items-center p-4 sm:p-6 relative font-sans selection:bg-cyan-500/30 selection:text-white overflow-x-hidden overflow-y-auto md:overflow-hidden"
-    >
-      {/* 1. FONDO: Deep Space Vignette with Subtle Layered Parallax (2-3px) */}
+    <div className="min-h-screen md:h-screen md:max-h-screen bg-[#050811] flex flex-col justify-center items-center p-4 sm:p-6 relative font-sans selection:bg-cyan-500/30 selection:text-white overflow-x-hidden overflow-y-auto md:overflow-hidden">
+      {/* 1. CAPA FONDO: Deep Space Vignette (Fijo, sin transform global) */}
       <div
-        className="absolute inset-0 pointer-events-none z-0 transition-transform duration-100 ease-out will-change-transform"
+        className="absolute inset-0 pointer-events-none z-0"
         style={{
           background:
             'radial-gradient(ellipse 70% 60% at 25% 35%, rgba(6, 182, 212, 0.08) 0%, transparent 65%), radial-gradient(ellipse 65% 55% at 85% 50%, rgba(14, 165, 233, 0.05) 0%, transparent 70%)',
-          transform: `translate3d(${Math.max(-3, Math.min(3, smoothMouse.x * 6))}px, ${Math.max(-2, Math.min(2, smoothMouse.y * 4))}px, 0)`,
         }}
       />
 
-      {/* 2. CONSTELACIONES: Interactive Constellation Background with Parallax (4-6px) */}
-      <div
-        className="absolute inset-0 z-0 pointer-events-none transition-transform duration-100 ease-out will-change-transform"
-        style={{
-          transform: `translate3d(${Math.max(-5, Math.min(5, smoothMouse.x * 10))}px, ${Math.max(-4, Math.min(4, smoothMouse.y * 8))}px, 0)`,
-        }}
-      >
+      {/* 2. CAPA CONSTELACIONES: Canvas interactivo fijo (reacción 100% interna sin mover el canvas) */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <InteractiveConstellationBackground
           isDimmed={isCardHovered}
           className="w-full h-full"
         />
       </div>
 
-      {/* 3. GLOBE: Arquitectura Separada de Posición Base y Parallax */}
-      {/* 3A. GlobePositionWrapper: Estrictamente responsable de la posición base en el layout (cero transforms en style inline) */}
+      {/* 3. CAPA GLOBE: Posición base estable (no responde al movimiento de las estrellas) */}
       <div
         className={`absolute top-4 sm:top-8 md:top-1/2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:-translate-y-1/2 md:right-[0%] lg:right-[4%] xl:right-[8%] w-[330px] h-[330px] sm:w-[440px] sm:h-[440px] md:w-[720px] md:h-[720px] lg:w-[840px] lg:h-[840px] xl:w-[940px] xl:h-[940px] pointer-events-none transition-opacity duration-700 z-0 ${
           isCardHovered
@@ -125,35 +90,28 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
         }`}
         aria-hidden="true"
       >
-        {/* 3B. GlobeParallaxWrapper: Responsable exclusivamente del desplazamiento relativo de parallax, estrictamente limitado a ±10px */}
-        <div
-          className="w-full h-full pointer-events-none transition-transform duration-150 ease-out will-change-transform"
-          style={{
-            transform: `translate3d(${Math.max(-10, Math.min(10, smoothMouse.x * 20))}px, ${Math.max(-8, Math.min(8, smoothMouse.y * 16))}px, 0)`,
-          }}
-        >
-          <Globe mousePosition={smoothMouse} className="w-full h-full" />
-        </div>
+        <Globe className="w-full h-full" />
       </div>
 
-      {/* 4. LOGIN CARD: Presence augmented by ~10% (max-w-[420px], p-8 sm:p-10), 3D micro-tilt (±4-6 deg) and deep glassmorphism (z-10) */}
+      {/* 4. CAPA LOGIN CARD: Posición fija y estable en layout, micro-tilt y spotlight internos e independientes */}
       <div
         onMouseEnter={() => setIsCardHovered(true)}
-        onMouseLeave={() => setIsCardHovered(false)}
-        className="w-full max-w-[420px] relative z-10 py-2 mt-28 sm:mt-24 md:mt-0 animate-modal-enter transition-[transform,box-shadow] duration-200 ease-out will-change-transform"
+        onMouseLeave={handleCardMouseLeave}
+        onMouseMove={handleCardMouseMove}
+        className="w-full max-w-[420px] relative z-10 py-2 mt-28 sm:mt-24 md:mt-0 animate-modal-enter transition-[box-shadow] duration-200 ease-out will-change-transform"
         style={{
-          transform: `perspective(1000px) rotateX(${Math.max(-5, Math.min(5, smoothMouse.y * -4.5))}deg) rotateY(${Math.max(-5, Math.min(5, smoothMouse.x * 4.5))}deg) translate3d(${Math.max(-4, Math.min(4, smoothMouse.x * -6))}px, ${Math.max(-4, Math.min(4, smoothMouse.y * -6))}px, 0)`,
+          transform: 'perspective(1000px) rotateX(var(--card-rotate-x, 0deg)) rotateY(var(--card-rotate-y, 0deg))',
         }}
       >
         <div className="relative w-full bg-[#070c18]/88 backdrop-blur-2xl border border-cyan-500/22 hover:border-cyan-400/38 rounded-3xl shadow-[0_25px_65px_-15px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.09)] p-8 sm:p-10 overflow-hidden group transition-all">
           {/* Top Edge Refraction Highlight */}
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent pointer-events-none" />
 
-          {/* Subtle Radial Glare Tracking Mouse */}
+          {/* Subtle Radial Glare Tracking Mouse internally inside Card */}
           <div
-            className="pointer-events-none absolute -inset-px rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            className="pointer-events-none absolute -inset-px rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{
-              background: `radial-gradient(420px circle at ${(smoothMouse.x + 0.5) * 100}% ${(smoothMouse.y + 0.5) * 100}%, rgba(6, 182, 212, 0.07), transparent 80%)`,
+              background: 'radial-gradient(350px circle at var(--card-mouse-x, 50%) var(--card-mouse-y, 50%), rgba(6, 182, 212, 0.08), transparent 80%)',
             }}
           />
 
