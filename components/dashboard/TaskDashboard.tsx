@@ -5,11 +5,13 @@ import { Task, User, TaskStatus, TaskPriority } from '@/lib/types';
 import {
   QuickFilterPeriod,
   getFilterDateRange,
+  getBogotaDayKey,
+  isTaskDueToday,
+  isTaskOverdue,
   formatBogotaDate,
   formatBogotaMonthYear,
   calculateDuration,
   calculateDurationHours,
-  isTaskOverdue,
 } from '@/lib/dateUtils';
 import { MonthlyReportModal } from './MonthlyReportModal';
 import {
@@ -253,23 +255,49 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
 
       // Date range filter
       if (startDate || endDate) {
-        const taskTime = new Date(t.createdAt).getTime();
         const startMs = startDate ? startDate.getTime() : 0;
         const endMs = endDate ? endDate.getTime() : Infinity;
-        const completedTime = t.completedAt ? new Date(t.completedAt).getTime() : 0;
-        const updatedTime = new Date(t.updatedAt).getTime();
+
+        const isDateInRange = (dateVal?: string | null): boolean => {
+          if (!dateVal) return false;
+          const clean = dateVal.trim();
+          if (!clean) return false;
+
+          // If YYYY-MM-DD date key (e.g. dueDate)
+          if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+            const [y, m, d] = clean.split('-').map(Number);
+            // Midday in America/Bogota (UTC-5) -> 17:00 UTC
+            const timeMs = Date.UTC(y, m - 1, d, 17, 0, 0);
+            return timeMs >= startMs && timeMs <= endMs;
+          }
+
+          // If standard ISO date string
+          const timeMs = new Date(clean).getTime();
+          return !isNaN(timeMs) && timeMs >= startMs && timeMs <= endMs;
+        };
+
+        // Deterministic operational day key for calendar alignment
+        const calendarDateKey = t.dueDate || getBogotaDayKey(t.startedAt || t.createdAt);
+
+        // For 'today' specifically: also include currently active tasks due today, active today, or overdue
+        const isTodayPeriod = quickFilter === 'today';
+        const isActiveTask = t.status === 'iniciado' || t.status === 'trabajando';
 
         const inRange =
-          (taskTime >= startMs && taskTime <= endMs) ||
-          (completedTime >= startMs && completedTime <= endMs) ||
-          (updatedTime >= startMs && updatedTime <= endMs);
+          isDateInRange(t.dueDate) ||
+          isDateInRange(t.startedAt) ||
+          isDateInRange(t.createdAt) ||
+          isDateInRange(t.updatedAt) ||
+          isDateInRange(t.completedAt) ||
+          isDateInRange(calendarDateKey) ||
+          (isTodayPeriod && isActiveTask && (isTaskDueToday(t.dueDate, t.status) || isTaskOverdue(t.dueDate, t.status)));
 
         if (!inRange) return false;
       }
 
       return true;
     });
-  }, [tasks, filterUser, filterStatus, filterPriority, startDate, endDate]);
+  }, [tasks, filterUser, filterStatus, filterPriority, startDate, endDate, quickFilter]);
 
   // General Metrics
   const totalTasks = filteredTasks.length;

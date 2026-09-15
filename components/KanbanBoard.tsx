@@ -568,7 +568,7 @@ export const KanbanBoard: React.FC = () => {
         {currentView === 'calendar' && (
           <div className="animate-view-fade">
             <TaskCalendar
-              tasks={spaceFilteredTasks}
+              tasks={projectTasks}
               users={projectMembers}
               currentUser={sessionUser}
               onOpenNewTask={() => handleOpenAddNew('iniciado')}
@@ -581,7 +581,7 @@ export const KanbanBoard: React.FC = () => {
         {currentView === 'dashboard' && (
           <div className="animate-view-fade">
             <TaskDashboard
-              tasks={spaceFilteredTasks}
+              tasks={projectTasks}
               users={projectMembers}
               currentUser={sessionUser}
               onOpenTaskDetail={handleOpenEdit}

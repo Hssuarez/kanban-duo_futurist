@@ -56,10 +56,14 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
       const createdKey = getBogotaDayKey(t.createdAt);
       const updatedKey = getBogotaDayKey(t.updatedAt);
       const completedKey = t.completedAt ? getBogotaDayKey(t.completedAt) : '';
+      const dueKey = t.dueDate ? t.dueDate.slice(0, 7) : '';
+      const startedKey = t.startedAt ? getBogotaDayKey(t.startedAt) : '';
       return (
         createdKey.startsWith(currentYearMonth) ||
         updatedKey.startsWith(currentYearMonth) ||
-        completedKey.startsWith(currentYearMonth)
+        completedKey.startsWith(currentYearMonth) ||
+        dueKey.startsWith(currentYearMonth) ||
+        startedKey.startsWith(currentYearMonth)
       );
     });
   }, [tasks, currentYearMonth]);
