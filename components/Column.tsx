@@ -34,47 +34,43 @@ export const Column: React.FC<ColumnProps> = ({
 
   const columnConfig = {
     iniciado: {
-      borderColor: 'border-t-cyan-400',
-      badgeBg: 'bg-cyan-950/80 text-cyan-300 border-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.3)]',
+      accentColor: 'bg-zinc-500',
       icon: ListTodo,
-      iconColor: 'text-cyan-400',
-      titleColor: 'text-cyan-300',
-      glow: 'shadow-[0_0_20px_rgba(6,182,212,0.12)]',
+      iconColor: 'text-zinc-400',
+      titleColor: 'text-zinc-200',
     },
     trabajando: {
-      borderColor: 'border-t-amber-400',
-      badgeBg: 'bg-amber-950/80 text-amber-300 border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]',
+      accentColor: 'bg-amber-500',
       icon: Clock,
       iconColor: 'text-amber-400',
-      titleColor: 'text-amber-300',
-      glow: 'shadow-[0_0_20px_rgba(245,158,11,0.12)]',
+      titleColor: 'text-zinc-200',
     },
     finalizado: {
-      borderColor: 'border-t-emerald-400',
-      badgeBg: 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.3)]',
+      accentColor: 'bg-emerald-500',
       icon: CheckCircle2,
       iconColor: 'text-emerald-400',
-      titleColor: 'text-emerald-300',
-      glow: 'shadow-[0_0_20px_rgba(16,185,129,0.12)]',
+      titleColor: 'text-zinc-200',
     },
   }[status] || {
-    borderColor: 'border-t-cyan-400',
-    badgeBg: 'bg-cyan-950/80 text-cyan-300 border-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.3)]',
+    accentColor: 'bg-zinc-500',
     icon: ListTodo,
-    iconColor: 'text-cyan-400',
-    titleColor: 'text-cyan-300',
-    glow: 'shadow-[0_0_20px_rgba(6,182,212,0.12)]',
+    iconColor: 'text-zinc-400',
+    titleColor: 'text-zinc-200',
   };
 
   const IconComponent = columnConfig.icon;
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(true);
+    e.dataTransfer.dropEffect = 'move';
+    if (!isDragOver) setIsDragOver(true);
   };
 
-  const handleDragLeave = () => {
-    setIsDragOver(false);
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only remove highlight if actually leaving the column, not entering child elements
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -88,6 +84,7 @@ export const Column: React.FC<ColumnProps> = ({
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData('text/plain', taskId);
+    e.dataTransfer.effectAllowed = 'move';
   };
 
   return (
@@ -95,22 +92,20 @@ export const Column: React.FC<ColumnProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex flex-col bg-[#0b0e18]/90 rounded-2xl p-3.5 sm:p-4 border border-slate-800 border-t-4 ${
-        columnConfig.borderColor
-      } ${columnConfig.glow} transition-all duration-200 min-h-[520px] font-mono ${
-        isDragOver ? 'border-cyan-400 bg-cyan-950/20 shadow-[0_0_30px_rgba(6,182,212,0.3)]' : ''
+      className={`flex flex-col bg-zinc-900/40 rounded-xl p-3 sm:p-3.5 border border-white/[0.06] transition-colors duration-150 min-h-[520px] font-sans ${
+        isDragOver ? 'drop-target bg-zinc-900/70 border-white/20' : ''
       }`}
     >
       {/* Column Header */}
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800/80">
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg bg-[#111422] border border-slate-700/80 ${columnConfig.iconColor}`}>
-            <IconComponent className="w-4 h-4" />
+          <div className="p-1 rounded-md bg-zinc-800 text-zinc-300">
+            <IconComponent className="w-3.5 h-3.5" />
           </div>
-          <h2 className={`font-black tracking-wider uppercase text-sm sm:text-base ${columnConfig.titleColor}`}>
+          <h2 className="font-medium text-sm text-zinc-200">
             {title}
           </h2>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${columnConfig.badgeBg}`}>
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 font-mono">
             {tasks.length}
           </span>
         </div>
@@ -118,14 +113,14 @@ export const Column: React.FC<ColumnProps> = ({
         <button
           onClick={() => onAddNew(status)}
           title={`Agregar tarea a ${title}`}
-          className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-[#15192b] border border-transparent hover:border-cyan-500/40 rounded-lg transition-all"
+          className="p-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-all active:scale-[0.95]"
         >
           <Plus className="w-4 h-4" />
         </button>
       </div>
 
       {/* Task List */}
-      <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-0.5">
+      <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto pr-0.5">
         {tasks.map((task) => (
           <TaskCard
             key={task.id}
@@ -140,13 +135,13 @@ export const Column: React.FC<ColumnProps> = ({
         ))}
 
         {tasks.length === 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-slate-800/90 rounded-xl p-6 text-center text-slate-500 text-xs">
-            <p className="uppercase tracking-widest text-[11px]">// NINGUNA TAREA EN COLA</p>
+          <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-zinc-800/80 rounded-lg p-6 text-center text-zinc-500 text-xs min-h-[140px]">
+            <p className="text-zinc-500">Sin tareas pendientes</p>
             <button
               onClick={() => onAddNew(status)}
-              className="mt-2 text-cyan-400 hover:text-cyan-300 font-bold inline-flex items-center gap-1 uppercase tracking-wider text-[11px]"
+              className="mt-2 text-zinc-300 hover:text-white font-medium inline-flex items-center gap-1 text-xs transition-colors"
             >
-              <Plus className="w-3.5 h-3.5" /> + CREAR NUEVA
+              <Plus className="w-3.5 h-3.5" /> Añadir tarea
             </button>
           </div>
         )}

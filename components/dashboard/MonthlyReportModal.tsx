@@ -4,7 +4,6 @@ import React, { useMemo } from 'react';
 import { Task, User } from '@/lib/types';
 import {
   formatBogotaDateTime,
-  formatBogotaDate,
   formatBogotaMonthYear,
   calculateDuration,
   getBogotaDayKey,
@@ -12,14 +11,10 @@ import {
 import {
   X,
   Printer,
-  Download,
   FileSpreadsheet,
-  CheckCircle2,
-  Clock,
-  Shield,
   FileText,
   Building2,
-  Calendar,
+  Shield,
 } from 'lucide-react';
 
 interface MonthlyReportModalProps {
@@ -135,52 +130,51 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md font-mono overflow-y-auto print:p-0 print:bg-white print:text-black">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md font-sans overflow-y-auto print:p-0 print:bg-white print:text-black animate-fade-in">
       <div
-        className="bg-[#0b0e17] border border-cyan-500/40 rounded-2xl w-full max-w-4xl shadow-[0_0_60px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col max-h-[92vh] print:max-h-none print:border-none print:shadow-none print:bg-white print:text-black"
+        className="bg-zinc-950 border border-white/[0.1] rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] print:max-h-none print:border-none print:shadow-none print:bg-white print:text-black animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Control Bar (Hidden when printing) */}
-        <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-cyan-500/20 bg-[#0e121e] print:hidden gap-2">
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
-              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-white/[0.08] bg-zinc-900/50 print:hidden gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/[0.08] flex items-center justify-center text-zinc-300 shrink-0">
+              <FileText className="w-4 h-4 text-cyan-400" />
             </div>
             <div className="min-w-0">
-              <span className="text-[9px] sm:text-[10px] text-cyan-400/80 font-bold uppercase tracking-widest block truncate">
-                INFORME EJECUTIVO
+              <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block truncate">
+                Informe ejecutivo
               </span>
-              <h3 className="text-xs sm:text-sm font-bold text-white uppercase truncate">
+              <h3 className="text-xs sm:text-sm font-semibold text-zinc-100 truncate">
                 {currentMonthName}
               </h3>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40 transition-colors uppercase tracking-wider"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.08] transition-colors active:scale-[0.98]"
               title="Descargar datos en CSV/Excel"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">CSV/EXCEL</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">CSV / Excel</span>
             </button>
 
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.3)] transition-all uppercase tracking-wider"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-white text-zinc-950 hover:bg-zinc-200 transition-all active:scale-[0.98]"
               title="Imprimir o guardar como PDF"
             >
-              <Printer className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">DESCARGAR </span>
-              <span>PDF</span>
+              <Printer className="w-3.5 h-3.5" />
+              <span>Exportar PDF</span>
             </button>
 
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white p-1 sm:p-1.5 rounded-lg hover:bg-slate-800 transition-colors ml-1"
+              className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors ml-1"
             >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -188,133 +182,133 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
         {/* Printable Report Body */}
         <div
           id="printable-report"
-          className="p-6 sm:p-8 overflow-y-auto space-y-8 bg-[#090b12] text-slate-200 print:bg-white print:text-black print:overflow-visible print:p-0 print:space-y-6"
+          className="p-6 sm:p-8 overflow-y-auto space-y-8 bg-zinc-950 text-zinc-200 print:bg-white print:text-black print:overflow-visible print:p-0 print:space-y-6 custom-scrollbar"
         >
-          {/* PORTADA / ENCABEZADO */}
-          <div className="border-b-2 border-cyan-500/40 pb-5 print:border-black">
+          {/* Header */}
+          <div className="border-b border-white/[0.08] pb-6 print:border-black">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-widest block print:text-black">
-                  PORTAL DE GESTIÓN // KANBAN DUO
+                <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block print:text-black">
+                  Kanban Duo — Espacio de trabajo
                 </span>
-                <h1 className="text-2xl font-black text-white uppercase tracking-wider print:text-black mt-0.5">
-                  INFORME MENSUAL DE ACTIVIDADES
+                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight print:text-black mt-0.5">
+                  Informe mensual de actividades
                 </h1>
-                <p className="text-xs text-slate-400 mt-1 uppercase print:text-gray-700">
-                  Mes Evaluado:{' '}
-                  <strong className="text-cyan-300 print:text-black font-mono">
+                <p className="text-xs text-zinc-400 mt-1 print:text-gray-700">
+                  Mes evaluado:{' '}
+                  <strong className="text-zinc-200 print:text-black">
                     {currentMonthName}
                   </strong>{' '}
-                  | Equipo: <strong className="text-white print:text-black">Equipo Kanban Duo</strong>
+                  · Equipo: <strong className="text-zinc-200 print:text-black">General</strong>
                 </p>
               </div>
 
-              <div className="text-left sm:text-right text-[11px] text-slate-400 print:text-gray-700 font-mono">
+              <div className="text-left sm:text-right text-xs text-zinc-400 print:text-gray-700 space-y-0.5">
                 <div>
-                  Fecha de Generación:{' '}
-                  <strong className="text-white print:text-black">{generationDate}</strong>
+                  Fecha de generación:{' '}
+                  <strong className="text-zinc-200 print:text-black font-mono">{generationDate}</strong>
                 </div>
                 <div>
-                  Zona Horaria: <strong className="text-cyan-400 print:text-black">America/Bogota (UTC-5)</strong>
+                  Zona horaria: <strong className="text-zinc-300 print:text-black">America/Bogota (UTC-5)</strong>
                 </div>
                 <div>
                   Generado por:{' '}
-                  <strong className="text-white print:text-black">{currentUser.name}</strong>
+                  <strong className="text-zinc-200 print:text-black">{currentUser.name}</strong>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* RESUMEN DEL EQUIPO */}
+          {/* Section 1: Executive KPI Cards */}
           <div>
-            <h2 className="text-sm font-black text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2 print:text-black">
-              <Building2 className="w-4 h-4" />
-              // 1. RESUMEN EJECUTIVO DEL EQUIPO
+            <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2 print:text-black">
+              <Building2 className="w-3.5 h-3.5 text-zinc-400" />
+              1. Resumen ejecutivo del equipo
             </h2>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-[#0e121e] border border-cyan-500/30 p-3.5 rounded-xl print:border-gray-400 print:bg-gray-50">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1 print:text-gray-600">
-                  TOTAL TAREAS GESTIONADAS
+              <div className="bg-zinc-900/40 border border-white/[0.06] p-4 rounded-xl print:border-gray-300 print:bg-gray-50">
+                <span className="text-[11px] text-zinc-400 font-medium block mb-1 print:text-gray-600">
+                  Total gestionadas
                 </span>
-                <span className="text-2xl font-black text-white print:text-black font-mono">
+                <span className="text-2xl font-semibold text-white print:text-black font-mono tracking-tight">
                   {totalManaged}
                 </span>
               </div>
 
-              <div className="bg-[#0e121e] border border-emerald-500/30 p-3.5 rounded-xl print:border-gray-400 print:bg-gray-50">
-                <span className="text-[10px] text-emerald-400 uppercase tracking-wider block mb-1 print:text-gray-600">
-                  TOTAL FINALIZADAS
+              <div className="bg-zinc-900/40 border border-white/[0.06] p-4 rounded-xl print:border-gray-300 print:bg-gray-50">
+                <span className="text-[11px] text-zinc-400 font-medium block mb-1 print:text-gray-600">
+                  Finalizadas
                 </span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-emerald-400 print:text-black font-mono">
+                  <span className="text-2xl font-semibold text-emerald-400 print:text-black font-mono tracking-tight">
                     {totalCompleted}
                   </span>
-                  <span className="text-xs font-bold text-emerald-300 print:text-black">
+                  <span className="text-xs font-medium text-emerald-400/80 print:text-black">
                     ({completionRate}%)
                   </span>
                 </div>
               </div>
 
-              <div className="bg-[#0e121e] border border-amber-500/30 p-3.5 rounded-xl print:border-gray-400 print:bg-gray-50">
-                <span className="text-[10px] text-amber-400 uppercase tracking-wider block mb-1 print:text-gray-600">
-                  TOTAL EN PROGRESO (TRABAJANDO)
+              <div className="bg-zinc-900/40 border border-white/[0.06] p-4 rounded-xl print:border-gray-300 print:bg-gray-50">
+                <span className="text-[11px] text-zinc-400 font-medium block mb-1 print:text-gray-600">
+                  En progreso
                 </span>
-                <span className="text-2xl font-black text-amber-400 print:text-black font-mono">
+                <span className="text-2xl font-semibold text-amber-400 print:text-black font-mono tracking-tight">
                   {totalInProgress}
                 </span>
               </div>
 
-              <div className="bg-[#0e121e] border border-cyan-500/30 p-3.5 rounded-xl print:border-gray-400 print:bg-gray-50">
-                <span className="text-[10px] text-cyan-400 uppercase tracking-wider block mb-1 print:text-gray-600">
-                  TOTAL PENDIENTES (INICIADAS)
+              <div className="bg-zinc-900/40 border border-white/[0.06] p-4 rounded-xl print:border-gray-300 print:bg-gray-50">
+                <span className="text-[11px] text-zinc-400 font-medium block mb-1 print:text-gray-600">
+                  Iniciadas / Pendientes
                 </span>
-                <span className="text-2xl font-black text-cyan-300 print:text-black font-mono">
+                <span className="text-2xl font-semibold text-cyan-400 print:text-black font-mono tracking-tight">
                   {totalPending}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* ACTIVIDAD POR USUARIO */}
-          <div className="space-y-6">
-            <h2 className="text-sm font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2 print:text-black">
-              <Shield className="w-4 h-4" />
-              // 2. ACTIVIDAD DETALLADA POR COLABORADOR
+          {/* Section 2: User Activity Breakdown */}
+          <div className="space-y-4">
+            <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2 print:text-black">
+              <Shield className="w-3.5 h-3.5 text-zinc-400" />
+              2. Desglose por colaborador
             </h2>
 
-            {userReports.map((report, idx) => (
+            {userReports.map((report) => (
               <div
                 key={report.user.id}
-                className="bg-[#0d101b] border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 print:border-gray-300 print:bg-white print:p-3 print:page-break-inside-avoid"
+                className="bg-zinc-900/40 border border-white/[0.06] rounded-xl p-4 sm:p-5 space-y-4 print:border-gray-300 print:bg-white print:p-3 print:page-break-inside-avoid"
               >
                 {/* User Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800 print:border-gray-300 gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-white/[0.06] print:border-gray-300 gap-2">
                   <div className="flex items-center gap-3">
                     <img
                       src={report.user.avatar}
                       alt={report.user.name}
-                      className="w-9 h-9 rounded-lg object-cover ring-1 ring-cyan-500/50 print:ring-0"
+                      className="w-9 h-9 rounded-lg object-cover ring-1 ring-white/10 print:ring-0"
                     />
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-white print:text-black">
+                        <h3 className="text-sm font-semibold text-white print:text-black">
                           {report.user.name}
                         </h3>
-                        <span className="text-[9px] uppercase font-bold px-2 py-0.2 rounded bg-slate-800 text-slate-300 print:border print:border-gray-400 print:text-black">
+                        <span className="text-[10px] uppercase font-medium px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 print:border print:border-gray-400 print:text-black">
                           {report.user.role}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 print:text-gray-600">
+                      <p className="text-[11px] text-zinc-400 print:text-gray-600">
                         {report.user.email}
                       </p>
                     </div>
                   </div>
 
                   {/* Quick User Stats */}
-                  <div className="flex items-center gap-3 text-xs font-mono">
-                    <span className="text-slate-300 print:text-black">
-                      Asignadas: <strong>{report.total}</strong>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-zinc-400 print:text-black">
+                      Asignadas: <strong className="text-zinc-200">{report.total}</strong>
                     </span>
                     <span className="text-emerald-400 print:text-black">
                       Finalizadas: <strong>{report.completed}</strong> ({report.completionRate}%)
@@ -330,28 +324,28 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
 
                 {/* Finished Tasks Detail Table */}
                 <div>
-                  <h4 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2 print:text-black">
-                    Detalle de Tareas Finalizadas ({report.completedTasks.length}):
+                  <h4 className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-2 print:text-black">
+                    Tareas finalizadas ({report.completedTasks.length}):
                   </h4>
 
                   {report.completedTasks.length === 0 ? (
-                    <p className="text-[11px] text-slate-500 italic bg-[#090b12] p-2.5 rounded-lg border border-slate-800/80 print:bg-gray-50 print:text-gray-600 print:border-gray-300">
-                      // No registra tareas finalizadas durante el período evaluado.
+                    <p className="text-xs text-zinc-500 italic bg-zinc-950/40 p-3 rounded-lg border border-white/[0.04] print:bg-gray-50 print:text-gray-600 print:border-gray-300">
+                      No registra tareas finalizadas durante el período evaluado.
                     </p>
                   ) : (
-                    <div className="overflow-x-auto rounded-xl border border-slate-800 print:border-gray-300">
-                      <table className="w-full text-left text-[11px] font-mono border-collapse">
+                    <div className="overflow-x-auto rounded-lg border border-white/[0.06] print:border-gray-300">
+                      <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                          <tr className="bg-[#121625] text-cyan-400 border-b border-slate-800 uppercase print:bg-gray-100 print:text-black print:border-gray-300">
-                            <th className="p-2.5">Tarea</th>
-                            <th className="p-2.5">Prioridad</th>
-                            <th className="p-2.5">Inicio (Started)</th>
-                            <th className="p-2.5">Fin (Completed)</th>
-                            <th className="p-2.5">Duración</th>
-                            <th className="p-2.5 text-right">Estado Final</th>
+                          <tr className="bg-zinc-900/80 text-zinc-400 border-b border-white/[0.06] uppercase text-[10px] tracking-wider print:bg-gray-100 print:text-black print:border-gray-300">
+                            <th className="py-2 px-3 font-semibold">Tarea</th>
+                            <th className="py-2 px-3 font-semibold">Prioridad</th>
+                            <th className="py-2 px-3 font-semibold">Inicio</th>
+                            <th className="py-2 px-3 font-semibold">Fin</th>
+                            <th className="py-2 px-3 font-semibold">Duración</th>
+                            <th className="py-2 px-3 font-semibold text-right">Estado</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800/80 print:divide-gray-300">
+                        <tbody className="divide-y divide-white/[0.04] print:divide-gray-300">
                           {report.completedTasks.map((t) => {
                             const duration = calculateDuration(
                               t.startedAt || t.createdAt,
@@ -360,26 +354,26 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
                             return (
                               <tr
                                 key={t.id}
-                                className="hover:bg-[#101422] transition-colors print:hover:bg-transparent"
+                                className="hover:bg-zinc-900/40 transition-colors print:hover:bg-transparent"
                               >
-                                <td className="p-2.5 font-bold text-white print:text-black max-w-xs">
+                                <td className="py-2.5 px-3 font-medium text-zinc-200 print:text-black max-w-xs">
                                   {t.title}
                                 </td>
-                                <td className="p-2.5 uppercase font-semibold text-slate-300 print:text-black">
+                                <td className="py-2.5 px-3 uppercase text-[11px] text-zinc-400 print:text-black">
                                   {t.priority}
                                 </td>
-                                <td className="p-2.5 text-slate-400 print:text-gray-700">
+                                <td className="py-2.5 px-3 text-zinc-400 font-mono text-[11px] print:text-gray-700">
                                   {formatBogotaDateTime(t.startedAt)}
                                 </td>
-                                <td className="p-2.5 text-emerald-400 print:text-black font-semibold">
+                                <td className="py-2.5 px-3 text-emerald-400 font-mono text-[11px] print:text-black">
                                   {formatBogotaDateTime(t.completedAt)}
                                 </td>
-                                <td className="p-2.5 text-cyan-300 print:text-black font-bold">
+                                <td className="py-2.5 px-3 text-zinc-300 font-mono text-[11px] print:text-black">
                                   {duration}
                                 </td>
-                                <td className="p-2.5 text-right">
-                                  <span className="bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded text-[10px] font-bold uppercase print:border-gray-400 print:text-black print:bg-transparent">
-                                    FINALIZADA
+                                <td className="py-2.5 px-3 text-right">
+                                  <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-medium uppercase print:border-gray-400 print:text-black print:bg-transparent">
+                                    Finalizada
                                   </span>
                                 </td>
                               </tr>
@@ -394,49 +388,49 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
             ))}
           </div>
 
-          {/* RESUMEN FINAL */}
-          <div className="border-t-2 border-cyan-500/40 pt-5 print:border-black">
-            <h2 className="text-sm font-black text-cyan-400 uppercase tracking-widest mb-3 print:text-black">
-              // 3. RESUMEN FINAL CONSOLIDADO
+          {/* Section 3: Summary */}
+          <div className="border-t border-white/[0.08] pt-6 print:border-black">
+            <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3 print:text-black">
+              3. Resumen final consolidado
             </h2>
-            <div className="bg-[#0e121e] border border-cyan-500/30 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:border-gray-400 print:bg-gray-50">
-              <div className="text-xs space-y-1">
+            <div className="bg-zinc-900/40 border border-white/[0.06] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:border-gray-400 print:bg-gray-50">
+              <div className="text-xs space-y-1.5 text-zinc-300">
                 <div>
                   • Total de tareas gestionadas por el equipo:{' '}
-                  <strong className="text-white print:text-black font-mono font-bold">
+                  <strong className="text-white print:text-black font-semibold">
                     {totalManaged}
                   </strong>
                 </div>
                 <div>
                   • Tareas finalizadas exitosamente:{' '}
-                  <strong className="text-emerald-400 print:text-black font-mono font-bold">
+                  <strong className="text-emerald-400 print:text-black font-semibold">
                     {totalCompleted} ({completionRate}%)
                   </strong>
                 </div>
                 <div>
                   • Tareas activas en progreso:{' '}
-                  <strong className="text-amber-400 print:text-black font-mono font-bold">
+                  <strong className="text-amber-400 print:text-black font-semibold">
                     {totalInProgress}
                   </strong>
                 </div>
                 <div>
                   • Tareas pendientes en cola:{' '}
-                  <strong className="text-cyan-300 print:text-black font-mono font-bold">
+                  <strong className="text-cyan-400 print:text-black font-semibold">
                     {totalPending}
                   </strong>
                 </div>
               </div>
 
-              <div className="text-right border-t sm:border-t-0 sm:border-l border-slate-800 sm:pl-4 print:border-gray-300">
-                <span className="text-[10px] text-slate-400 uppercase tracking-widest block print:text-gray-600">
-                  ESTADO DE RENDIMIENTO
+              <div className="text-left sm:text-right border-t sm:border-t-0 sm:border-l border-white/[0.06] sm:pl-5 pt-3 sm:pt-0 print:border-gray-300">
+                <span className="text-[10px] text-zinc-500 uppercase tracking-wider block print:text-gray-600">
+                  Rendimiento global
                 </span>
-                <span className="text-base font-black text-cyan-400 print:text-black uppercase">
+                <span className="text-sm font-semibold text-zinc-100 print:text-black">
                   {completionRate >= 70
-                    ? 'ÓPTIMO // ALTA PRODUCTIVIDAD'
+                    ? 'Excelente — Alta productividad'
                     : completionRate >= 40
-                    ? 'EN PROCESO // FLUJO MODERADO'
-                    : 'INICIAL // CARGA EN CURSO'}
+                    ? 'Estable — Flujo continuo'
+                    : 'En curso — Tareas en desarrollo'}
                 </span>
               </div>
             </div>
@@ -444,15 +438,12 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="px-6 py-3.5 bg-[#0e121e] border-t border-cyan-500/20 flex items-center justify-between print:hidden">
-          <span className="text-[10px] text-slate-500 uppercase tracking-widest">
-            // KANBAN DUO EXECUTIVE REPORT SYSTEM
-          </span>
+        <div className="px-6 py-3.5 bg-zinc-900/50 border-t border-white/[0.08] flex items-center justify-end print:hidden">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white uppercase tracking-wider transition-colors"
+            className="px-4 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.08] transition-colors active:scale-[0.98]"
           >
-            CERRAR
+            Cerrar
           </button>
         </div>
       </div>

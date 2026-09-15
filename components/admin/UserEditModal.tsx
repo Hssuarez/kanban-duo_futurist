@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole } from '@/lib/types';
 import { PRESET_AVATARS } from '@/lib/auth';
 import { compressAndResizeAvatar } from '@/lib/imageUtils';
-import { X, Sparkles, AlertCircle, Cpu, Upload, Camera, CheckCircle2 } from 'lucide-react';
+import { X, Sparkles, AlertCircle, Upload, Camera, CheckCircle2, User as UserIcon } from 'lucide-react';
 
 interface UserEditModalProps {
   isOpen: boolean;
@@ -97,36 +97,38 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity font-mono">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in font-sans">
       <div
-        className="bg-[#0e121e] w-full max-w-lg rounded-2xl shadow-[0_0_35px_rgba(6,182,212,0.2)] border border-cyan-500/40 overflow-hidden text-slate-200"
+        className="bg-zinc-950 w-full max-w-lg rounded-2xl shadow-2xl border border-white/[0.1] overflow-hidden text-zinc-200 animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-cyan-500/20 bg-[#090c15] gap-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-cyan-400 shrink-0" />
-              <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider truncate">
-                // MODIFICAR: {user.name.toUpperCase()}
-              </h3>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-zinc-900/50">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/[0.08] flex items-center justify-center text-zinc-300">
+              <UserIcon className="w-4 h-4 text-purple-400" />
             </div>
-            <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 uppercase tracking-wider truncate hidden sm:block">
-              Control de identidad, avatar, permisos de rol y estado
-            </p>
+            <div>
+              <h3 className="text-sm font-semibold text-white">
+                Editar usuario
+              </h3>
+              <p className="text-[11px] text-zinc-400">
+                {user.name} ({user.email})
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-cyan-400 rounded-lg hover:bg-cyan-950/40 transition-colors shrink-0"
+            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
           {error && (
-            <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/50 border border-rose-500/60 rounded-xl">
+            <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-xl">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
               <span>{error}</span>
             </div>
@@ -134,25 +136,25 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
           {/* Profile Photo / Avatar Section */}
           <div>
-            <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-2">
-              FOTO DE PERFIL / AVATAR
+            <label className="block text-xs font-medium text-zinc-300 mb-2">
+              Foto de perfil
             </label>
             <div className="flex items-center gap-4 mb-3">
               <div className="relative group shrink-0">
                 <img
                   src={avatar || user.avatar}
                   alt="Vista previa"
-                  className="w-16 h-16 rounded-xl object-cover ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)] bg-slate-900"
+                  className="w-16 h-16 rounded-xl object-cover ring-1 ring-white/20 bg-zinc-900"
                 />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isProcessingImage}
                   title="Subir foto desde archivo"
-                  className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 rounded-xl flex flex-col items-center justify-center transition-opacity text-cyan-300 text-[10px] font-bold cursor-pointer"
+                  className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 rounded-xl flex flex-col items-center justify-center transition-opacity text-white text-[10px] font-medium cursor-pointer"
                 >
-                  <Camera className="w-5 h-5 mb-0.5" />
-                  <span>SUBIR</span>
+                  <Camera className="w-4 h-4 mb-0.5" />
+                  <span>Subir</span>
                 </button>
               </div>
 
@@ -162,20 +164,20 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isProcessingImage}
-                    className="flex-1 px-3 py-2 bg-gradient-to-r from-cyan-950 to-indigo-950 hover:from-cyan-900 hover:to-indigo-900 text-cyan-300 border border-cyan-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 uppercase tracking-wider transition-all shadow-sm active:scale-98"
+                    className="flex-1 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-white/[0.08] rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98]"
                   >
-                    <Upload className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>{isProcessingImage ? 'PROCESANDO...' : 'SUBIR FOTO'}</span>
+                    <Upload className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{isProcessingImage ? 'Procesando...' : 'Subir imagen'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleGenerateAvatar}
-                    title="Generar avatar dinámico según el nombre"
-                    className="px-3 py-2 bg-slate-900 text-slate-300 border border-slate-700 hover:border-cyan-500/40 hover:text-cyan-300 text-xs font-bold rounded-xl flex items-center gap-1.5 shrink-0 uppercase tracking-wider transition-all"
+                    title="Generar avatar según el nombre"
+                    className="px-3 py-1.5 bg-zinc-900 text-zinc-300 border border-white/[0.08] hover:bg-zinc-800 text-xs font-medium rounded-lg flex items-center gap-1.5 shrink-0 transition-colors active:scale-[0.98]"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                    AUTO
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    Auto
                   </button>
                 </div>
 
@@ -190,15 +192,15 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
                 {/* Compression feedback badge */}
                 {compressInfo ? (
-                  <div className="text-[10px] text-emerald-400 flex items-center gap-1.5 bg-emerald-950/40 border border-emerald-500/30 px-2.5 py-1 rounded-lg">
+                  <div className="text-[10px] text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
                     <CheckCircle2 className="w-3 h-3 shrink-0" />
                     <span>
-                      OPTIMIZADA: {compressInfo.original} KB → {compressInfo.compressed} KB (WebP 128x128) ⚡
+                      Optimizada: {compressInfo.original} KB → {compressInfo.compressed} KB
                     </span>
                   </div>
                 ) : (
-                  <p className="text-[10px] text-slate-500 tracking-wider">
-                    // FORMATO INTELIGENTE: AUTO-RECORTE A 128X128 (~10 KB)
+                  <p className="text-[11px] text-zinc-500">
+                    Auto-optimización a 128×128 WebP
                   </p>
                 )}
               </div>
@@ -206,8 +208,8 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
             {/* Avatar Presets */}
             <div className="mt-2">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1.5">
-                O SELECCIONA UN AVATAR CYBERPUNK:
+              <span className="text-[11px] text-zinc-400 font-medium block mb-1.5">
+                O elige un avatar sugerido:
               </span>
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 {PRESET_AVATARS.map((p, idx) => (
@@ -219,14 +221,14 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                       setCompressInfo(null);
                     }}
                     title={p.name}
-                    className={`p-0.5 rounded-xl border-2 transition-all shrink-0 ${
-                      avatar === p.url ? 'border-cyan-400 scale-105 shadow-[0_0_10px_#06b6d4]' : 'border-slate-800 hover:border-slate-600'
+                    className={`p-0.5 rounded-lg border transition-all shrink-0 ${
+                      avatar === p.url ? 'border-white ring-2 ring-white/20' : 'border-white/[0.08] hover:border-white/[0.2]'
                     }`}
                   >
                     <img
                       src={p.url}
                       alt={p.name}
-                      className="w-9 h-9 rounded-lg object-cover"
+                      className="w-8 h-8 rounded-md object-cover"
                     />
                   </button>
                 ))}
@@ -237,28 +239,28 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
           {/* Name & Email */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
             <div>
-              <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                NOMBRE COMPLETO
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                Nombre completo
               </label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-cyan-400"
+                className="w-full px-3 py-2 text-xs bg-zinc-900 border border-white/[0.08] text-white rounded-lg focus:outline-none focus:border-white/30 transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                CORREO ELECTRÓNICO
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                Correo electrónico
               </label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-cyan-400"
+                className="w-full px-3 py-2 text-xs bg-zinc-900 border border-white/[0.08] text-white rounded-lg focus:outline-none focus:border-white/30 transition-colors"
               />
             </div>
           </div>
@@ -266,48 +268,48 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
           {/* Role & Status */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
-              <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                ROL EN EL SISTEMA
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                Rol en el sistema
               </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as UserRole)}
-                className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-cyan-300 rounded-xl focus:outline-none focus:border-cyan-400 uppercase tracking-wider"
+                className="w-full px-3 py-2 text-xs bg-zinc-900 border border-white/[0.08] text-zinc-200 rounded-lg focus:outline-none focus:border-white/30 transition-colors"
               >
-                <option value="member">👤 COLABORADOR (TABLERO)</option>
-                <option value="admin">🛡️ ADMINISTRADOR (OMEGA)</option>
+                <option value="member">Colaborador</option>
+                <option value="admin">Administrador</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                ESTADO DE LA CUENTA
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                Estado de la cuenta
               </label>
               <select
                 value={isActive ? 'active' : 'suspended'}
                 onChange={(e) => setIsActive(e.target.value === 'active')}
-                className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-cyan-300 rounded-xl focus:outline-none focus:border-cyan-400 uppercase tracking-wider"
+                className="w-full px-3 py-2 text-xs bg-zinc-900 border border-white/[0.08] text-zinc-200 rounded-lg focus:outline-none focus:border-white/30 transition-colors"
               >
-                <option value="active">🟢 ACTIVO (ONLINE)</option>
-                <option value="suspended">🔴 SUSPENDIDO (OFFLINE)</option>
+                <option value="active">Activo</option>
+                <option value="suspended">Suspendido</option>
               </select>
             </div>
           </div>
 
           {/* Modal Footer */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800 mt-5">
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-white/[0.08] mt-5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors uppercase tracking-wider"
+              className="px-3.5 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-white/[0.08] rounded-lg transition-colors active:scale-[0.98]"
             >
-              CANCELAR
+              Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-xs font-bold text-black bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.35)] transition-all uppercase tracking-wider"
+              className="px-4 py-1.5 text-xs font-medium text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg transition-all active:scale-[0.98]"
             >
-              GUARDAR CAMBIOS
+              Guardar cambios
             </button>
           </div>
         </form>

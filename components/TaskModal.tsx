@@ -95,25 +95,24 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity font-mono">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity font-sans">
       <div
-        className="bg-[#0e121e] w-full max-w-lg rounded-2xl shadow-[0_0_35px_rgba(6,182,212,0.2)] border border-cyan-500/40 overflow-hidden text-slate-200"
+        className="bg-zinc-900 w-full max-w-lg rounded-xl shadow-2xl border border-white/[0.08] overflow-hidden text-zinc-100 animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-cyan-500/20 bg-[#090c15]">
-          <div className="flex items-center gap-2.5">
-            <Terminal className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-              {editingTask ? '// EDITAR TAREA' : '// REGISTRAR NUEVA TAREA'}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-zinc-900/90">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-white">
+              {editingTask ? 'Editar tarea' : 'Nueva tarea'}
             </h3>
             {activeProject && (
               <span
-                className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase tracking-wider"
+                className="hidden sm:inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border font-medium"
                 style={{
-                  backgroundColor: `${activeProject.color || '#06b6d4'}20`,
-                  borderColor: `${activeProject.color || '#06b6d4'}60`,
-                  color: activeProject.color || '#06b6d4',
+                  backgroundColor: `${activeProject.color || '#3b82f6'}15`,
+                  borderColor: `${activeProject.color || '#3b82f6'}40`,
+                  color: activeProject.color || '#3b82f6',
                 }}
               >
                 <FolderKanban className="w-3 h-3" />
@@ -123,16 +122,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-cyan-400 rounded-lg hover:bg-cyan-950/40 transition-colors"
+            className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {error && (
-            <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/50 border border-rose-500/60 rounded-xl">
+            <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/40 border border-rose-500/40 rounded-lg">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
               <span>{error}</span>
             </div>
@@ -140,8 +139,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
           {/* Title */}
           <div>
-            <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-              TÍTULO DE LA TAREA <span className="text-rose-400">*</span>
+            <label className="block text-xs font-medium text-zinc-300 mb-1">
+              Título de la tarea <span className="text-rose-400">*</span>
             </label>
             <input
               type="text"
@@ -149,103 +148,103 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ej: Optimizar red de microservicios..."
-              className="w-full px-3.5 py-2.5 text-xs bg-[#090b14] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-cyan-400 transition-colors placeholder:text-slate-600"
+              className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-all font-sans"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-              DESCRIPCIÓN O DETALLES
+            <label className="block text-xs font-medium text-zinc-300 mb-1">
+              Descripción o detalles
             </label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Especificaciones, criterios de despliegue o notas técnicas..."
-              className="w-full px-3.5 py-2 text-xs bg-[#090b14] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-cyan-400 transition-colors resize-none placeholder:text-slate-600 font-sans"
+              placeholder="Especificaciones, criterios de aceptación o notas..."
+              className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-all resize-none font-sans"
             />
           </div>
 
           {/* Column Status & Priority */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                COLUMNA DE ESTADO
+              <label className="block text-xs font-medium text-zinc-300 mb-1">
+                Estado
               </label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-cyan-300 rounded-xl focus:outline-none focus:border-cyan-400 transition-colors uppercase tracking-wider"
+                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
               >
-                <option value="iniciado">🟦 INICIADO</option>
-                <option value="trabajando">🟧 TRABAJANDO</option>
-                <option value="finalizado">🟩 FINALIZADO</option>
+                <option value="iniciado">Por hacer</option>
+                <option value="trabajando">En curso</option>
+                <option value="finalizado">Finalizado</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                PRIORIDAD
+              <label className="block text-xs font-medium text-zinc-300 mb-1">
+                Prioridad
               </label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-cyan-300 rounded-xl focus:outline-none focus:border-cyan-400 transition-colors uppercase tracking-wider"
+                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
               >
-                <option value="baja">BAJA</option>
-                <option value="media">MEDIA</option>
-                <option value="alta">ALTA</option>
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
               </select>
             </div>
           </div>
 
           {/* Assignee & Due Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                ASIGNADO A
+              <label className="block text-xs font-medium text-zinc-300 mb-1">
+                Asignado a
               </label>
               <select
                 value={assignedTo}
                 onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-cyan-300 rounded-xl focus:outline-none focus:border-cyan-400 transition-colors uppercase tracking-wider"
+                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
               >
                 {eligibleUsers.map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.name} {u.id === currentUser.id ? '(TÚ)' : ''}
+                    {u.name} {u.id === currentUser.id ? '(Tú)' : ''}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                FECHA LÍMITE
+              <label className="block text-xs font-medium text-zinc-300 mb-1">
+                Fecha límite
               </label>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-cyan-300 rounded-xl focus:outline-none focus:border-cyan-400 transition-colors"
+                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
               />
             </div>
           </div>
 
           {/* Modal Footer */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800 mt-6">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.06] mt-5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors uppercase tracking-wider"
+              className="px-3.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-white bg-zinc-800/80 hover:bg-zinc-800 rounded-lg transition-colors active:scale-[0.98]"
             >
-              CANCELAR
+              Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-xs font-bold text-black bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.35)] transition-all uppercase tracking-wider"
+              className="px-4 py-1.5 text-xs font-medium text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg shadow-sm transition-all active:scale-[0.98]"
             >
-              {editingTask ? 'GUARDAR CAMBIOS' : 'CREAR TAREA'}
+              {editingTask ? 'Guardar cambios' : 'Crear tarea'}
             </button>
           </div>
         </form>

@@ -54,90 +54,83 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
   };
 
   return (
-    <div className="bg-[#0b0e18]/90 border border-cyan-500/30 rounded-2xl shadow-[0_0_20px_rgba(0,0,0,0.6)] overflow-hidden mb-6 font-mono">
+    <div className="bg-zinc-900/60 border border-white/[0.06] rounded-xl overflow-hidden mb-6 font-sans">
       {/* Main Focus Strip */}
-      <div className="p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#0b0e18] via-[#101424] to-[#0d1527]">
+      <div className="p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          {/* Peer Avatar with real active pulse or offline indicator */}
+          {/* Peer Avatar with quiet presence indicator */}
           <div className="relative shrink-0">
             <img
               src={peerUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={peerUser?.name}
-              className={`w-11 h-11 rounded-xl object-cover ring-2 transition-all ${
+              className={`w-10 h-10 rounded-full object-cover ring-1 transition-all ${
                 isOnline
-                  ? 'ring-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
-                  : 'ring-slate-700/80 grayscale-[30%] opacity-80'
+                  ? 'ring-emerald-500/50'
+                  : 'ring-zinc-700/80 opacity-70'
               }`}
             />
-            {isOnline ? (
-              <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0b0e18] rounded-full shadow-[0_0_8px_#10b981]">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              </span>
-            ) : (
-              <span
-                title="Usuario desconectado"
-                className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-slate-600 border-2 border-[#0b0e18] rounded-full"
-              ></span>
-            )}
+            <span
+              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-zinc-950 rounded-full ${
+                isOnline ? 'bg-emerald-500' : 'bg-zinc-600'
+              }`}
+              title={isOnline ? 'En línea' : 'Desconectado'}
+            />
           </div>
 
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-cyan-400 tracking-widest uppercase">
-                <Radio className={`w-3 h-3 ${isOnline ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
-                <span>TELEMETRÍA //</span>
+              <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium">
                 {peers.length > 1 ? (
                   <select
                     value={peerUser?.id}
                     onChange={(e) => setSelectedPeerId(e.target.value)}
-                    className="bg-[#0e121e] border border-cyan-500/40 text-cyan-300 text-[10px] font-bold uppercase rounded px-1.5 py-0.5 focus:outline-none focus:border-cyan-400 cursor-pointer"
+                    className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-medium rounded-md px-2 py-0.5 focus:outline-none focus:border-zinc-500 cursor-pointer"
                   >
                     {peers.map((p) => (
-                      <option key={p.id} value={p.id} className="bg-[#0e121e] text-white">
-                        {p.name.toUpperCase()} {onlineUserIds.includes(p.id) ? '● EN LÍNEA' : '○ OFFLINE'}
+                      <option key={p.id} value={p.id} className="bg-zinc-900 text-zinc-100">
+                        {p.name} {onlineUserIds.includes(p.id) ? '● En línea' : '○ Offline'}
                       </option>
                     ))}
                   </select>
                 ) : (
-                  <span>{peerUser?.name?.toUpperCase() || 'COMPAÑERO'}</span>
+                  <span className="font-semibold text-zinc-200">{peerUser?.name || 'Compañero'}</span>
                 )}
               </div>
 
               {isOnline ? (
-                <span className="inline-flex items-center gap-1 text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/50 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LINK_STABLE // EN LÍNEA
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> En línea
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[9px] bg-slate-900/80 text-slate-400 border border-slate-700/60 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span> OFFLINE // DESCONECTADO
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-400 bg-zinc-800/80 border border-zinc-700/60 px-2 py-0.5 rounded-full font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-500"></span> Desconectado
                 </span>
               )}
             </div>
 
             {activeTask ? (
-              <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-950/80 border border-amber-500/50 px-2 py-0.5 rounded uppercase tracking-wider shadow-[0_0_10px_rgba(245,158,11,0.2)] shrink-0">
-                  <Clock className="w-3 h-3 animate-spin text-amber-400" style={{ animationDuration: '3s' }} />
-                  EJECUTANDO AHORA:
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-300 bg-amber-950/40 border border-amber-500/30 px-2 py-0.5 rounded-md shrink-0">
+                  <Clock className="w-3 h-3 text-amber-400" />
+                  Trabajando en:
                 </span>
-                <span className="text-xs font-bold text-slate-200 line-clamp-1 tracking-wide">
+                <span className="text-xs font-medium text-zinc-200 line-clamp-1">
                   "{activeTask.title}"
                 </span>
                 {peerWorkingTasks.length > 1 && (
-                  <span className="text-[10px] text-cyan-400/80 font-normal shrink-0">
+                  <span className="text-[11px] text-zinc-500 font-normal shrink-0">
                     (+{peerWorkingTasks.length - 1} en cola)
                   </span>
                 )}
               </div>
             ) : isOnline ? (
-              <p className="text-xs text-slate-400 mt-1 italic flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-slate-500" />
-                En línea pero sin tareas en estado activo actualmente.
+              <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-zinc-500" />
+                Sin tareas en progreso en este momento.
               </p>
             ) : (
-              <p className="text-xs text-slate-500 mt-1 italic flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
-                Operador desconectado.{peerUser?.lastLogin ? ` Última sesión: ${formatTimeAgo(peerUser.lastLogin)}` : ''}
+              <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
+                <span>{peerUser?.lastLogin ? `Última sesión: ${formatTimeAgo(peerUser.lastLogin)}` : 'Desconectado'}</span>
               </p>
             )}
           </div>
@@ -147,40 +140,39 @@ export const PeerActivityBar: React.FC<PeerActivityBarProps> = ({
         <div className="flex items-center gap-2 self-end md:self-auto">
           <button
             onClick={() => setShowLogs(!showLogs)}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-white bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/40 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_10px_rgba(6,182,212,0.15)] uppercase tracking-wider"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/60 px-2.5 py-1.5 rounded-lg transition-all active:scale-[0.98]"
           >
-            <Activity className="w-3.5 h-3.5 text-cyan-400" />
-            <span>LOGS ({logs.length})</span>
-            {showLogs ? <ChevronUp className="w-3.5 h-3.5 text-cyan-400" /> : <ChevronDown className="w-3.5 h-3.5 text-cyan-400" />}
+            <Activity className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Actividad ({logs.length})</span>
+            {showLogs ? <ChevronUp className="w-3.5 h-3.5 text-zinc-400" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />}
           </button>
         </div>
       </div>
 
       {/* Collapsible Activity Logs */}
       {showLogs && (
-        <div className="border-t border-cyan-500/20 bg-[#080b14]/90 p-4 max-h-56 overflow-y-auto">
-          <h4 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-2.5 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-            HISTORIAL DE ACCIONES EN TIEMPO REAL
+        <div className="border-t border-white/[0.06] bg-zinc-950/40 p-3.5 max-h-56 overflow-y-auto">
+          <h4 className="text-xs font-medium text-zinc-400 mb-2 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+            Historial de actividad en tiempo real
           </h4>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {logs.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">No hay registros de actividad aún.</p>
+              <p className="text-xs text-zinc-500 italic">No hay registros de actividad aún.</p>
             ) : (
               logs.map((log) => (
                 <div
                   key={log.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-[#0e1220] border border-slate-800 hover:border-cyan-500/30 transition-colors gap-1 sm:gap-2"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-zinc-900/60 border border-white/[0.04] hover:border-white/[0.08] transition-colors gap-1 sm:gap-2"
                 >
                   <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4] shrink-0"></span>
-                    <span className="font-bold text-cyan-300">{log.userName}</span>
-                    <span className="text-slate-400">{log.action}</span>
-                    <span className="font-bold text-white bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-[11px] truncate max-w-[200px] sm:max-w-xs">
+                    <span className="font-medium text-zinc-200">{log.userName}</span>
+                    <span className="text-zinc-500">{log.action}</span>
+                    <span className="font-medium text-zinc-300 bg-zinc-800 px-1.5 py-0.5 rounded text-[11px] truncate max-w-[200px] sm:max-w-xs">
                       "{log.taskTitle}"
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-mono shrink-0 self-end sm:self-auto">
+                  <span className="text-[10px] text-zinc-500 font-mono shrink-0 self-end sm:self-auto">
                     {formatTimeAgo(log.timestamp)}
                   </span>
                 </div>

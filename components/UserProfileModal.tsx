@@ -134,64 +134,63 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity font-mono">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity font-sans">
       <div
-        className="bg-[#0e121e] w-full max-w-lg rounded-2xl shadow-[0_0_35px_rgba(6,182,212,0.2)] border border-cyan-500/40 overflow-hidden text-slate-200"
+        className="bg-zinc-900 w-full max-w-lg rounded-xl shadow-2xl border border-white/[0.08] overflow-hidden text-zinc-100 animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-cyan-500/20 bg-[#090c15]">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-zinc-900/90">
           <div className="flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-              // CONFIGURACIÓN DE IDENTIDAD
+            <h3 className="text-sm font-semibold text-white">
+              Configuración de perfil
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-cyan-400 rounded-lg hover:bg-cyan-950/40 transition-colors"
+            className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
           {error && (
-            <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/50 border border-rose-500/60 rounded-xl">
+            <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/40 border border-rose-500/40 rounded-lg">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="flex items-center gap-2 p-3 text-xs text-emerald-300 bg-emerald-950/50 border border-emerald-500/60 rounded-xl">
+            <div className="flex items-center gap-2 p-3 text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-500/40 rounded-lg">
               <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span>¡IDENTIDAD ACTUALIZADA CON ÉXITO!</span>
+              <span>Perfil actualizado correctamente.</span>
             </div>
           )}
 
           {/* Profile Photo / Avatar Section */}
           <div>
-            <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-2">
-              FOTO DE PERFIL / AVATAR
+            <label className="block text-xs font-medium text-zinc-300 mb-2">
+              Foto de perfil
             </label>
             <div className="flex items-center gap-4 mb-3">
               <div className="relative group shrink-0">
                 <img
                   src={avatar || currentUser.avatar}
                   alt={name}
-                  className="w-16 h-16 rounded-xl object-cover ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)] bg-slate-900"
+                  className="w-14 h-14 rounded-full object-cover ring-1 ring-white/10 bg-zinc-800"
                 />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isProcessingImage}
                   title="Subir foto desde archivo"
-                  className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 rounded-xl flex flex-col items-center justify-center transition-opacity text-cyan-300 text-[10px] font-bold cursor-pointer"
+                  className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 rounded-full flex flex-col items-center justify-center transition-opacity text-white text-[10px] font-medium cursor-pointer"
                 >
-                  <Camera className="w-5 h-5 mb-0.5" />
-                  <span>SUBIR</span>
+                  <Camera className="w-4 h-4 mb-0.5" />
+                  <span>Cambiar</span>
                 </button>
               </div>
 
@@ -201,18 +200,18 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isProcessingImage}
-                    className="flex-1 px-3 py-2 bg-gradient-to-r from-cyan-950 to-indigo-950 hover:from-cyan-900 hover:to-indigo-900 text-cyan-300 border border-cyan-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 uppercase tracking-wider transition-all shadow-sm active:scale-98"
+                    className="flex-1 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-[0.98]"
                   >
-                    <Upload className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>{isProcessingImage ? 'PROCESANDO...' : 'SUBIR FOTO'}</span>
+                    <Upload className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{isProcessingImage ? 'Procesando...' : 'Subir imagen'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleGenerateAvatar}
-                    className="px-3 py-2 bg-slate-900 text-slate-300 border border-slate-700 hover:border-cyan-500/40 hover:text-cyan-300 text-xs font-bold rounded-xl flex items-center gap-1.5 shrink-0 uppercase tracking-wider transition-all"
+                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 text-xs font-medium rounded-lg flex items-center gap-1.5 shrink-0 transition-all active:scale-[0.98]"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> AUTO
+                    <Sparkles className="w-3.5 h-3.5 text-zinc-400" /> Avatar IA
                   </button>
                 </div>
 
@@ -225,86 +224,63 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   className="hidden"
                 />
 
-                {/* Compression feedback badge */}
-                {compressInfo ? (
-                  <div className="text-[10px] text-emerald-400 flex items-center gap-1.5 bg-emerald-950/40 border border-emerald-500/30 px-2.5 py-1 rounded-lg">
-                    <CheckCircle2 className="w-3 h-3 shrink-0" />
-                    <span>
-                      OPTIMIZADA: {compressInfo.original} KB → {compressInfo.compressed} KB (WebP 128x128) ⚡
-                    </span>
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-slate-500 tracking-wider">
-                    // FORMATO INTELIGENTE: AUTO-RECORTE A 128X128 (~10 KB)
+                {compressInfo && (
+                  <p className="text-[11px] text-zinc-500">
+                    Optimizada: {compressInfo.original} KB → {compressInfo.compressed} KB
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Avatar presets */}
-            <div className="mt-2">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1.5">
-                O SELECCIONA UN AVATAR CYBERPUNK:
-              </span>
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                {PRESET_AVATARS.map((p, idx) => (
+            {/* Presets */}
+            <div>
+              <p className="text-[11px] text-zinc-400 mb-1.5">O elige un avatar prediseñado:</p>
+              <div className="grid grid-cols-6 gap-2">
+                {PRESET_AVATARS.map((preset, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => {
-                      setAvatar(p.url);
                       setCompressInfo(null);
+                      setAvatar(preset.url);
                     }}
-                    title={p.name}
-                    className={`p-0.5 rounded-xl border-2 transition-all shrink-0 ${
-                      avatar === p.url ? 'border-cyan-400 scale-105 shadow-[0_0_10px_#06b6d4]' : 'border-slate-800 hover:border-slate-600'
+                    className={`p-0.5 rounded-full border transition-all active:scale-[0.95] ${
+                      avatar === preset.url
+                        ? 'border-white ring-2 ring-white/20'
+                        : 'border-transparent hover:border-zinc-600'
                     }`}
                   >
-                    <img src={p.url} alt={p.name} className="w-8 h-8 rounded-lg object-cover" />
+                    <img src={preset.url} alt={preset.name} className="w-8 h-8 rounded-full object-cover" />
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Name & Email */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            <div>
-              <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                NOMBRE
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-cyan-400"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                CORREO (ID)
-              </label>
-              <input
-                type="email"
-                disabled
-                value={currentUser.email}
-                className="w-full px-3 py-2 text-xs bg-slate-900/60 border border-slate-800 rounded-xl text-slate-500 cursor-not-allowed"
-              />
-            </div>
+          {/* Name Field */}
+          <div>
+            <label className="block text-xs font-medium text-zinc-300 mb-1">
+              Nombre de usuario
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-100 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20"
+              required
+            />
           </div>
 
-          {/* Change Password Section */}
-          <div className="border-t border-slate-800 pt-4 mt-2">
-            <h4 className="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5 mb-2.5">
-              <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-              <span>// MODIFICAR CLAVE DE ACCESO (OPCIONAL)</span>
+          {/* Password Change Section */}
+          <div className="pt-3 border-t border-white/[0.06]">
+            <h4 className="text-xs font-medium text-zinc-300 flex items-center gap-1.5 mb-2.5">
+              <KeyRound className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Cambiar contraseña (opcional)</span>
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">
-                  NUEVA CLAVE
+                <label className="block text-[11px] text-zinc-400 mb-1">
+                  Nueva contraseña
                 </label>
                 <div className="relative">
                   <input
@@ -312,12 +288,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
-                    className="w-full pl-3 pr-8 py-2 text-xs bg-[#090b14] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-cyan-400"
+                    className="w-full pl-3 pr-8 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-white rounded-lg focus:outline-none focus:border-zinc-500"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-cyan-400"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-200"
                   >
                     {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
@@ -325,34 +301,34 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">
-                  CONFIRMAR CLAVE
+                <label className="block text-[11px] text-zinc-400 mb-1">
+                  Confirmar contraseña
                 </label>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repite la clave"
-                  className="w-full px-3 py-2 text-xs bg-[#090b14] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-cyan-400"
+                  placeholder="Repite la contraseña"
+                  className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-white rounded-lg focus:outline-none focus:border-zinc-500"
                 />
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800 mt-5">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.06] mt-5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors uppercase tracking-wider"
+              className="px-3.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-white transition-colors"
             >
-              CANCELAR
+              Cancelar
             </button>
             <button
               type="submit"
               disabled={isLoading || success}
-              className="px-4 py-2 text-xs font-bold text-black bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.35)] transition-all uppercase tracking-wider disabled:opacity-50"
+              className="px-4 py-1.5 text-xs font-medium text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg shadow-sm transition-all active:scale-[0.98] disabled:opacity-50"
             >
-              {isLoading ? 'GUARDANDO...' : 'GUARDAR IDENTIDAD'}
+              {isLoading ? 'Guardando...' : 'Guardar cambios'}
             </button>
           </div>
         </form>

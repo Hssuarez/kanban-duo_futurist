@@ -248,10 +248,10 @@ export const KanbanBoard: React.FC = () => {
         );
         if (taskData.status === 'finalizado' && editingTask.status !== 'finalizado') {
           confetti({
-            particleCount: 100,
-            spread: 80,
-            origin: { y: 0.6 },
-            colors: ['#06b6d4', '#ec4899', '#10b981', '#f59e0b'],
+            particleCount: 35,
+            spread: 55,
+            origin: { y: 0.7 },
+            colors: ['#10b981', '#3b82f6', '#f59e0b'],
           });
         }
       } else {
@@ -290,10 +290,10 @@ export const KanbanBoard: React.FC = () => {
 
     if (newStatus === 'finalizado') {
       confetti({
-        particleCount: 90,
-        spread: 80,
+        particleCount: 35,
+        spread: 55,
         origin: { y: 0.7 },
-        colors: ['#06b6d4', '#ec4899', '#10b981'],
+        colors: ['#10b981', '#3b82f6', '#f59e0b'],
       });
     }
     refreshData();
@@ -364,10 +364,10 @@ export const KanbanBoard: React.FC = () => {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080a11] font-mono">
-        <div className="flex flex-col items-center gap-3 text-cyan-400">
-          <div className="w-10 h-10 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_#06b6d4]"></div>
-          <span className="text-xs font-bold uppercase tracking-widest">// INICIALIZANDO PROTOCOLO CYBERPUNK...</span>
+      <div className="min-h-screen flex items-center justify-center bg-[#09090b] font-sans">
+        <div className="flex flex-col items-center gap-3 text-zinc-400">
+          <div className="w-6 h-6 border-2 border-zinc-700 border-t-zinc-200 rounded-full animate-spin"></div>
+          <span className="text-xs font-medium text-zinc-400">Cargando espacio de trabajo...</span>
         </div>
       </div>
     );
@@ -391,7 +391,7 @@ export const KanbanBoard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#080a11] selection:bg-cyan-500 selection:text-black pb-12 font-mono">
+    <div className="min-h-screen flex flex-col bg-[#09090b] selection:bg-zinc-800 selection:text-zinc-100 pb-12 font-sans">
       {/* Top Navbar */}
       <Navbar
         currentUser={sessionUser}
@@ -430,59 +430,54 @@ export const KanbanBoard: React.FC = () => {
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 {/* Project Badge with max-width and truncate on mobile */}
                 <div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold max-w-[200px] sm:max-w-xs truncate shrink-0"
-                  style={{
-                    backgroundColor: `${activeProject.color || '#06b6d4'}15`,
-                    borderColor: `${activeProject.color || '#06b6d4'}50`,
-                    color: activeProject.color || '#06b6d4',
-                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-white/[0.08] bg-zinc-900/80 text-xs font-medium max-w-[200px] sm:max-w-xs truncate shrink-0 text-zinc-200"
                   title={activeProject.name}
                 >
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: activeProject.color || '#06b6d4' }}
+                    style={{ backgroundColor: activeProject.color || '#3b82f6' }}
                   />
-                  <span className="truncate">{activeProject.name.toUpperCase()}</span>
+                  <span className="truncate">{activeProject.name}</span>
                 </div>
 
-                <h2 className="text-xs sm:text-base font-bold text-white uppercase tracking-wider flex items-center gap-1.5 truncate">
+                <h2 className="text-xs sm:text-sm font-medium text-zinc-300 flex items-center gap-1.5 truncate">
                   <span className="truncate">
                     {spaceFilter === 'mine' && (
                       <>
-                        <span className="sm:hidden">// MI ESPACIO: {sessionUser.name.split(' ')[0].toUpperCase()}</span>
-                        <span className="hidden sm:inline">// MI ESPACIO: {sessionUser.name.toUpperCase()}</span>
+                        <span className="sm:hidden">Mis tareas: {sessionUser.name.split(' ')[0]}</span>
+                        <span className="hidden sm:inline">Mis tareas ({sessionUser.name})</span>
                       </>
                     )}
                     {spaceFilter === 'peer' && (
                       <>
-                        <span className="sm:hidden">// PEER: {peerUser?.name?.split(' ')[0]?.toUpperCase() || 'COMPAÑERO'}</span>
-                        <span className="hidden sm:inline">// ESPACIO PEER: {peerUser?.name?.toUpperCase() || 'COMPAÑERO'}</span>
+                        <span className="sm:hidden">Tareas: {peerUser?.name?.split(' ')[0] || 'Compañero'}</span>
+                        <span className="hidden sm:inline">Tareas de {peerUser?.name || 'Compañero'}</span>
                       </>
                     )}
-                    {spaceFilter === 'all' && '// REJILLA DE EQUIPO'}
+                    {spaceFilter === 'all' && 'Tablero del equipo'}
                   </span>
                 </h2>
 
-                <span className="text-[10px] bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider shrink-0">
-                  {filteredTasks.length} TAREAS
+                <span className="text-[11px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-medium font-mono shrink-0">
+                  {filteredTasks.length} tareas
                 </span>
               </div>
 
               {/* Priority filter selector */}
               <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-1 sm:pt-0">
-                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-                  <Filter className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>PRIORIDAD:</span>
+                <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium">
+                  <Filter className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>Prioridad:</span>
                 </div>
                 <select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="text-xs bg-[#101422] border border-slate-700 rounded-lg px-2.5 py-1.5 text-cyan-300 focus:outline-none focus:border-cyan-400 shadow-2xs font-mono"
+                  className="text-xs bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:border-zinc-500 font-sans cursor-pointer"
                 >
-                  <option value="all">TODAS</option>
-                  <option value="alta">ALTA</option>
-                  <option value="media">MEDIA</option>
-                  <option value="baja">BAJA</option>
+                  <option value="all">Todas</option>
+                  <option value="alta">Alta</option>
+                  <option value="media">Media</option>
+                  <option value="baja">Baja</option>
                 </select>
               </div>
             </div>

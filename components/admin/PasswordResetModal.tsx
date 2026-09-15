@@ -42,11 +42,11 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
     setError('');
 
     if (password.length < 6) {
-      setError('La clave debe tener al menos 6 caracteres.');
+      setError('La contraseña debe tener al menos 6 caracteres.');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Las claves no coinciden.');
+      setError('Las contraseñas no coinciden.');
       return;
     }
 
@@ -62,7 +62,7 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
           onClose();
         }, 1500);
       } else {
-        setError('Error al restablecer la clave criptográfica.');
+        setError('Error al restablecer la contraseña.');
       }
     } finally {
       setIsLoading(false);
@@ -70,66 +70,73 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity font-mono">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in font-sans">
       <div
-        className="bg-[#0e121e] w-full max-w-md rounded-2xl shadow-[0_0_35px_rgba(245,158,11,0.2)] border border-amber-500/40 overflow-hidden text-slate-200"
+        className="bg-zinc-950 w-full max-w-md rounded-2xl shadow-2xl border border-white/[0.1] overflow-hidden text-zinc-200 animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-amber-500/20 bg-[#090c15] gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <KeyRound className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0" />
-            <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider truncate">
-              // CLAVE: {user.name.toUpperCase()}
-            </h3>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-zinc-900/50">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/[0.08] flex items-center justify-center text-zinc-300">
+              <KeyRound className="w-4 h-4 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white">
+                Cambiar contraseña
+              </h3>
+              <p className="text-[11px] text-zinc-400">
+                {user.name}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-amber-400 rounded-lg hover:bg-amber-950/40 transition-colors shrink-0"
+            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Target User Info */}
-          <div className="flex items-center gap-3 p-3 bg-[#080b14] border border-slate-800 rounded-xl">
+          <div className="flex items-center gap-3 p-3 bg-zinc-900/50 border border-white/[0.06] rounded-xl">
             <img
               src={user.avatar}
               alt={user.name}
-              className="w-10 h-10 rounded-lg object-cover ring-1 ring-amber-400/60"
+              className="w-10 h-10 rounded-lg object-cover ring-1 ring-white/10"
             />
             <div>
-              <p className="text-xs font-bold text-white uppercase">{user.name}</p>
-              <p className="text-[10px] text-slate-400">{user.email}</p>
+              <p className="text-xs font-semibold text-white">{user.name}</p>
+              <p className="text-[11px] text-zinc-500 font-mono">{user.email}</p>
             </div>
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/50 border border-rose-500/60 rounded-xl">
+            <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-xl">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="flex items-center gap-2 p-3 text-xs text-emerald-300 bg-emerald-950/50 border border-emerald-500/60 rounded-xl">
+            <div className="flex items-center gap-2 p-3 text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
               <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span>¡NUEVO CRIPTO-HASH GENERADO Y APLICADO!</span>
+              <span>¡Contraseña actualizada correctamente!</span>
             </div>
           )}
 
           {/* New Password */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
-                NUEVA CLAVE
+              <label className="text-xs font-medium text-zinc-300">
+                Nueva contraseña
               </label>
               <button
                 type="button"
                 onClick={handleGeneratePassword}
-                className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold inline-flex items-center gap-1 uppercase tracking-wider"
+                className="text-[11px] text-amber-400 hover:text-amber-300 font-medium inline-flex items-center gap-1 transition-colors"
               >
-                <Sparkles className="w-3 h-3" /> AUTO-GENERAR
+                <Sparkles className="w-3 h-3" /> Auto-generar
               </button>
             </div>
             <div className="relative">
@@ -139,12 +146,12 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Mínimo 6 caracteres"
-                className="w-full pl-3.5 pr-10 py-2 text-xs bg-[#090b14] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-amber-400 transition-colors"
+                className="w-full pl-3 pr-10 py-2 text-xs bg-zinc-900 border border-white/[0.08] text-white rounded-lg focus:outline-none focus:border-white/30 transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-amber-400"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -153,33 +160,33 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
 
           {/* Confirm Password */}
           <div>
-            <label className="block text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-1.5">
-              CONFIRMAR CLAVE
+            <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+              Confirmar contraseña
             </label>
             <input
               type={showPassword ? 'text' : 'password'}
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Repite la clave"
-              className="w-full px-3.5 py-2 text-xs bg-[#090b14] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-amber-400 transition-colors"
+              placeholder="Repite la contraseña"
+              className="w-full px-3 py-2 text-xs bg-zinc-900 border border-white/[0.08] text-white rounded-lg focus:outline-none focus:border-white/30 transition-colors"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800 mt-6">
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-white/[0.08] mt-6">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors uppercase tracking-wider"
+              className="px-3.5 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-white/[0.08] rounded-lg transition-colors active:scale-[0.98]"
             >
-              CANCELAR
+              Cancelar
             </button>
             <button
               type="submit"
               disabled={isLoading || success}
-              className="px-4 py-2 text-xs font-bold text-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.35)] transition-all uppercase tracking-wider disabled:opacity-50"
+              className="px-4 py-1.5 text-xs font-medium text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg transition-all active:scale-[0.98] disabled:opacity-50"
             >
-              {isLoading ? 'APLICANDO...' : 'GUARDAR CLAVE'}
+              {isLoading ? 'Guardando...' : 'Guardar contraseña'}
             </button>
           </div>
         </form>

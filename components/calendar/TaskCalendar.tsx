@@ -218,22 +218,22 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
   // Status visual styles
   const statusColors: Record<TaskStatus, { bg: string; border: string; text: string; dot: string }> = {
     iniciado: {
-      bg: 'bg-cyan-950/70 hover:bg-cyan-900/80',
-      border: 'border-cyan-500/50',
-      text: 'text-cyan-300',
-      dot: 'bg-cyan-400 shadow-[0_0_6px_#06b6d4]',
+      bg: 'bg-zinc-800/80 hover:bg-zinc-800',
+      border: 'border-zinc-700/60',
+      text: 'text-zinc-200',
+      dot: 'bg-zinc-400',
     },
     trabajando: {
-      bg: 'bg-amber-950/70 hover:bg-amber-900/80',
-      border: 'border-amber-500/50',
+      bg: 'bg-amber-950/40 hover:bg-amber-900/50',
+      border: 'border-amber-500/30',
       text: 'text-amber-300',
-      dot: 'bg-amber-400 shadow-[0_0_6px_#f59e0b]',
+      dot: 'bg-amber-400',
     },
     finalizado: {
-      bg: 'bg-emerald-950/70 hover:bg-emerald-900/80',
-      border: 'border-emerald-500/50',
+      bg: 'bg-emerald-950/40 hover:bg-emerald-900/50',
+      border: 'border-emerald-500/30',
       text: 'text-emerald-300',
-      dot: 'bg-emerald-400 shadow-[0_0_6px_#10b981]',
+      dot: 'bg-emerald-400',
     },
   };
 
@@ -245,31 +245,31 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
     if (viewMode === 'week') {
       const first = weekData[0];
       const last = weekData[6];
-      return `SEMANA: ${first.dayNumber} - ${last.dayNumber} ${formatBogotaMonthYear(last.date)}`;
+      return `${first.dayNumber} - ${last.dayNumber} ${formatBogotaMonthYear(last.date)}`;
     }
-    return formatBogotaDateTime(currentDate.toISOString()).split(',')[0] || 'DÍA SELECCIONADO';
+    return formatBogotaDateTime(currentDate.toISOString()).split(',')[0] || 'Día seleccionado';
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col font-mono">
+    <div className="w-full flex-1 flex flex-col font-sans">
       {/* Calendar Top Control Bar */}
-      <div className="bg-[#0e121e]/90 border border-cyan-500/30 rounded-2xl p-4 mb-5 shadow-[0_0_30px_rgba(0,0,0,0.6)] backdrop-blur-md">
+      <div className="bg-zinc-900/60 border border-white/[0.06] rounded-xl p-3.5 mb-5 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Left: Month/Period Navigator */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/[0.1] flex items-center justify-center text-zinc-300">
               <CalendarIcon className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-cyan-400/80 font-bold uppercase tracking-widest">
-                  CALENDARIO // OPERACIONES (AMERICA/BOGOTA)
+                <span className="text-[11px] text-zinc-400 font-medium">
+                  Calendario
                 </span>
-                <span className="text-[9px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-500/40 font-bold">
-                  {filteredTasks.length} TAREAS
+                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-mono font-medium">
+                  {filteredTasks.length} tareas
                 </span>
               </div>
-              <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-wider">
+              <h2 className="text-base font-semibold text-zinc-100">
                 {getPeriodTitle()}
               </h2>
             </div>
@@ -279,76 +279,76 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrev}
-              className="p-2 rounded-xl bg-[#121625] hover:bg-slate-800 text-slate-300 border border-slate-700 hover:border-cyan-500/50 transition-all text-xs font-bold"
+              className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/60 transition-all text-xs font-medium active:scale-[0.98]"
               title="Período anterior"
             >
-              <ChevronLeft className="w-4 h-4 text-cyan-400" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
 
             <button
               onClick={handleToday}
-              className="px-3.5 py-2 rounded-xl bg-[#121625] hover:bg-cyan-950 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400 transition-all text-xs font-bold uppercase tracking-wider shadow-sm"
+              className="px-3 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/60 transition-all text-xs font-medium active:scale-[0.98]"
             >
-              HOY
+              Hoy
             </button>
 
             <button
               onClick={handleNext}
-              className="p-2 rounded-xl bg-[#121625] hover:bg-slate-800 text-slate-300 border border-slate-700 hover:border-cyan-500/50 transition-all text-xs font-bold"
+              className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/60 transition-all text-xs font-medium active:scale-[0.98]"
               title="Período siguiente"
             >
-              <ChevronRight className="w-4 h-4 text-cyan-400" />
+              <ChevronRight className="w-4 h-4" />
             </button>
 
             {/* View Mode Switcher */}
-            <div className="flex items-center p-1 bg-[#090b12] rounded-xl border border-slate-800 ml-2">
+            <div className="flex items-center p-0.5 bg-zinc-950/60 rounded-lg border border-white/[0.06] ml-2">
               <button
                 onClick={() => setViewMode('month')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all active:scale-[0.98] ${
                   viewMode === 'month'
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-zinc-800 text-zinc-100 shadow-sm font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">MES</span>
+                <span className="hidden sm:inline">Mes</span>
               </button>
 
               <button
                 onClick={() => setViewMode('week')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all active:scale-[0.98] ${
                   viewMode === 'week'
-                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50 shadow-[0_0_10px_rgba(99,102,241,0.3)]'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-zinc-800 text-zinc-100 shadow-sm font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 <Columns className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">SEMANA</span>
+                <span className="hidden sm:inline">Semana</span>
               </button>
 
               <button
                 onClick={() => setViewMode('day')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all active:scale-[0.98] ${
                   viewMode === 'day'
-                    ? 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/50 shadow-[0_0_10px_rgba(217,70,239,0.3)]'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-zinc-800 text-zinc-100 shadow-sm font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 <List className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">DÍA</span>
+                <span className="hidden sm:inline">Día</span>
               </button>
             </div>
           </div>
 
           {/* Right: Quick Filters */}
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Filter by Operator */}
             <select
               value={filterUser}
               onChange={(e) => setFilterUser(e.target.value)}
-              className="text-xs bg-[#101422] border border-slate-700 text-cyan-300 rounded-xl px-2.5 py-2 focus:outline-none focus:border-cyan-400"
+              className="text-xs bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-zinc-500 cursor-pointer"
             >
-              <option value="all">TODOS LOS OPERADORES</option>
+              <option value="all">Todos los miembros</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
@@ -360,12 +360,12 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="text-xs bg-[#101422] border border-slate-700 text-cyan-300 rounded-xl px-2.5 py-2 focus:outline-none focus:border-cyan-400"
+              className="text-xs bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-zinc-500 cursor-pointer"
             >
-              <option value="all">TODOS LOS ESTADOS</option>
-              <option value="iniciado">INICIADO</option>
-              <option value="trabajando">TRABAJANDO</option>
-              <option value="finalizado">FINALIZADO</option>
+              <option value="all">Todos los estados</option>
+              <option value="iniciado">Por hacer</option>
+              <option value="trabajando">En curso</option>
+              <option value="finalizado">Finalizado</option>
             </select>
           </div>
         </div>

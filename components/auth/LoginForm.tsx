@@ -36,65 +36,49 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] flex flex-col justify-center items-center p-4 relative overflow-hidden font-mono">
-      {/* Background Cyberpunk Ambient Lights */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-fuchsia-600/10 rounded-full blur-3xl pointer-events-none"></div>
-
-      {/* Cyberpunk HUD Frame */}
-      <div className="w-full max-w-md bg-[#0e121e]/90 backdrop-blur-xl border border-cyan-500/40 rounded-2xl shadow-[0_0_35px_rgba(6,182,212,0.15)] p-6 sm:p-8 relative z-10">
-        {/* Top Tech Decors */}
-        <div className="flex items-center justify-between text-[10px] text-cyan-400/70 border-b border-cyan-500/20 pb-3 mb-6 tracking-widest uppercase">
-          <span className="flex items-center gap-1.5">
-            <Cpu className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-            // PROTOCOL: KANBAN-DUO.SYS
-          </span>
-          <span className="text-emerald-400 flex items-center gap-1 font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-            NODE_ONLINE
-          </span>
-        </div>
-
-        {/* Cyberpunk Logo Branding */}
+    <div className="min-h-screen bg-[#09090b] flex flex-col justify-center items-center p-4 relative font-sans selection:bg-zinc-800">
+      {/* Studio Card */}
+      <div className="w-full max-w-sm bg-zinc-900/90 border border-white/[0.08] rounded-xl shadow-2xl p-6 sm:p-7 relative z-10 animate-modal-enter">
+        {/* Logo Branding */}
         <div className="text-center mb-6">
-          <div className="w-14 h-14 rounded-xl bg-gradient-to-tr from-cyan-600 via-indigo-600 to-fuchsia-600 text-white mx-auto flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.4)] border border-cyan-300/40 mb-3">
-            <Kanban className="w-7 h-7 text-cyan-200" />
+          <div className="w-10 h-10 rounded-lg bg-zinc-800 border border-white/[0.1] text-white mx-auto flex items-center justify-center shadow-sm mb-3">
+            <Kanban className="w-5 h-5 text-zinc-200" />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-wider uppercase font-mono">
-            KANBAN<span className="text-cyan-400">//DUO</span>
+          <h1 className="text-xl font-semibold text-white tracking-tight">
+            Kanban<span className="text-zinc-400 font-normal">Duo</span>
           </h1>
-          <p className="text-[11px] text-slate-400 mt-1 tracking-wider uppercase">
-            // PORTAL DE ACCESO PRIVADO & SEGURO
+          <p className="text-xs text-zinc-400 mt-1">
+            Inicia sesión en tu espacio de trabajo
           </p>
         </div>
 
-        {/* Error Alert with Cyber Glitch border */}
+        {/* Error Alert */}
         {error && (
-          <div className="flex items-start gap-2.5 p-3.5 mb-5 text-xs text-rose-400 bg-rose-950/40 border border-rose-500/60 rounded-xl shadow-[0_0_12px_rgba(244,63,94,0.2)]">
+          <div className="flex items-start gap-2 p-3 mb-4 text-xs text-rose-300 bg-rose-950/40 border border-rose-500/40 rounded-lg">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
-            <span className="font-mono text-[11px] leading-relaxed">{error}</span>
+            <span className="leading-relaxed">{error}</span>
           </div>
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="block text-[11px] font-semibold text-cyan-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-              <Mail className="w-3 h-3 text-cyan-400" /> Correo Electrónico
+            <label className="block text-xs font-medium text-zinc-300 mb-1">
+              Correo electrónico
             </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="usuario@empresa.com"
-              className="w-full px-3.5 py-2.5 text-xs bg-[#090b12] border border-slate-700 text-white rounded-xl focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 shadow-inner font-mono transition-all placeholder:text-slate-600"
+              placeholder="tu@empresa.com"
+              className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-white rounded-lg focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500/20 transition-all placeholder:text-zinc-500"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-cyan-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-              <Lock className="w-3 h-3 text-cyan-400" /> Clave de Acceso
+            <label className="block text-xs font-medium text-zinc-300 mb-1">
+              Contraseña
             </label>
             <div className="relative">
               <input
@@ -102,15 +86,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Ingresa tu clave privada"
-                className="w-full px-3.5 pr-10 py-2.5 text-xs bg-[#090b12] border border-slate-700 text-white rounded-xl focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 shadow-inner font-mono transition-all placeholder:text-slate-600"
+                placeholder="••••••••"
+                className="w-full px-3 pr-9 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-white rounded-lg focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500/20 transition-all placeholder:text-zinc-500"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-cyan-400 transition-colors"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
           </div>
@@ -118,24 +102,21 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold uppercase tracking-wider rounded-xl text-xs shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2 mt-4 active:scale-98 disabled:opacity-50"
+            className="w-full py-2 bg-white hover:bg-zinc-200 text-zinc-950 font-medium rounded-lg text-xs shadow-sm transition-all flex items-center justify-center gap-2 mt-4 active:scale-[0.98] disabled:opacity-50"
           >
             {isLoading ? (
-              <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
+              <span className="w-4 h-4 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin"></span>
             ) : (
-              <>
-                <Zap className="w-4 h-4 fill-black" />
-                <span>AUTENTICAR Y ACCEDER</span>
-              </>
+              <span>Continuar</span>
             )}
           </button>
         </form>
 
-        {/* Security Badge Footer */}
-        <div className="mt-6 pt-4 border-t border-cyan-500/20 text-center">
-          <p className="text-[10px] text-slate-500 uppercase tracking-widest flex items-center justify-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            CONEXIÓN SEGURA // CRIPTO-HASH SHA-256
+        {/* Security Footer */}
+        <div className="mt-5 pt-3.5 border-t border-white/[0.06] text-center">
+          <p className="text-[11px] text-zinc-500 flex items-center justify-center gap-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
+            Acceso seguro y protegido
           </p>
         </div>
       </div>

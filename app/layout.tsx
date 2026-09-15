@@ -1,9 +1,22 @@
 import type { Metadata } from 'next';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'KANBAN//DUO - Cyberpunk Task Protocol',
-  description: 'Colaboración futurista de tareas en tiempo real con seguridad cibernética y panel de control.',
+  title: 'Kanban Duo — High Performance Workspace',
+  description: 'Colaboración ágil en tiempo real, gestión de proyectos y seguimiento de tareas de alto rendimiento.',
 };
 
 export default function RootLayout({
@@ -12,8 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className="dark">
-      <body className="bg-[#080a11] text-slate-100 antialiased selection:bg-cyan-500 selection:text-black min-h-screen">
+    <html lang="es" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="bg-[#09090b] text-zinc-100 font-sans antialiased selection:bg-zinc-800 selection:text-zinc-100 min-h-screen">
         {children}
       </body>
     </html>
