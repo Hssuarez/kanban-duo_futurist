@@ -138,7 +138,7 @@ export const Column: React.FC<ColumnProps> = ({
       </div>
 
       {/* Task List */}
-      <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto pr-0.5 custom-scrollbar">
+      <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto pt-2 pb-2 px-1 -mx-1 custom-scrollbar">
         {tasks.map((task) => (
           <TaskCard
             key={task.id}

@@ -96,7 +96,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         task.status === 'trabajando'
           ? 'border-amber-500/25 shadow-[0_4px_20px_rgba(245,158,11,0.06)]'
           : 'border-white/[0.08]'
-      } hover:border-cyan-500/35 rounded-xl p-3.5 shadow-sm hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(6,182,212,0.08)] hover:-translate-y-0.5 hover:ring-1 hover:ring-cyan-500/25 transition-[transform,background-color,border-color,box-shadow] duration-150 cursor-grab active:cursor-grabbing font-sans select-none overflow-hidden ${
+      } hover:border-cyan-500/35 rounded-xl p-3.5 shadow-sm hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(6,182,212,0.08)] hover:-translate-y-0.5 hover:ring-1 hover:ring-cyan-500/25 hover:z-10 transition-[transform,background-color,border-color,box-shadow] duration-150 cursor-grab active:cursor-grabbing font-sans select-none overflow-hidden ${
         isCompleting ? 'animate-card-complete bg-emerald-950/30 border-emerald-500/60 ring-1 ring-emerald-500/40' : ''
       }`}
     >
