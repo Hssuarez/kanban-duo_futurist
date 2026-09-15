@@ -48,11 +48,8 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
     const maxSignals = 2;
     let signals: SignalPacket[] = [];
 
-    // Smooth lerp mouse coordinates for micro-parallax
-    let targetMouseX = 0;
-    let targetMouseY = 0;
-    let smoothMouseX = 0;
-    let smoothMouseY = 0;
+    let mouseX = -1000;
+    let mouseY = -1000;
 
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
@@ -113,7 +110,6 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
 
           const speed = prefersReducedMotion ? 0 : 0.012 + Math.random() * 0.02;
           const angle = Math.random() * Math.PI * 2;
-          // Cluster radius 20px to 75px
           const distFromCenter = 15 + Math.random() * 60;
           const clusterAngle = Math.random() * Math.PI * 2;
 
@@ -145,7 +141,7 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
           progress: 0,
           speed: 0.0048,
           state: 'idle',
-          pauseTimer: 240, // Staggered start
+          pauseTimer: 240,
         },
       ];
     };
@@ -154,15 +150,13 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
 
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      const normX = (e.clientX - rect.left) / width - 0.5;
-      const normY = (e.clientY - rect.top) / height - 0.5;
-      targetMouseX = normX;
-      targetMouseY = normY;
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
     };
 
     const handleMouseLeave = () => {
-      targetMouseX = 0;
-      targetMouseY = 0;
+      mouseX = -1000;
+      mouseY = -1000;
     };
 
     if (width >= 1024 && !prefersReducedMotion) {
@@ -192,22 +186,17 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
       return null;
     };
 
-    // 60FPS Render Loop
+    // 60FPS Render Loop: Zero global parallax, subtle peripheral resonance
     const render = () => {
       ctx.clearRect(0, 0, width, height);
 
-      // Micro-parallax interpolation (max ±3px on desktop, zero on mobile)
-      if (width >= 1024 && !prefersReducedMotion) {
-        smoothMouseX += (targetMouseX - smoothMouseX) * 0.05;
-        smoothMouseY += (targetMouseY - smoothMouseY) * 0.05;
-      }
-      const offsetX = Math.max(-3, Math.min(3, smoothMouseX * 6));
-      const offsetY = Math.max(-3, Math.min(3, smoothMouseY * 6));
+      const isMouseInWindow = mouseX >= 0 && mouseY >= 0;
+      const distToEdge = isMouseInWindow
+        ? Math.min(mouseX, width - mouseX, mouseY, height - mouseY)
+        : 9999;
+      const isNearPeriphery = distToEdge < 140;
 
-      const mousePixelX = (targetMouseX + 0.5) * width;
-      const mousePixelY = (targetMouseY + 0.5) * height;
-
-      // 1. Update Nodes Drift
+      // 1. Update & Render Nodes (strictly fixed in space, zero parallax offset)
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
         if (!prefersReducedMotion) {
@@ -221,22 +210,33 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
           if (node.y > height + 10) node.y = -10;
         }
 
-        const posX = node.x + offsetX;
-        const posY = node.y + offsetY;
+        const isPeripheralNode =
+          node.x < width * 0.22 ||
+          node.x > width * 0.78 ||
+          node.y < height * 0.22 ||
+          node.y > height * 0.78;
 
-        // Proximity glow on mouse
-        let proximityBoost = 0;
-        if (!prefersReducedMotion && targetMouseX !== 0) {
-          const distMouse = Math.hypot(posX - mousePixelX, posY - mousePixelY);
-          if (distMouse < 105) {
-            proximityBoost = (1 - distMouse / 105) * 0.22;
+        // Peripheral resonance boost when cursor approaches screen edges
+        let peripheralBoost = 0;
+        if (isNearPeriphery && isPeripheralNode && !prefersReducedMotion) {
+          peripheralBoost = (1 - distToEdge / 140) * 0.24;
+        }
+
+        // Local cursor proximity boost
+        let localMouseBoost = 0;
+        if (isMouseInWindow && !prefersReducedMotion) {
+          const distMouse = Math.hypot(node.x - mouseX, node.y - mouseY);
+          if (distMouse < 110) {
+            localMouseBoost = (1 - distMouse / 110) * 0.22;
           }
         }
-        const effectiveAlpha = Math.min(0.75, node.baseAlpha + proximityBoost);
+
+        const effectiveAlpha = Math.min(0.8, node.baseAlpha + peripheralBoost + localMouseBoost);
+        const totalBoost = peripheralBoost + localMouseBoost;
 
         // Draw node
         ctx.beginPath();
-        ctx.arc(posX, posY, node.radius * (1 + proximityBoost * 0.35), 0, Math.PI * 2);
+        ctx.arc(node.x, node.y, node.radius * (1 + totalBoost * 0.35), 0, Math.PI * 2);
         if (node.color === 'cyan') {
           ctx.fillStyle = `rgba(6, 182, 212, ${effectiveAlpha})`;
         } else if (node.color === 'white') {
@@ -247,7 +247,7 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
         ctx.fill();
       }
 
-      // 2. Draw Faint Geometric Connections
+      // 2. Draw Faint Geometric Connections (zero offset)
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i];
@@ -258,11 +258,11 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < maxDist) {
-            const lineAlpha = (1 - dist / maxDist) * 0.06; // Ultra-subtle (0.01 - 0.06)
+            const lineAlpha = (1 - dist / maxDist) * 0.06;
             if (lineAlpha > 0.008) {
               ctx.beginPath();
-              ctx.moveTo(a.x + offsetX, a.y + offsetY);
-              ctx.lineTo(b.x + offsetX, b.y + offsetY);
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
               ctx.strokeStyle = `rgba(6, 182, 212, ${lineAlpha})`;
               ctx.lineWidth = 0.55;
               ctx.stroke();
@@ -284,7 +284,7 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
                 sig.nodeAIndex = pair[0];
                 sig.nodeBIndex = pair[1];
                 sig.progress = 0;
-                sig.speed = 0.004 + Math.random() * 0.003; // Slow, elegant
+                sig.speed = 0.004 + Math.random() * 0.003;
                 sig.state = 'traveling';
               } else {
                 sig.pauseTimer = 60;
@@ -296,14 +296,14 @@ export const AmbientNetworkBackground: React.FC<AmbientNetworkBackgroundProps> =
             const nodeB = nodes[sig.nodeBIndex];
 
             if (nodeA && nodeB) {
-              const currentX = nodeA.x + (nodeB.x - nodeA.x) * sig.progress + offsetX;
-              const currentY = nodeA.y + (nodeB.y - nodeA.y) * sig.progress + offsetY;
+              const currentX = nodeA.x + (nodeB.x - nodeA.x) * sig.progress;
+              const currentY = nodeA.y + (nodeB.y - nodeA.y) * sig.progress;
 
               // Draw faint trail
               const trailLength = 0.25;
               const startProg = Math.max(0, sig.progress - trailLength);
-              const trailStartX = nodeA.x + (nodeB.x - nodeA.x) * startProg + offsetX;
-              const trailStartY = nodeA.y + (nodeB.y - nodeA.y) * startProg + offsetY;
+              const trailStartX = nodeA.x + (nodeB.x - nodeA.x) * startProg;
+              const trailStartY = nodeA.y + (nodeB.y - nodeA.y) * startProg;
 
               ctx.beginPath();
               ctx.moveTo(trailStartX, trailStartY);

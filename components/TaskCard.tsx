@@ -2,7 +2,7 @@
 
 import confetti from 'canvas-confetti';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Task, User, TaskStatus } from '@/lib/types';
 import { isTaskOverdue, isTaskDueToday, formatDueDateBadge } from '@/lib/dateUtils';
 import { Calendar, CheckCircle2, Play, RotateCcw, Trash2, Edit3, User as UserIcon } from 'lucide-react';
@@ -28,8 +28,21 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 }) => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [canTilt, setCanTilt] = useState(false);
+  const [completionWaveOrigin, setCompletionWaveOrigin] = useState<{ x: number; y: number } | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
   const assignee = users.find((u) => u.id === task.assignedTo);
   const isAssignedToMe = task.assignedTo === currentUser.id;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      setCanTilt(hasFinePointer && !prefersReducedMotion);
+    }
+  }, []);
 
   const priorityConfigs = {
     alta: {
@@ -56,17 +69,44 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const dueToday = isTaskDueToday(task.dueDate, task.status);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    e.currentTarget.style.setProperty('--mouse-x', `${x}px`);
-    e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
+    card.style.setProperty('--mouse-x', `${x}px`);
+    card.style.setProperty('--mouse-y', `${y}px`);
+
+    if (canTilt && !isDragging) {
+      const normX = x / rect.width - 0.5;
+      const normY = y / rect.height - 0.5;
+      const tiltX = -normY * 2.4;
+      const tiltY = normX * 2.4;
+      card.style.setProperty('--tilt-x', `${tiltX.toFixed(2)}deg`);
+      card.style.setProperty('--tilt-y', `${tiltY.toFixed(2)}deg`);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    const card = cardRef.current;
+    if (card) {
+      card.style.setProperty('--tilt-x', '0deg');
+      card.style.setProperty('--tilt-y', '0deg');
+    }
   };
 
   const handleComplete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isCompleting) return;
     setIsCompleting(true);
+
+    if (cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      setCompletionWaveOrigin({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    }
 
     confetti({
       particleCount: 28,
@@ -78,42 +118,72 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     setTimeout(() => {
       onMoveStatus(task.id, 'finalizado');
       setIsCompleting(false);
-    }, 200);
+      setCompletionWaveOrigin(null);
+    }, 380);
   };
 
   return (
     <div
+      ref={cardRef}
       draggable
       onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       onDragStart={(e) => {
+        setIsDragging(true);
+        if (cardRef.current) {
+          cardRef.current.style.setProperty('--tilt-x', '0deg');
+          cardRef.current.style.setProperty('--tilt-y', '0deg');
+        }
         onDragStart(e, task.id);
         (e.currentTarget as HTMLElement).classList.add('dragging');
       }}
       onDragEnd={(e) => {
+        setIsDragging(false);
         (e.currentTarget as HTMLElement).classList.remove('dragging');
       }}
       className={`group relative bg-[#070c18]/85 hover:bg-[#0c1324]/95 border ${
         task.status === 'trabajando'
           ? 'border-amber-500/25 shadow-[0_4px_20px_rgba(245,158,11,0.06)]'
           : 'border-white/[0.08]'
-      } hover:border-cyan-500/35 rounded-xl p-3.5 shadow-sm hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(6,182,212,0.08)] hover:-translate-y-0.5 hover:ring-1 hover:ring-cyan-500/25 hover:z-10 transition-[transform,background-color,border-color,box-shadow] duration-150 cursor-grab active:cursor-grabbing font-sans select-none overflow-hidden ${
-        isCompleting ? 'animate-card-complete bg-emerald-950/30 border-emerald-500/60 ring-1 ring-emerald-500/40' : ''
-      }`}
+      } hover:border-cyan-500/35 rounded-xl p-3.5 shadow-sm hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(6,182,212,0.08)] hover:-translate-y-0.5 hover:ring-1 hover:ring-cyan-500/25 hover:z-10 transition-[background-color,border-color,box-shadow] duration-150 cursor-grab active:cursor-grabbing font-sans select-none overflow-hidden card-micro-tilt ${
+        isCompleting
+          ? 'animate-card-complete bg-emerald-950/30 border-emerald-500/60 ring-1 ring-emerald-500/40 shadow-[0_0_25px_rgba(16,185,129,0.3)]'
+          : ''
+      } ${isDragging ? 'shadow-2xl border-cyan-500/50' : ''}`}
     >
       {/* Aceternity Spotlight: Smooth Cursor-Tracking Radial Halo (GPU Accelerated) */}
       <div
         className="pointer-events-none absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-0"
         style={{
-          background: 'radial-gradient(220px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), rgba(255, 255, 255, 0.05), transparent 80%)',
+          background: 'radial-gradient(220px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), rgba(255, 255, 255, 0.06), transparent 80%)',
         }}
       />
       <div
-        className="pointer-events-none absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 ring-1 ring-cyan-400/20 z-0"
+        className="pointer-events-none absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 ring-1 ring-cyan-400/25 z-0"
         style={{
-          maskImage: 'radial-gradient(150px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), black 30%, transparent 80%)',
-          WebkitMaskImage: 'radial-gradient(150px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), black 30%, transparent 80%)',
+          maskImage: 'radial-gradient(160px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), black 30%, transparent 80%)',
+          WebkitMaskImage: 'radial-gradient(160px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), black 30%, transparent 80%)',
         }}
       />
+
+      {/* Energy Completion Wave */}
+      {isCompleting && completionWaveOrigin && (
+        <span
+          className="pointer-events-none absolute w-32 h-32 rounded-full bg-emerald-400/25 border border-emerald-400/70 shadow-[0_0_25px_rgba(16,185,129,0.6)] animate-completion-wave -translate-x-1/2 -translate-y-1/2 z-20"
+          style={{ left: `${completionWaveOrigin.x}px`, top: `${completionWaveOrigin.y}px` }}
+        />
+      )}
+
+      {/* Activity Filament for TRABAJANDO (living subtle traveling point along 1px bottom border) */}
+      {task.status === 'trabajando' && (
+        <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-amber-500/10 via-amber-500/25 to-cyan-500/10 overflow-hidden pointer-events-none rounded-b-xl z-10">
+          <div className="absolute top-0 bottom-0 w-20 bg-gradient-to-r from-transparent via-amber-400 to-transparent animate-filament opacity-95 shadow-[0_0_8px_rgba(245,158,11,0.9)]" />
+          <div
+            className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-cyan-300 to-transparent animate-filament opacity-80 shadow-[0_0_6px_rgba(6,182,212,0.8)]"
+            style={{ animationDelay: '1.9s' }}
+          />
+        </div>
+      )}
       {/* Top Meta: Priority & Actions */}
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5">

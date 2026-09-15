@@ -67,6 +67,15 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
   // Drag over target for calendar drag-and-drop
   const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
+  const [hoveredPreviewDay, setHoveredPreviewDay] = useState<string | null>(null);
+
+  const handleCellMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty('--mouse-x', `${x}px`);
+    e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
+  };
 
   // Helper to get deterministic single date key (YYYY-MM-DD) in Bogota for a task
   const getTaskDateKey = (task: Task): string => {
@@ -410,6 +419,11 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                 <div
                   key={day.dateKey}
                   onClick={() => setSelectedDateKey(day.dateKey)}
+                  onMouseMove={handleCellMouseMove}
+                  onMouseEnter={() => {
+                    if (dayTasks.length > 0) setHoveredPreviewDay(day.dateKey);
+                  }}
+                  onMouseLeave={() => setHoveredPreviewDay(null)}
                   onDragOver={(e) => {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'move';
@@ -431,7 +445,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                   className={`min-h-[105px] sm:min-h-[120px] p-2 flex flex-col justify-between transition-all relative group cursor-pointer ${
                     !day.isCurrentMonth
                       ? 'bg-zinc-950/40 text-zinc-600'
-                      : 'bg-zinc-900/20 hover:bg-zinc-900/50'
+                      : 'bg-zinc-900/20 hover:bg-zinc-900/50 hover:border-cyan-500/30'
                   } ${
                     day.isSelected
                       ? 'ring-1 ring-cyan-500/40 bg-zinc-900/60'
@@ -440,8 +454,47 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                     isOver ? 'bg-cyan-950/30 ring-2 ring-cyan-400/50' : ''
                   }`}
                 >
+                  {/* Radial Cell Spotlight */}
+                  <div
+                    className="pointer-events-none absolute -inset-px rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-0"
+                    style={{
+                      background: 'radial-gradient(140px circle at var(--mouse-x, -500px) var(--mouse-y, -500px), rgba(6, 182, 212, 0.08), transparent 70%)',
+                    }}
+                  />
+
+                  {/* Compact Obsidian Task Hover Preview */}
+                  {hoveredPreviewDay === day.dateKey && dayTasks.length > 0 && (
+                    <div className="hidden sm:block absolute top-10 left-1 right-1 bg-[#080c14]/96 backdrop-blur-xl border border-white/10 shadow-[0_12px_30px_rgba(0,0,0,0.85),0_0_15px_rgba(6,182,212,0.15)] rounded-xl p-2.5 z-40 animate-fade-in pointer-events-none">
+                      <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5 flex items-center justify-between border-b border-white/[0.06] pb-1">
+                        <span>{dayTasks.length} {dayTasks.length === 1 ? 'tarea' : 'tareas'}</span>
+                        <span className="text-cyan-400 font-mono">{day.dayNumber} {formatBogotaMonthYear(currentDate).split(' ')[0]}</span>
+                      </div>
+                      <div className="space-y-1.5 max-h-[140px] overflow-hidden">
+                        {dayTasks.slice(0, 4).map((t) => (
+                          <div key={t.id} className="flex items-center justify-between gap-1.5 text-[11px]">
+                            <span className="text-zinc-200 truncate font-medium flex-1">{t.title}</span>
+                            <span
+                              className={`text-[9px] px-1.5 py-0.2 rounded font-mono shrink-0 capitalize ${
+                                t.status === 'finalizado'
+                                  ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/20'
+                                  : t.status === 'trabajando'
+                                  ? 'bg-amber-950/60 text-amber-300 border border-amber-500/20'
+                                  : 'bg-zinc-800 text-zinc-400 border border-white/[0.06]'
+                              }`}
+                            >
+                              {t.status}
+                            </span>
+                          </div>
+                        ))}
+                        {dayTasks.length > 4 && (
+                          <span className="text-[10px] text-zinc-500 block pt-0.5">+{dayTasks.length - 4} más</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Day Header */}
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1.5 z-10">
                     <span
                       className={`text-xs font-mono font-medium inline-flex items-center justify-center ${
                         day.isToday
@@ -456,11 +509,26 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                       {day.dayNumber}
                     </span>
 
-                    {dayTasks.length > 0 && (
-                      <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded-full bg-zinc-800 text-zinc-400">
-                        {dayTasks.length}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {/* Contextual "+" Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDateKey(day.dateKey);
+                          if (onOpenNewTask) onOpenNewTask();
+                        }}
+                        title={`Crear tarea para el ${day.dateKey}`}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950/40 active:scale-95"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+
+                      {dayTasks.length > 0 && (
+                        <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded-full bg-zinc-800 text-zinc-400">
+                          {dayTasks.length}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Task Pills */}
@@ -535,14 +603,36 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                       onUpdateTaskDueDate(taskId, day.dateKey);
                     }
                   }}
-                  className={`min-h-[380px] p-2.5 flex flex-col transition-colors ${
-                    day.isSelected ? 'bg-zinc-900/60' : 'bg-zinc-900/20'
+                  onMouseMove={handleCellMouseMove}
+                  className={`min-h-[380px] p-2.5 flex flex-col transition-colors relative group ${
+                    day.isSelected ? 'bg-zinc-900/60' : 'bg-zinc-900/20 hover:bg-zinc-900/40'
                   } ${isOver ? 'bg-cyan-950/30 ring-2 ring-cyan-400/50' : ''}`}
                 >
-                  <div className="text-center pb-2.5 mb-2 border-b border-white/[0.06]">
-                    <span className="text-[10px] text-zinc-500 font-medium block uppercase tracking-wider">
-                      {day.dayName}
-                    </span>
+                  {/* Radial Spotlight */}
+                  <div
+                    className="pointer-events-none absolute -inset-px rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-0"
+                    style={{
+                      background: 'radial-gradient(180px circle at var(--mouse-x, -500px) var(--mouse-y, -500px), rgba(6, 182, 212, 0.07), transparent 75%)',
+                    }}
+                  />
+
+                  <div className="text-center pb-2.5 mb-2 border-b border-white/[0.06] relative z-10">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-zinc-500 font-medium block uppercase tracking-wider text-left">
+                        {day.dayName}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDateKey(day.dateKey);
+                          if (onOpenNewTask) onOpenNewTask();
+                        }}
+                        title={`Crear tarea para el ${day.dateKey}`}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950/40 active:scale-95"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                     <span
                       className={`text-sm font-mono font-medium inline-flex items-center justify-center mt-1 ${
                         day.isToday
