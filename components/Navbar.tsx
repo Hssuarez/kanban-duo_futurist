@@ -192,7 +192,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="w-full bg-[#070c18]/90 backdrop-blur-xl border-b border-white/[0.08] shadow-sm font-sans relative z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4 relative z-30">
+        <div className={`flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4 relative ${showUserDropdown ? 'z-50' : 'z-40'}`}>
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-center text-zinc-100 shadow-[0_0_15px_rgba(6,182,212,0.18)]">
@@ -285,7 +285,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {/* Current User Dropdown */}
-            <div className="relative z-30" ref={userMenuRef}>
+            <div className={`relative ${showUserDropdown ? 'z-50' : 'z-30'}`} ref={userMenuRef}>
               <button
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
                 className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1.5 bg-zinc-900/70 hover:bg-zinc-900 border border-white/[0.08] rounded-lg text-xs font-medium text-zinc-200 transition-all active:scale-[0.98]"
@@ -300,6 +300,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
                 <ChevronDown className="w-3 h-3 text-zinc-400 shrink-0" />
               </button>
+
+              {/* Mobile Dimmer Backdrop for User Menu */}
+              {showUserDropdown && (
+                <div
+                  className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 sm:hidden animate-fade-in"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowUserDropdown(false);
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    setShowUserDropdown(false);
+                  }}
+                />
+              )}
 
               {/* User Dropdown */}
               {showUserDropdown && (
@@ -363,7 +378,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Mobile Project Selector Bar (Visible only on mobile < md) */}
-        <div className="block md:hidden border-t border-white/[0.06] py-2 relative z-30">
+        <div className="block md:hidden border-t border-white/[0.06] py-2 relative z-20">
           <ProjectSelector
             projects={projects}
             activeProject={activeProject}
@@ -377,7 +392,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Navigation Bar: Section Tabs & Space Navigation */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-white/[0.06] py-2 overflow-visible gap-2 sm:gap-3 relative z-20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-white/[0.06] py-2 overflow-visible gap-2 sm:gap-3 relative z-10">
           {/* Main App Section Tabs with Aceternity Animated Sliding Pill */}
           <div
             ref={viewTabsRef}
@@ -509,6 +524,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                   <ChevronDown className={`w-3 h-3 text-zinc-400 transition-transform duration-150 ${showPeerDropdown ? 'rotate-180' : ''}`} />
                 </button>
+
+                {/* Mobile Dimmer Backdrop for Peer Dropdown */}
+                {showPeerDropdown && (
+                  <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 sm:hidden animate-fade-in"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowPeerDropdown(false);
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      setShowPeerDropdown(false);
+                    }}
+                  />
+                )}
 
                 {showPeerDropdown && (
                   <div

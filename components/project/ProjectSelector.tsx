@@ -157,6 +157,21 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         </button>
       </div>
 
+      {/* Mobile Dimmer Backdrop */}
+      {isOpen && isMobile && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 sm:hidden animate-fade-in"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(false);
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            setIsOpen(false);
+          }}
+        />
+      )}
+
       {/* Dropdown Menu */}
       {isOpen && (
         <div
