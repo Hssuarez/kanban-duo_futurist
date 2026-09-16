@@ -459,7 +459,12 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
               return (
                 <div
                   key={day.dateKey}
-                  onClick={() => setSelectedDateKey(day.dateKey)}
+                  onClick={() => {
+                    setSelectedDateKey(day.dateKey);
+                    if (typeof window !== 'undefined' && window.innerWidth < 640 && dayTasks.length > 1) {
+                      setOpenTasksDayKey(openTasksDayKey === day.dateKey ? null : day.dateKey);
+                    }
+                  }}
                   onMouseMove={handleCellMouseMove}
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -479,7 +484,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                       onUpdateTaskDueDate(taskId, day.dateKey);
                     }
                   }}
-                  className={`min-h-[105px] sm:min-h-[120px] p-2 flex flex-col justify-between transition-all relative group cursor-pointer ${
+                  className={`min-h-[105px] sm:min-h-[120px] p-1 sm:p-2 flex flex-col justify-between transition-all relative group cursor-pointer ${
                     !day.isCurrentMonth
                       ? 'bg-zinc-950/40 text-zinc-600'
                       : 'bg-zinc-900/20 hover:bg-zinc-900/50 hover:border-cyan-500/30'
@@ -500,11 +505,11 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                   />
 
                   {/* Day Header */}
-                  <div className="flex items-center justify-between mb-1.5 z-10">
+                  <div className="flex items-center justify-between mb-1 sm:mb-1.5 z-10 w-full min-w-0">
                     <span
-                      className={`text-xs font-mono font-medium inline-flex items-center justify-center ${
+                      className={`text-[11px] sm:text-xs font-mono font-medium inline-flex items-center justify-center shrink-0 ${
                         day.isToday
-                          ? `w-6 h-6 rounded-md bg-cyan-400 text-zinc-950 font-bold shadow-[0_0_12px_rgba(6,182,212,0.5)] ${justClickedToday ? 'ring-4 ring-cyan-400/50 animate-pulse' : ''}`
+                          ? `w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-cyan-400 text-zinc-950 font-bold shadow-[0_0_12px_rgba(6,182,212,0.5)] ${justClickedToday ? 'ring-2 sm:ring-4 ring-cyan-400/50 animate-pulse' : ''}`
                           : day.isSelected
                           ? 'text-cyan-300 font-bold'
                           : day.isCurrentMonth
@@ -515,8 +520,8 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                       {day.dayNumber}
                     </span>
 
-                    <div className="flex items-center gap-1">
-                      {/* Contextual "+" Button */}
+                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                      {/* Contextual "+" Button - desktop only */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -524,14 +529,14 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                           if (onOpenNewTask) onOpenNewTask();
                         }}
                         title={`Crear tarea para el ${day.dateKey}`}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950/40 active:scale-95"
+                        className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950/40 active:scale-95"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
 
                       {/* Status cluster density dots */}
                       {dayTasks.length > 0 && (
-                        <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                           {dayTasks.some((t) => isTaskOverdue(t.dueDate, t.status)) && (
                             <span
                               className="w-1.5 h-1.5 rounded-full bg-rose-400 shadow-[0_0_5px_rgba(244,63,94,0.8)]"
@@ -553,6 +558,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                         </div>
                       )}
 
+                      {/* Task count badge on desktop only */}
                       {dayTasks.length > 0 && (
                         <button
                           type="button"
@@ -561,7 +567,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                             setOpenTasksDayKey(openTasksDayKey === day.dateKey ? null : day.dateKey);
                           }}
                           title={`Ver las ${dayTasks.length} tareas de este día`}
-                          className={`day-task-badge text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full transition-all cursor-pointer ${
+                          className={`hidden sm:inline-flex day-task-badge text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full transition-all cursor-pointer ${
                             openTasksDayKey === day.dateKey
                               ? 'bg-cyan-500 text-zinc-950 shadow-[0_0_10px_rgba(6,182,212,0.6)] font-bold'
                               : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-white/[0.08]'
@@ -592,12 +598,12 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                             e.stopPropagation();
                             handleTaskClick(task);
                           }}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium border truncate transition-all cursor-pointer hover:border-cyan-400/60 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] flex items-center gap-1.5 ${cfg.bg} ${cfg.border} ${cfg.text} ${
+                          className={`px-1 py-0.5 sm:px-1.5 rounded text-[9px] sm:text-[10px] font-medium border truncate transition-all cursor-pointer hover:border-cyan-400/60 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] flex items-center gap-1 sm:gap-1.5 ${cfg.bg} ${cfg.border} ${cfg.text} ${
                             overdue ? 'ring-1 ring-rose-500/40' : ''
                           }`}
                           title={`${task.title} (${task.status}) - Clic para ver`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+                          <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
                           <span className="truncate">{task.title}</span>
                         </div>
                       );
@@ -619,10 +625,19 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
                   {/* Interactive Solid Obsidian Task Selector Popover */}
                   {openTasksDayKey === day.dateKey && dayTasks.length > 0 && (
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="day-task-popover absolute top-1 left-0 right-0 sm:-left-2 sm:-right-2 bg-[#090e1c] border border-cyan-500/40 shadow-[0_20px_45px_rgba(0,0,0,0.98),0_0_24px_rgba(6,182,212,0.25)] rounded-2xl p-3 z-50 animate-modal-enter pointer-events-auto min-w-[220px]"
-                    >
+                    <>
+                      {/* Mobile Dimmer Backdrop */}
+                      <div
+                        className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40 sm:hidden animate-fade-in"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenTasksDayKey(null);
+                        }}
+                      />
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="day-task-popover fixed left-4 right-4 top-1/2 -translate-y-1/2 z-50 sm:translate-y-0 sm:absolute sm:top-1 sm:left-0 sm:right-0 sm:-left-2 sm:-right-2 bg-[#090e1c] border border-cyan-500/40 shadow-[0_20px_45px_rgba(0,0,0,0.98),0_0_24px_rgba(6,182,212,0.25)] rounded-2xl p-3 z-50 animate-modal-enter pointer-events-auto sm:min-w-[220px]"
+                      >
                       {/* Popover Header */}
                       <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.08]">
                         <div className="flex items-center gap-1.5">
@@ -698,6 +713,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                         <span>Nueva tarea en este día</span>
                       </button>
                     </div>
+                    </>
                   )}
                 </div>
               );

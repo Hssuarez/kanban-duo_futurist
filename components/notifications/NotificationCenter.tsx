@@ -183,7 +183,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   };
 
   return (
-    <div className="relative font-sans" ref={containerRef}>
+    <div className={`relative font-sans ${isOpen ? 'z-50' : 'z-20'}`} ref={containerRef}>
       {/* Trigger Bell Button */}
       <button
         type="button"
@@ -208,7 +208,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       {/* Mobile Dimmer Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 sm:hidden animate-fade-in"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 sm:hidden animate-fade-in"
           onClick={(e) => {
             e.stopPropagation();
             setIsOpen(false);
@@ -220,15 +220,18 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         />
       )}
 
-      {/* Popover Menu: Fixed viewport on mobile, anchored on desktop */}
+      {/* Popover Menu: Solid Obsidian Surface */}
       {isOpen && (
         <div
-          style={{ transformOrigin: 'top center' }}
-          className="fixed left-3 right-3 top-[62px] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-w-sm sm:max-w-md mx-auto sm:mx-0 bg-[#090e1c]/98 border border-cyan-500/35 shadow-[0_20px_55px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.2)] rounded-2xl py-2 z-50 animate-modal-enter ring-1 ring-cyan-500/20 backdrop-blur-2xl"
+          style={{
+            transformOrigin: 'top center',
+            backgroundColor: '#070c18',
+          }}
+          className="fixed left-3 right-3 top-[62px] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-w-sm sm:max-w-md mx-auto sm:mx-0 bg-[#070c18] border border-cyan-500/35 shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.2)] rounded-2xl py-2 z-50 animate-modal-enter ring-1 ring-cyan-500/20 backdrop-blur-2xl"
           role="menu"
         >
           {/* Header */}
-          <div className="px-4 py-2.5 border-b border-white/[0.08] flex items-center justify-between">
+          <div className="px-4 py-2.5 border-b border-white/[0.08] bg-[#050811] flex items-center justify-between rounded-t-xl">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-white tracking-wide">Notificaciones</span>
               {unreadCount > 0 && (
@@ -261,7 +264,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           </div>
 
           {/* Filter Tabs */}
-          <div className="px-3 pt-2 pb-1.5 flex items-center gap-1.5 border-b border-white/[0.04] overflow-x-auto no-scrollbar">
+          <div className="px-3 pt-2 pb-1.5 flex items-center gap-1.5 border-b border-white/[0.04] bg-[#070c18] overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setFilterMode('all')}
@@ -300,7 +303,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           </div>
 
           {/* Notifications Scrollable List */}
-          <div className="max-h-[calc(100vh-220px)] sm:max-h-[340px] overflow-y-auto custom-scrollbar divide-y divide-white/[0.04] px-1 py-1">
+          <div className="max-h-[calc(100vh-220px)] sm:max-h-[340px] overflow-y-auto custom-scrollbar divide-y divide-white/[0.04] px-1 py-1 bg-[#070c18]">
             {filteredList.length === 0 ? (
               <div className="py-8 px-4 text-center">
                 <div className="w-10 h-10 rounded-full bg-cyan-950/30 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto mb-2 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
@@ -322,8 +325,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                     onClick={() => handleNotificationClick(notif)}
                     className={`p-2.5 rounded-xl transition-all cursor-pointer flex items-start gap-3 my-0.5 group ${
                       notif.read
-                        ? 'bg-transparent hover:bg-zinc-900/60 opacity-80 hover:opacity-100'
-                        : 'bg-zinc-900/80 hover:bg-zinc-800/90 border border-cyan-500/20 shadow-sm'
+                        ? 'bg-[#090f1f] hover:bg-[#0d162b] border border-white/[0.05]'
+                        : 'bg-[#0b1429] hover:bg-[#0f1c3a] border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.08)]'
                     }`}
                   >
                     {/* Icon Badge */}
@@ -364,17 +367,18 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
           {/* Footer actions */}
           {userNotifications.length > 0 && (
-            <div className="px-3 pt-2 pb-1 border-t border-white/[0.06] flex items-center justify-between text-[11px]">
+            <div className="px-3 pt-2 pb-1 border-t border-white/[0.06] bg-[#050811] flex items-center justify-between text-[11px] rounded-b-xl">
               <button
                 type="button"
                 onClick={handleClearAll}
-                className="text-zinc-400 hover:text-rose-300 flex items-center gap-1 transition-colors px-1 py-0.5"
+                className="text-zinc-500 hover:text-rose-400 flex items-center gap-1.5 transition-colors cursor-pointer py-1 px-1.5 rounded hover:bg-rose-950/20"
               >
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className="w-3.5 h-3.5" />
                 <span>Limpiar todas</span>
               </button>
-              <span className="text-zinc-500 text-[10px]">
-                {activeProject?.name}
+
+              <span className="text-[10px] text-zinc-500 font-mono">
+                {activeProject?.name || 'Proyecto'}
               </span>
             </div>
           )}
