@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
     const forwardedFor = req.headers.get('x-forwarded-for');
     const realIp = req.headers.get('x-real-ip');
     const cfIp = req.headers.get('cf-connecting-ip');
+    const directIp = (req as any).ip;
 
     let ip = '';
     if (forwardedFor) {
@@ -17,8 +18,14 @@ export async function GET(req: NextRequest) {
       ip = realIp.trim();
     } else if (cfIp) {
       ip = cfIp.trim();
+    } else if (directIp) {
+      ip = String(directIp).trim();
     } else {
       ip = '127.0.0.1';
+    }
+
+    if (ip.startsWith('::ffff:')) {
+      ip = ip.substring(7);
     }
 
     // 2. Geolocation headers (provided automatically by Vercel Edge Network)

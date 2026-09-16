@@ -363,18 +363,49 @@ export async function syncCloudUsers(): Promise<User[]> {
       return getUsers();
     }
     if (data && data.length > 0) {
-      const mapped: User[] = data.map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        avatar: u.avatar || '',
-        color: u.color || '#3b82f6',
-        role: u.role as UserRole,
-        passwordHash: u.password_hash || '',
-        isActive: u.is_active ?? true,
-        createdAt: u.created_at || new Date().toISOString(),
-        lastLogin: u.last_login,
-      }));
+      const currentUsers = getUsers();
+      const mapped: User[] = data.map((u) => {
+        const local = currentUsers.find((lu) => lu.id === u.id);
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          avatar: u.avatar || '',
+          color: u.color || '#3b82f6',
+          role: u.role as UserRole,
+          passwordHash: u.password_hash || '',
+          isActive: u.is_active ?? true,
+          createdAt: u.created_at || new Date().toISOString(),
+          lastLogin: u.last_login || local?.lastLogin,
+          lastLoginIp: u.last_login_ip || local?.lastLoginIp,
+          lastLoginDevice: u.last_login_device || local?.lastLoginDevice,
+          lastLoginCity: u.last_login_city || local?.lastLoginCity,
+        };
+      });
+
+      // Cross-reference with security logs to backfill IP and device if not in users table
+      const secLogs = getSecurityLogs();
+      mapped.forEach((user) => {
+        if (!user.lastLoginIp || !user.lastLoginDevice) {
+          const userLog = secLogs.find(
+            (l) =>
+              (l.adminId === user.id ||
+                l.targetUserId === user.id ||
+                (l.adminName && l.adminName.toLowerCase().includes(user.name.toLowerCase()))) &&
+              (l.ip || l.deviceName) &&
+              l.action.toLowerCase().includes('inicio')
+          );
+          if (userLog) {
+            if (!user.lastLoginIp && userLog.ip) user.lastLoginIp = userLog.ip;
+            if (!user.lastLoginDevice && userLog.deviceName) {
+              user.lastLoginDevice = `${userLog.deviceName}${userLog.os ? ` (${userLog.os} · ${userLog.browser || ''})` : ''}`;
+            }
+            if (!user.lastLoginCity && userLog.city) user.lastLoginCity = userLog.city;
+            if (!user.lastLogin && userLog.timestamp) user.lastLogin = userLog.timestamp;
+          }
+        }
+      });
+
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mapped));
       notifySync('users');
       return mapped;
@@ -548,6 +579,7 @@ export async function initCloudSync() {
 
   // Initial cloud sync
   await syncCloudProjects();
+  await syncCloudSecurityLogs();
   await syncCloudUsers();
   await syncCloudTasks();
   await syncCloudStatusHistory();
@@ -569,6 +601,10 @@ export async function initCloudSync() {
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'task_status_history' }, () => {
           syncCloudStatusHistory();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'security_logs' }, () => {
+          syncCloudSecurityLogs();
+          syncCloudUsers();
         })
         .subscribe();
     } catch (e) {
@@ -696,12 +732,21 @@ export async function loginWithCredentials(
   // Update Supabase
   const client = await getOrInitSupabase();
   if (client) {
-    client.from('users').update({
-      last_login: user.lastLogin,
-      last_login_ip: user.lastLoginIp,
-      last_login_device: user.lastLoginDevice,
-      last_login_city: user.lastLoginCity,
-    }).eq('id', user.id).then();
+    try {
+      const { error } = await client.from('users').update({
+        last_login: user.lastLogin,
+        last_login_ip: user.lastLoginIp,
+        last_login_device: user.lastLoginDevice,
+        last_login_city: user.lastLoginCity,
+      }).eq('id', user.id);
+
+      if (error) {
+        // Fallback to update only last_login if audit columns don't exist yet in Supabase
+        await client.from('users').update({
+          last_login: user.lastLogin,
+        }).eq('id', user.id);
+      }
+    } catch {}
   }
 
   localStorage.setItem(STORAGE_KEYS.SESSION_USER_ID, user.id);
@@ -748,6 +793,23 @@ export async function auditSessionIfChanged(user: User) {
         users[idx].lastLoginCity = auditInfo.city ? `${auditInfo.city}${auditInfo.country ? `, ${auditInfo.country}` : ''}` : undefined;
         if (!users[idx].lastLogin) users[idx].lastLogin = new Date().toISOString();
         saveUsers(users);
+
+        const client = await getOrInitSupabase();
+        if (client) {
+          try {
+            const { error } = await client.from('users').update({
+              last_login: users[idx].lastLogin,
+              last_login_ip: users[idx].lastLoginIp,
+              last_login_device: users[idx].lastLoginDevice,
+              last_login_city: users[idx].lastLoginCity,
+            }).eq('id', user.id);
+            if (error) {
+              await client.from('users').update({
+                last_login: users[idx].lastLogin,
+              }).eq('id', user.id);
+            }
+          } catch {}
+        }
 
         logSecurityEvent({
           adminId: user.id,
@@ -1625,6 +1687,101 @@ export function getSecurityLogs(): SecurityLog[] {
   }
 }
 
+export async function syncCloudSecurityLogs(): Promise<SecurityLog[]> {
+  const client = await getOrInitSupabase();
+  if (!client || typeof window === 'undefined') return getSecurityLogs();
+
+  try {
+    const { data, error } = await client
+      .from('security_logs')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(100);
+
+    if (error) {
+      console.warn('Error al consultar logs de seguridad en Supabase:', error);
+      return getSecurityLogs();
+    }
+
+    if (data && data.length > 0) {
+      const mapped: SecurityLog[] = data.map((l: any) => {
+        let ip = l.ip;
+        let city = l.city;
+        let country = l.country;
+        let deviceType = l.device_type;
+        let deviceName = l.device_name;
+        let os = l.os;
+        let browser = l.browser;
+
+        // Extract IP & device if embedded in details text
+        if (l.details) {
+          if (!ip) {
+            const ipMatch = l.details.match(/\[IP:\s*([^·\]]+)(?:\s*·\s*([^\]]+))?\]/i) || l.details.match(/IP:\s*([\d\.:a-fA-F]+)/);
+            if (ipMatch) {
+              ip = ipMatch[1].trim();
+              if (ipMatch[2]) city = ipMatch[2].trim();
+            }
+          }
+          if (!deviceName) {
+            const devMatch = l.details.match(/\[Dispositivo:\s*([^·\]]+)(?:\s*·\s*([^\(\]]+))?(?:\s*\(([^\)]+)\))?\]/i) || l.details.match(/desde\s+([^\(\n]+)\s*\(([^\·\)]+)[\s·]*([^\)]*)\)/i);
+            if (devMatch) {
+              deviceName = devMatch[1].trim();
+              if (devMatch[2]) os = devMatch[2].trim();
+              if (devMatch[3]) browser = devMatch[3].trim();
+            }
+          }
+        }
+
+        if (!deviceType && deviceName) {
+          if (/phone|móvil|galaxy|pixel|redmi|iphone|android/i.test(deviceName)) {
+            deviceType = 'mobile';
+          } else if (/tablet|ipad/i.test(deviceName)) {
+            deviceType = 'tablet';
+          } else {
+            deviceType = 'desktop';
+          }
+        }
+
+        return {
+          id: l.id,
+          adminId: l.admin_id,
+          adminName: l.admin_name,
+          targetUserId: l.target_user_id || undefined,
+          targetUserName: l.target_user_name || undefined,
+          action: l.action,
+          details: l.details,
+          timestamp: l.timestamp,
+          ip: ip || undefined,
+          city: city || undefined,
+          country: country || undefined,
+          deviceType: deviceType || undefined,
+          deviceName: deviceName || undefined,
+          os: os || undefined,
+          browser: browser || undefined,
+        };
+      });
+
+      const localLogs = getSecurityLogs();
+      const mergedMap = new Map<string, SecurityLog>();
+      mapped.forEach((l) => mergedMap.set(l.id, l));
+      localLogs.forEach((l) => {
+        if (!mergedMap.has(l.id)) mergedMap.set(l.id, l);
+      });
+
+      const sorted = Array.from(mergedMap.values()).sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
+      localStorage.setItem(STORAGE_KEYS.SECURITY_LOGS, JSON.stringify(sorted.slice(0, 100)));
+      notifySync('security');
+      return sorted;
+    }
+  } catch (err) {
+    console.warn('Fallo de red al sincronizar security logs:', err);
+  }
+  return getSecurityLogs();
+}
+
 export async function logSecurityEvent(event: Omit<SecurityLog, 'id' | 'timestamp'>) {
   if (typeof window === 'undefined') return;
   const logs = getSecurityLogs();
@@ -1633,24 +1790,62 @@ export async function logSecurityEvent(event: Omit<SecurityLog, 'id' | 'timestam
     id: `sec-${Date.now()}`,
     timestamp: new Date().toISOString(),
   };
-  const updated = [newLog, ...logs].slice(0, 50);
+
+  // Embed structured audit info in details for seamless cross-device compatibility
+  let enrichedDetails = newLog.details;
+  if (newLog.ip && !enrichedDetails.includes('[IP:')) {
+    enrichedDetails += ` [IP: ${newLog.ip}${newLog.city ? ` · ${newLog.city}` : ''}]`;
+  }
+  if (newLog.deviceName && !enrichedDetails.includes('[Dispositivo:')) {
+    enrichedDetails += ` [Dispositivo: ${newLog.deviceName}${newLog.os ? ` · ${newLog.os}` : ''}${newLog.browser ? ` (${newLog.browser})` : ''}]`;
+  }
+  newLog.details = enrichedDetails;
+
+  const updated = [newLog, ...logs].slice(0, 100);
   localStorage.setItem(STORAGE_KEYS.SECURITY_LOGS, JSON.stringify(updated));
   notifySync('security');
 
   const client = await getOrInitSupabase();
   if (client) {
-    client
-      .from('security_logs')
-      .insert({
-        id: newLog.id,
-        admin_id: newLog.adminId,
-        admin_name: newLog.adminName,
-        target_user_id: newLog.targetUserId || null,
-        target_user_name: newLog.targetUserName || null,
-        action: newLog.action,
-        details: newLog.details,
-        timestamp: newLog.timestamp,
-      })
-      .then();
+    try {
+      // 1. Try insert with dedicated audit columns
+      const { error } = await client
+        .from('security_logs')
+        .insert({
+          id: newLog.id,
+          admin_id: newLog.adminId,
+          admin_name: newLog.adminName,
+          target_user_id: newLog.targetUserId || null,
+          target_user_name: newLog.targetUserName || null,
+          action: newLog.action,
+          details: newLog.details,
+          timestamp: newLog.timestamp,
+          ip: newLog.ip || null,
+          city: newLog.city || null,
+          country: newLog.country || null,
+          device_type: newLog.deviceType || null,
+          device_name: newLog.deviceName || null,
+          os: newLog.os || null,
+          browser: newLog.browser || null,
+        });
+
+      if (error) {
+        // 2. Fallback to base schema columns with enriched details
+        await client
+          .from('security_logs')
+          .insert({
+            id: newLog.id,
+            admin_id: newLog.adminId,
+            admin_name: newLog.adminName,
+            target_user_id: newLog.targetUserId || null,
+            target_user_name: newLog.targetUserName || null,
+            action: newLog.action,
+            details: newLog.details,
+            timestamp: newLog.timestamp,
+          });
+      }
+    } catch (err) {
+      console.warn('Error enviando security_log a Supabase:', err);
+    }
   }
 }

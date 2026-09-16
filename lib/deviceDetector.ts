@@ -125,10 +125,15 @@ export async function getClientConnectionInfo(): Promise<ClientConnectionAudit> 
   let region = '';
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
     const res = await fetch('/api/client-info', {
       method: 'GET',
       headers: { 'Cache-Control': 'no-cache' },
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();
@@ -138,8 +143,23 @@ export async function getClientConnectionInfo(): Promise<ClientConnectionAudit> 
       if (data.region) region = data.region;
     }
   } catch {
-    // If running in offline or sandbox mode, fall back to localhost
-    ip = '127.0.0.1';
+    // If endpoint times out or fails
+  }
+
+  // Fallback for public IP if running in local sandbox or direct proxy
+  if ((ip === '127.0.0.1' || ip === '::1') && typeof window !== 'undefined') {
+    try {
+      const fallbackCtrl = new AbortController();
+      const fbTimeout = setTimeout(() => fallbackCtrl.abort(), 2000);
+      const fbRes = await fetch('https://api.ipify.org?format=json', {
+        signal: fallbackCtrl.signal,
+      });
+      clearTimeout(fbTimeout);
+      if (fbRes.ok) {
+        const fbData = await fbRes.json();
+        if (fbData.ip) ip = fbData.ip;
+      }
+    } catch {}
   }
 
   return {

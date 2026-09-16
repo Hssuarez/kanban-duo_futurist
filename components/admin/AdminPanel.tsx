@@ -8,6 +8,9 @@ import {
   adminCreateUser,
   adminDeleteUser,
   getSecurityLogs,
+  syncCloudSecurityLogs,
+  syncCloudUsers,
+  subscribeToSync,
 } from '@/lib/storage';
 import { UserEditModal } from './UserEditModal';
 import { PasswordResetModal } from './PasswordResetModal';
@@ -30,6 +33,7 @@ import {
   Globe,
   Filter,
   Radio,
+  RefreshCw,
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -168,10 +172,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const totalAdmins = users.filter((u) => u.role === 'admin').length;
   const totalActive = users.filter((u) => u.isActive).length;
+  const [isSyncingLogs, setIsSyncingLogs] = useState(false);
+
+  const handleRefreshSecurityLogs = async () => {
+    setIsSyncingLogs(true);
+    try {
+      const logs = await syncCloudSecurityLogs();
+      setSecurityLogs(logs);
+      await syncCloudUsers();
+      onRefreshData();
+    } catch (e) {
+      console.warn('Error refrescando logs de seguridad:', e);
+    } finally {
+      setIsSyncingLogs(false);
+    }
+  };
 
   useEffect(() => {
-    setSecurityLogs(getSecurityLogs());
-  }, [activeTab, users]);
+    handleRefreshSecurityLogs();
+    const unsubscribe = subscribeToSync((type) => {
+      if (type === 'security' || type === 'users') {
+        setSecurityLogs(getSecurityLogs());
+      }
+    });
+    return () => unsubscribe();
+  }, [activeTab]);
 
   // Security Metrics & KPIs
   const totalSecurityEvents = securityLogs.length;
@@ -622,9 +647,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     Supervisión de conexiones, huellas digitales de dispositivos, direcciones IP y eventos críticos de seguridad.
                   </p>
                 </div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-full self-start sm:self-auto font-medium">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Auditoría Activa</span>
+                <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+                  <button
+                    onClick={handleRefreshSecurityLogs}
+                    disabled={isSyncingLogs}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-60 text-zinc-300 hover:text-white text-xs rounded-lg border border-white/[0.08] transition-colors shadow-sm"
+                    title="Sincronizar eventos desde Supabase Cloud"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isSyncingLogs ? 'animate-spin text-purple-400' : ''}`} />
+                    <span>{isSyncingLogs ? 'Sincronizando...' : 'Actualizar'}</span>
+                  </button>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-full font-medium">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Auditoría Activa</span>
+                  </div>
                 </div>
               </div>
 
