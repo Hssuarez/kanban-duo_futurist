@@ -31,6 +31,7 @@ import {
   getActiveProjectId,
   setActiveProjectId,
   DEFAULT_PROJECTS,
+  auditSessionIfChanged,
 } from '@/lib/storage';
 import { LoginForm } from './auth/LoginForm';
 import { Navbar } from './Navbar';
@@ -116,10 +117,11 @@ export const KanbanBoard: React.FC = () => {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
-  // Sincronización de presencia en tiempo real (Supabase Presence)
+  // Sincronización de presencia en tiempo real y auditoría de sesión/dispositivo
   useEffect(() => {
     if (sessionUser) {
       initPresence(sessionUser);
+      auditSessionIfChanged(sessionUser);
     } else {
       initPresence(null);
     }

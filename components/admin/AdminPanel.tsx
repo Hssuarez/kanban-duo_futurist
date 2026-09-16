@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User, SecurityLog, UserRole } from '@/lib/types';
 import {
   adminUpdateUser,
@@ -25,6 +25,11 @@ import {
   Search,
   Activity,
   Lock,
+  Smartphone,
+  Laptop,
+  Globe,
+  Filter,
+  Radio,
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -42,6 +47,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'security'>('users');
   const [searchQuery, setSearchQuery] = useState('');
+  const [securityFilterAction, setSecurityFilterAction] = useState<string>('all');
+  const [securitySearchQuery, setSecuritySearchQuery] = useState('');
   const [securityLogs, setSecurityLogs] = useState<SecurityLog[]>(() => getSecurityLogs());
 
   // In-row delete confirmation state
@@ -161,6 +168,84 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const totalAdmins = users.filter((u) => u.role === 'admin').length;
   const totalActive = users.filter((u) => u.isActive).length;
+
+  useEffect(() => {
+    setSecurityLogs(getSecurityLogs());
+  }, [activeTab, users]);
+
+  // Security Metrics & KPIs
+  const totalSecurityEvents = securityLogs.length;
+
+  const mobileCount = useMemo(() => {
+    return securityLogs.filter((log) => {
+      if (log.deviceType === 'mobile' || log.deviceType === 'tablet') return true;
+      if (log.deviceName && /phone|móvil|galaxy|pixel|redmi|iphone|android|tablet|ipad/i.test(log.deviceName)) return true;
+      if (log.details && /phone|móvil|galaxy|pixel|redmi|iphone|android/i.test(log.details)) return true;
+      return false;
+    }).length;
+  }, [securityLogs]);
+
+  const desktopCount = useMemo(() => {
+    return Math.max(0, totalSecurityEvents - mobileCount);
+  }, [totalSecurityEvents, mobileCount]);
+
+  const uniqueIpsCount = useMemo(() => {
+    const ips = new Set<string>();
+    securityLogs.forEach((log) => {
+      if (log.ip) ips.add(log.ip);
+    });
+    return ips.size || (securityLogs.length > 0 ? 1 : 0);
+  }, [securityLogs]);
+
+  const latestIp = useMemo(() => {
+    const logWithIp = securityLogs.find((l) => l.ip);
+    return logWithIp ? `${logWithIp.ip}${logWithIp.city ? ` (${logWithIp.city})` : ''}` : '127.0.0.1';
+  }, [securityLogs]);
+
+  // Filtered Security Logs
+  const filteredSecurityLogs = useMemo(() => {
+    return securityLogs.filter((log) => {
+      // 1. Action filter
+      if (securityFilterAction === 'login' && !log.action.toLowerCase().includes('inicio')) {
+        return false;
+      }
+      if (securityFilterAction === 'logout' && !log.action.toLowerCase().includes('cierre')) {
+        return false;
+      }
+      if (securityFilterAction === 'credentials' && !log.action.toLowerCase().includes('contraseña')) {
+        return false;
+      }
+      if (securityFilterAction === 'management' && !log.action.toLowerCase().includes('usuario')) {
+        return false;
+      }
+
+      // 2. Search query filter
+      if (securitySearchQuery.trim()) {
+        const q = securitySearchQuery.toLowerCase().trim();
+        const matchAction = log.action.toLowerCase().includes(q);
+        const matchAdmin = log.adminName.toLowerCase().includes(q);
+        const matchDetails = log.details.toLowerCase().includes(q);
+        const matchIp = log.ip?.toLowerCase().includes(q);
+        const matchCity = log.city?.toLowerCase().includes(q);
+        const matchDevice = log.deviceName?.toLowerCase().includes(q);
+        const matchOs = log.os?.toLowerCase().includes(q);
+        const matchBrowser = log.browser?.toLowerCase().includes(q);
+
+        return (
+          matchAction ||
+          matchAdmin ||
+          matchDetails ||
+          matchIp ||
+          matchCity ||
+          matchDevice ||
+          matchOs ||
+          matchBrowser
+        );
+      }
+
+      return true;
+    });
+  }, [securityLogs, securityFilterAction, securitySearchQuery]);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans pb-16 selection:bg-white selection:text-zinc-900">
@@ -397,16 +482,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         )}
                       </td>
 
-                      {/* Last Login */}
-                      <td className="py-3.5 px-5 text-zinc-400 text-xs font-mono">
-                        {user.lastLogin
-                          ? new Date(user.lastLogin).toLocaleDateString('es-ES', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : '—'}
+                      {/* Last Login & Device/IP Audit */}
+                      <td className="py-3.5 px-5 text-zinc-400 text-xs">
+                        {user.lastLogin ? (
+                          <div className="flex flex-col gap-1.5">
+                            <span className="font-mono text-zinc-200 text-xs">
+                              {new Date(user.lastLogin).toLocaleDateString('es-ES', {
+                                day: 'numeric',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {user.lastLoginDevice && (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[10px] text-zinc-300 bg-zinc-800/80 px-2 py-0.5 rounded-md border border-white/[0.06]"
+                                  title={user.lastLoginDevice}
+                                >
+                                  {/phone|móvil|galaxy|pixel|redmi|iphone|android|tablet|ipad/i.test(user.lastLoginDevice) ? (
+                                    <Smartphone className="w-2.5 h-2.5 text-sky-400 shrink-0" />
+                                  ) : (
+                                    <Laptop className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
+                                  )}
+                                  <span className="max-w-[130px] truncate">{user.lastLoginDevice}</span>
+                                </span>
+                              )}
+                              {user.lastLoginIp && (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[10px] text-indigo-300 bg-indigo-950/40 px-2 py-0.5 rounded-md border border-indigo-500/20 font-mono"
+                                  title={`IP: ${user.lastLoginIp}${user.lastLoginCity ? ` · ${user.lastLoginCity}` : ''}`}
+                                >
+                                  <Globe className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+                                  <span>{user.lastLoginIp}</span>
+                                  {user.lastLoginCity && (
+                                    <span className="text-zinc-400 font-sans truncate max-w-[80px]">
+                                      · {user.lastLoginCity}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="font-mono text-zinc-600 text-xs">—</span>
+                        )}
                       </td>
 
                       {/* Action Buttons */}
@@ -489,49 +609,221 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {/* Tab 2: Security & Audit Logs */}
         {activeTab === 'security' && (
-          <div className="bg-zinc-900/40 border border-white/[0.08] rounded-xl p-6">
-            <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-              <Lock className="w-4 h-4 text-purple-400" />
-              Registro de eventos de seguridad
-            </h3>
-            <p className="text-xs text-zinc-400 mb-6">
-              Historial de modificaciones de contraseñas, accesos y cambios de rol.
-            </p>
+          <div className="space-y-6">
+            {/* Header & Status */}
+            <div className="bg-zinc-900/40 border border-white/[0.08] rounded-xl p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-purple-400" />
+                    Auditoría de Acceso, IPs y Dispositivos
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Supervisión de conexiones, huellas digitales de dispositivos, direcciones IP y eventos críticos de seguridad.
+                  </p>
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-full self-start sm:self-auto font-medium">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Auditoría Activa</span>
+                </div>
+              </div>
 
-            <div className="space-y-2.5">
-              {securityLogs.length === 0 ? (
-                <p className="text-xs text-zinc-500 italic py-4">No hay registros de auditoría aún.</p>
-              ) : (
-                securityLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-3.5 rounded-xl bg-zinc-950/60 border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-zinc-300 bg-zinc-800 border border-white/[0.06] px-2 py-0.5 rounded text-[10px] uppercase tracking-wider">
-                          {log.action}
-                        </span>
-                        <span className="font-medium text-white">
-                          {log.adminName}
-                        </span>
-                      </div>
-                      <p className="text-zinc-400 text-xs">
-                        {log.details}
-                      </p>
+              {/* KPI Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-zinc-950/60 p-4 rounded-xl border border-white/[0.06]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Total eventos</span>
+                    <div className="p-1.5 bg-zinc-800/80 text-purple-400 rounded-lg">
+                      <Activity className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] text-zinc-500 shrink-0 font-mono">
-                      {new Date(log.timestamp).toLocaleString('es-ES', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                      })}
-                    </span>
                   </div>
-                ))
-              )}
+                  <p className="text-xl sm:text-2xl font-semibold text-white mt-1.5 font-mono">{totalSecurityEvents}</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Registros auditados</p>
+                </div>
+
+                <div className="bg-zinc-950/60 p-4 rounded-xl border border-white/[0.06]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Dispositivos</span>
+                    <div className="p-1.5 bg-zinc-800/80 text-sky-400 rounded-lg">
+                      <Smartphone className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-semibold text-white mt-1.5 font-mono">
+                    {mobileCount} <span className="text-xs font-normal text-zinc-400">móvil</span> · {desktopCount} <span className="text-xs font-normal text-zinc-400">PC</span>
+                  </p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Distribución de clientes</p>
+                </div>
+
+                <div className="bg-zinc-950/60 p-4 rounded-xl border border-white/[0.06]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">IPs Públicas</span>
+                    <div className="p-1.5 bg-zinc-800/80 text-indigo-400 rounded-lg">
+                      <Globe className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-semibold text-white mt-1.5 font-mono">{uniqueIpsCount}</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Puntos de conexión detectados</p>
+                </div>
+
+                <div className="bg-zinc-950/60 p-4 rounded-xl border border-white/[0.06]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Última IP</span>
+                    <div className="p-1.5 bg-zinc-800/80 text-emerald-400 rounded-lg">
+                      <Radio className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <p className="text-xs sm:text-sm font-semibold text-white mt-2 font-mono truncate" title={latestIp}>
+                    {latestIp}
+                  </p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Última actividad capturada</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter & Search Toolbar + Log Feed */}
+            <div className="bg-zinc-900/40 border border-white/[0.08] rounded-xl p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
+                {/* Filter pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+                  {[
+                    { id: 'all', label: 'Todos' },
+                    { id: 'login', label: 'Inicios de sesión' },
+                    { id: 'logout', label: 'Cierres de sesión' },
+                    { id: 'credentials', label: 'Contraseñas' },
+                    { id: 'management', label: 'Usuarios' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setSecurityFilterAction(tab.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                        securityFilterAction === tab.id
+                          ? 'bg-zinc-800 text-white border border-white/20'
+                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 border border-transparent'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Search input */}
+                <div className="relative w-full md:w-72 shrink-0">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <input
+                    type="text"
+                    value={securitySearchQuery}
+                    onChange={(e) => setSecuritySearchQuery(e.target.value)}
+                    placeholder="Buscar por IP, dispositivo o usuario..."
+                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-zinc-900/90 border border-white/[0.08] text-white rounded-lg focus:outline-none focus:border-white/30 placeholder:text-zinc-600 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Logs List */}
+              <div className="space-y-3">
+                {filteredSecurityLogs.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <Shield className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                    <p className="text-xs text-zinc-400 font-medium">No se encontraron eventos coincidentes</p>
+                    <p className="text-[11px] text-zinc-600 mt-1">Prueba ajustando los filtros de búsqueda o categoría.</p>
+                  </div>
+                ) : (
+                  filteredSecurityLogs.map((log) => {
+                    const isLogin = log.action.toLowerCase().includes('inicio');
+                    const isLogout = log.action.toLowerCase().includes('cierre');
+                    const isPassword = log.action.toLowerCase().includes('contraseña');
+                    const isDelete = log.action.toLowerCase().includes('eliminación') || log.action.toLowerCase().includes('suspens');
+
+                    const actionBadgeClass = isLogin
+                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+                      : isLogout
+                      ? 'bg-zinc-800 text-zinc-400 border-white/[0.06]'
+                      : isPassword
+                      ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                      : isDelete
+                      ? 'bg-rose-500/10 text-rose-300 border-rose-500/20'
+                      : 'bg-purple-500/10 text-purple-300 border-purple-500/20';
+
+                    const isMobileDevice =
+                      log.deviceType === 'mobile' ||
+                      log.deviceType === 'tablet' ||
+                      (log.deviceName && /phone|móvil|galaxy|pixel|redmi|iphone|android|tablet|ipad/i.test(log.deviceName));
+
+                    return (
+                      <div
+                        key={log.id}
+                        className="p-4 rounded-xl bg-zinc-950/60 border border-white/[0.06] hover:border-white/[0.12] transition-colors flex flex-col gap-2.5 text-xs"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`font-medium px-2 py-0.5 rounded text-[10px] uppercase tracking-wider border ${actionBadgeClass}`}>
+                              {log.action}
+                            </span>
+                            <span className="font-semibold text-white">
+                              {log.adminName}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-zinc-500 shrink-0 font-mono">
+                            {new Date(log.timestamp).toLocaleString('es-ES', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                            })}
+                          </span>
+                        </div>
+
+                        <p className="text-zinc-400 text-xs leading-relaxed">
+                          {log.details}
+                        </p>
+
+                        {/* Connection & Hardware Badges */}
+                        {(log.ip || log.deviceName) && (
+                          <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-white/[0.04]">
+                            {log.ip && (
+                              <span
+                                className="inline-flex items-center gap-1 text-[11px] text-indigo-300 bg-indigo-950/40 px-2 py-0.5 rounded-md border border-indigo-500/20 font-mono"
+                                title={`IP: ${log.ip}${log.city ? ` · ${log.city}` : ''}`}
+                              >
+                                <Globe className="w-3 h-3 text-indigo-400 shrink-0" />
+                                <span>{log.ip}</span>
+                                {log.city && (
+                                  <span className="text-zinc-400 font-sans">
+                                    · {log.city}{log.country ? `, ${log.country}` : ''}
+                                  </span>
+                                )}
+                              </span>
+                            )}
+
+                            {log.deviceName && (
+                              <span
+                                className="inline-flex items-center gap-1.5 text-[11px] text-zinc-300 bg-zinc-900/90 px-2 py-0.5 rounded-md border border-white/[0.08]"
+                                title={`${log.deviceName} (${log.os || ''} · ${log.browser || ''})`}
+                              >
+                                {isMobileDevice ? (
+                                  <Smartphone className="w-3 h-3 text-sky-400 shrink-0" />
+                                ) : (
+                                  <Laptop className="w-3 h-3 text-zinc-400 shrink-0" />
+                                )}
+                                <span>{log.deviceName}</span>
+                                {log.os && <span className="text-zinc-400 font-sans">· {log.os}</span>}
+                                {log.browser && <span className="text-zinc-500 font-sans">({log.browser})</span>}
+                              </span>
+                            )}
+
+                            {/* Device Category Tag */}
+                            <span className="text-[10px] text-zinc-500 bg-zinc-900/50 px-1.5 py-0.5 rounded border border-white/[0.03]">
+                              {isMobileDevice ? 'Dispositivo Móvil' : 'Estación de Trabajo'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
         )}

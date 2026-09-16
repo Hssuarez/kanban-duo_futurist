@@ -660,13 +660,48 @@ export async function loginWithCredentials(
     return { success: false, error: 'Contraseña incorrecta. Por favor verifica tus credenciales.' };
   }
 
+  // Capture Connection and Device Audit Info
+  let auditInfo: {
+    ip: string;
+    city?: string;
+    country?: string;
+    region?: string;
+    deviceType: 'mobile' | 'tablet' | 'desktop';
+    deviceName: string;
+    os: string;
+    browser: string;
+  } = {
+    ip: '127.0.0.1',
+    city: '',
+    country: '',
+    deviceType: 'desktop',
+    deviceName: 'PC',
+    os: 'Desconocido',
+    browser: 'Web',
+  };
+
+  try {
+    const { getClientConnectionInfo } = await import('./deviceDetector');
+    auditInfo = await getClientConnectionInfo();
+  } catch (err) {
+    console.warn('Error capturando información de conexión:', err);
+  }
+
   user.lastLogin = new Date().toISOString();
+  user.lastLoginIp = auditInfo.ip;
+  user.lastLoginDevice = `${auditInfo.deviceName} (${auditInfo.os} · ${auditInfo.browser})`;
+  user.lastLoginCity = auditInfo.city ? `${auditInfo.city}${auditInfo.country ? `, ${auditInfo.country}` : ''}` : undefined;
   saveUsers(users);
 
   // Update Supabase
   const client = await getOrInitSupabase();
   if (client) {
-    client.from('users').update({ last_login: user.lastLogin }).eq('id', user.id).then();
+    client.from('users').update({
+      last_login: user.lastLogin,
+      last_login_ip: user.lastLoginIp,
+      last_login_device: user.lastLoginDevice,
+      last_login_city: user.lastLoginCity,
+    }).eq('id', user.id).then();
   }
 
   localStorage.setItem(STORAGE_KEYS.SESSION_USER_ID, user.id);
@@ -676,10 +711,60 @@ export async function loginWithCredentials(
     adminId: user.id,
     adminName: user.name,
     action: 'Inicio de Sesión',
-    details: `${user.name} ha iniciado sesión con éxito.`,
+    details: `${user.name} ha iniciado sesión con éxito desde ${auditInfo.deviceName} (${auditInfo.os} · ${auditInfo.browser}).`,
+    ip: auditInfo.ip,
+    city: auditInfo.city,
+    country: auditInfo.country,
+    deviceType: auditInfo.deviceType,
+    deviceName: auditInfo.deviceName,
+    os: auditInfo.os,
+    browser: auditInfo.browser,
   });
 
   return { success: true, user };
+}
+
+/**
+ * Automatically audits the current active session if IP or device has changed
+ */
+export async function auditSessionIfChanged(user: User) {
+  if (typeof window === 'undefined') return;
+  try {
+    const { getClientConnectionInfo } = await import('./deviceDetector');
+    const auditInfo = await getClientConnectionInfo();
+    const formattedDevice = `${auditInfo.deviceName} (${auditInfo.os} · ${auditInfo.browser})`;
+
+    if (
+      !user.lastLoginDevice ||
+      user.lastLoginDevice !== formattedDevice ||
+      !user.lastLoginIp ||
+      user.lastLoginIp !== auditInfo.ip
+    ) {
+      const users = getUsers();
+      const idx = users.findIndex((u) => u.id === user.id);
+      if (idx !== -1) {
+        users[idx].lastLoginIp = auditInfo.ip;
+        users[idx].lastLoginDevice = formattedDevice;
+        users[idx].lastLoginCity = auditInfo.city ? `${auditInfo.city}${auditInfo.country ? `, ${auditInfo.country}` : ''}` : undefined;
+        if (!users[idx].lastLogin) users[idx].lastLogin = new Date().toISOString();
+        saveUsers(users);
+
+        logSecurityEvent({
+          adminId: user.id,
+          adminName: user.name,
+          action: 'Inicio de Sesión',
+          details: `${user.name} conectado desde ${auditInfo.deviceName} (${auditInfo.os} · ${auditInfo.browser}).`,
+          ip: auditInfo.ip,
+          city: auditInfo.city,
+          country: auditInfo.country,
+          deviceType: auditInfo.deviceType,
+          deviceName: auditInfo.deviceName,
+          os: auditInfo.os,
+          browser: auditInfo.browser,
+        });
+      }
+    }
+  } catch {}
 }
 
 export function logout() {
@@ -691,6 +776,8 @@ export function logout() {
       adminName: currentUser.name,
       action: 'Cierre de Sesión',
       details: `${currentUser.name} cerró sesión.`,
+      ip: currentUser.lastLoginIp,
+      deviceName: currentUser.lastLoginDevice,
     });
   }
   localStorage.removeItem(STORAGE_KEYS.SESSION_USER_ID);

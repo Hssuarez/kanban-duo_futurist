@@ -15,6 +15,9 @@ export interface User {
   isActive: boolean;
   createdAt: string;
   lastLogin?: string;
+  lastLoginIp?: string;
+  lastLoginDevice?: string;
+  lastLoginCity?: string;
 }
 
 export interface Project {
@@ -73,6 +76,13 @@ export interface SecurityLog {
   action: string;
   details: string;
   timestamp: string;
+  ip?: string;
+  city?: string;
+  country?: string;
+  deviceType?: 'mobile' | 'tablet' | 'desktop';
+  deviceName?: string;
+  os?: string;
+  browser?: string;
 }
 
 export type SpaceFilter = 'all' | 'mine' | 'peer' | string;
