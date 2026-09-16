@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Task, User, TaskStatus, TaskPriority } from '@/lib/types';
 import {
   BOGOTA_TZ,
@@ -69,6 +70,11 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
   // Drag over target for calendar drag-and-drop
   const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
   const [openTasksDayKey, setOpenTasksDayKey] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -137,8 +143,25 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
     return map;
   }, [filteredTasks]);
 
+  // Selected day object & tasks for mobile bottom sheet
+  const activeDayObj = useMemo(() => {
+    if (!openTasksDayKey) return null;
+    const [y, m, d] = openTasksDayKey.split('-').map(Number);
+    return {
+      dateKey: openTasksDayKey,
+      dayNumber: d,
+      date: new Date(y, m - 1, d, 12, 0, 0),
+    };
+  }, [openTasksDayKey]);
+
+  const activeDayTasks = useMemo(() => {
+    if (!openTasksDayKey) return [];
+    return tasksByDay.get(openTasksDayKey) || [];
+  }, [openTasksDayKey, tasksByDay]);
+
   // Navigation handlers with Day View synchronization
   const handlePrev = () => {
+    setOpenTasksDayKey(null);
     const d = new Date(currentDate);
     if (viewMode === 'month') {
       d.setMonth(d.getMonth() - 1);
@@ -154,6 +177,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
   };
 
   const handleNext = () => {
+    setOpenTasksDayKey(null);
     const d = new Date(currentDate);
     if (viewMode === 'month') {
       d.setMonth(d.getMonth() + 1);
@@ -170,6 +194,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
   // 100% Reliable "Hoy" handler with instant Bogota real-time calculation and visual focus pulse
   const handleToday = () => {
+    setOpenTasksDayKey(null);
     const nowIso = new Date().toISOString();
     const todayStr = getBogotaDayKey(nowIso);
     const [y, m, d] = todayStr.split('-').map(Number);
@@ -449,9 +474,9 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
       {/* VIEW: MONTH GRID */}
       {viewMode === 'month' && (
-        <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl overflow-hidden shadow-sm transition-colors">
+        <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl relative shadow-sm transition-colors">
           {/* Day Headers */}
-          <div className="grid grid-cols-7 border-b border-white/[0.06] bg-zinc-900/80 text-[11px] font-medium text-zinc-400 text-center py-2.5">
+          <div className="grid grid-cols-7 border-b border-white/[0.06] bg-zinc-900/80 text-[11px] font-medium text-zinc-400 text-center py-2.5 rounded-t-2xl">
             {weekDayHeaders.map((dayName, idx) => (
               <div key={idx} className="uppercase tracking-wider">
                 {dayName}
@@ -460,17 +485,22 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
           </div>
 
           {/* Day Cells */}
-          <div className="grid grid-cols-7 divide-x divide-y divide-white/[0.04]">
-            {monthData.map((day) => {
+          <div className="grid grid-cols-7 divide-x divide-y divide-white/[0.04] rounded-b-2xl">
+            {monthData.map((day, dayIndex) => {
               const dayTasks = tasksByDay.get(day.dateKey) || [];
               const isOver = dragOverDayKey === day.dateKey;
+              const colIndex = dayIndex % 7;
+              const rowIndex = Math.floor(dayIndex / 7);
+              const isRightCol = colIndex >= 4;
+              const isBottomRow = rowIndex >= 3;
+              const isOpen = openTasksDayKey === day.dateKey;
 
               return (
                 <div
                   key={day.dateKey}
                   onClick={() => {
                     setSelectedDateKey(day.dateKey);
-                    setOpenTasksDayKey(openTasksDayKey === day.dateKey ? null : day.dateKey);
+                    setOpenTasksDayKey(isOpen ? null : day.dateKey);
                   }}
                   onMouseMove={handleCellMouseMove}
                   onDragOver={(e) => {
@@ -492,11 +522,13 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                     }
                   }}
                   className={`min-h-[105px] sm:min-h-[120px] p-1 sm:p-2 flex flex-col justify-between transition-all relative group cursor-pointer ${
+                    isOpen ? 'z-40 ring-1 ring-cyan-400/60 bg-zinc-900/60 shadow-[0_0_15px_rgba(6,182,212,0.15)]' : 'z-10'
+                  } ${
                     !day.isCurrentMonth
                       ? 'bg-zinc-950/40 text-zinc-600'
                       : 'bg-zinc-900/20 hover:bg-zinc-900/50 hover:border-cyan-500/30'
                   } ${
-                    day.isSelected
+                    day.isSelected && !isOpen
                       ? 'ring-1 ring-cyan-500/40 bg-zinc-900/60'
                       : ''
                   } ${
@@ -630,104 +662,98 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                     )}
                   </div>
 
-                  {/* Interactive Solid Obsidian Task Selector Popover / Card */}
-                  {openTasksDayKey === day.dateKey && (
-                    <>
-                      {/* Dimmer Backdrop for Mobile and Desktop */}
-                      <div
-                        className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40 animate-fade-in"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenTasksDayKey(null);
-                        }}
-                      />
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="day-task-popover fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[92vw] max-w-sm sm:max-w-md bg-[#090e1c] border border-cyan-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.98),0_0_30px_rgba(6,182,212,0.25)] rounded-2xl p-4 animate-modal-enter pointer-events-auto"
-                      >
-                        {/* Popover Header */}
-                        <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-white/[0.08]">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs sm:text-sm font-bold text-white font-mono">
-                              {day.dayNumber} {formatBogotaMonthYear(currentDate).split(' ')[0]}
-                            </span>
-                            <span className="text-[10px] font-mono text-cyan-300 font-semibold bg-cyan-950/70 border border-cyan-500/30 px-2 py-0.5 rounded-full">
-                              {dayTasks.length} {dayTasks.length === 1 ? 'tarea' : 'tareas'}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenTasksDayKey(null);
-                            }}
-                            className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-                            title="Cerrar"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                  {/* Interactive Solid Obsidian Task Selector Popover - Desktop Anchored */}
+                  {isOpen && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className={`hidden sm:block day-task-popover absolute z-50 w-72 sm:w-80 bg-[#070c18] border border-cyan-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.98),0_0_30px_rgba(6,182,212,0.25)] rounded-2xl p-3.5 animate-modal-enter pointer-events-auto ${
+                        isRightCol ? 'right-1 left-auto' : 'left-1 right-auto'
+                      } ${
+                        isBottomRow ? 'bottom-1 top-auto' : 'top-1 bottom-auto'
+                      }`}
+                    >
+                      {/* Popover Header */}
+                      <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/[0.08]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs sm:text-sm font-bold text-white font-mono">
+                            {day.dayNumber} {formatBogotaMonthYear(currentDate).split(' ')[0]}
+                          </span>
+                          <span className="text-[10px] font-mono text-cyan-300 font-semibold bg-cyan-950/70 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                            {dayTasks.length} {dayTasks.length === 1 ? 'tarea' : 'tareas'}
+                          </span>
                         </div>
-
-                        {/* Clickable Tasks List or Empty state */}
-                        {dayTasks.length === 0 ? (
-                          <div className="py-6 text-center text-zinc-500 text-xs">
-                            <CalendarIcon className="w-7 h-7 mx-auto mb-2 text-zinc-600 opacity-60" />
-                            <p>No hay tareas programadas para este día.</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-1.5 max-h-[220px] overflow-y-auto custom-scrollbar pr-0.5">
-                            {dayTasks.map((t) => {
-                              const cfg = statusColors[t.status] || statusColors.iniciado;
-                              const assignee = users.find((u) => u.id === t.assignedTo);
-                              return (
-                                <button
-                                  key={t.id}
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleTaskClick(t);
-                                    setOpenTasksDayKey(null);
-                                  }}
-                                  className="w-full text-left p-2.5 rounded-xl bg-zinc-900/95 hover:bg-zinc-800 border border-white/[0.06] hover:border-cyan-500/40 transition-all cursor-pointer group/item flex flex-col gap-1 shadow-sm"
-                                >
-                                  <div className="flex items-center justify-between gap-1.5">
-                                    <span className="text-xs font-semibold text-zinc-100 group-hover/item:text-cyan-300 truncate">
-                                      {t.title}
-                                    </span>
-                                    <span
-                                      className={`text-[9px] font-mono px-1.5 py-0.2 rounded border capitalize shrink-0 ${cfg.bg} ${cfg.border} ${cfg.text}`}
-                                    >
-                                      {t.status}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
-                                    <span className="capitalize">{t.priority} prioridad</span>
-                                    <span className="text-zinc-300 font-medium">
-                                      {assignee?.name?.split(' ')[0] || 'Sin asignar'}
-                                    </span>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {/* Add new task shortcut */}
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedDateKey(day.dateKey);
                             setOpenTasksDayKey(null);
-                            if (onOpenNewTask) onOpenNewTask();
                           }}
-                          className="w-full mt-3 py-2 text-xs font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-950/30 hover:bg-cyan-950/60 border border-cyan-500/30 hover:border-cyan-400/50 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+                          className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+                          title="Cerrar"
                         >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Nueva tarea en este día</span>
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    </>
+
+                      {/* Clickable Tasks List or Empty state */}
+                      {dayTasks.length === 0 ? (
+                        <div className="py-5 text-center text-zinc-500 text-xs">
+                          <CalendarIcon className="w-6 h-6 mx-auto mb-1.5 text-zinc-600 opacity-60" />
+                          <p>No hay tareas programadas para este día.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 max-h-[200px] overflow-y-auto custom-scrollbar pr-0.5">
+                          {dayTasks.map((t) => {
+                            const cfg = statusColors[t.status] || statusColors.iniciado;
+                            const assignee = users.find((u) => u.id === t.assignedTo);
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTaskClick(t);
+                                  setOpenTasksDayKey(null);
+                                }}
+                                className="w-full text-left p-2.5 rounded-xl bg-zinc-900/95 hover:bg-zinc-800 border border-white/[0.06] hover:border-cyan-500/40 transition-all cursor-pointer group/item flex flex-col gap-1 shadow-sm"
+                              >
+                                <div className="flex items-center justify-between gap-1.5">
+                                  <span className="text-xs font-semibold text-zinc-100 group-hover/item:text-cyan-300 truncate">
+                                    {t.title}
+                                  </span>
+                                  <span
+                                    className={`text-[9px] font-mono px-1.5 py-0.2 rounded border capitalize shrink-0 ${cfg.bg} ${cfg.border} ${cfg.text}`}
+                                  >
+                                    {t.status}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+                                  <span className="capitalize">{t.priority} prioridad</span>
+                                  <span className="text-zinc-300 font-medium">
+                                    {assignee?.name?.split(' ')[0] || 'Sin asignar'}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Add new task shortcut */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDateKey(day.dateKey);
+                          setOpenTasksDayKey(null);
+                          if (onOpenNewTask) onOpenNewTask();
+                        }}
+                        className="w-full mt-3 py-2 text-xs font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-950/30 hover:bg-cyan-950/60 border border-cyan-500/30 hover:border-cyan-400/50 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Nueva tarea en este día</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               );
@@ -907,6 +933,106 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
         users={users}
         onOpenEdit={onOpenEditTask}
       />
+
+      {/* Mobile Day Card Bottom Sheet - Portaled to document.body */}
+      {mounted && openTasksDayKey && activeDayObj && typeof document !== 'undefined' && createPortal(
+        <div className="sm:hidden fixed inset-0 z-[100] flex flex-col justify-end pointer-events-auto font-sans">
+          {/* Fullscreen Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-fade-in"
+            onClick={() => setOpenTasksDayKey(null)}
+          />
+
+          {/* Bottom Sheet Card */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="day-task-popover relative z-10 w-full max-h-[82vh] bg-[#070c18] border-t border-cyan-500/40 rounded-t-3xl p-4 shadow-[0_-20px_50px_rgba(0,0,0,0.98),0_0_30px_rgba(6,182,212,0.25)] flex flex-col animate-slide-up pb-8"
+          >
+            {/* Drag handle */}
+            <div className="w-12 h-1.5 bg-zinc-700/80 rounded-full mx-auto mb-3 shrink-0" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 mb-2.5 border-b border-white/[0.08] shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white font-mono">
+                  {activeDayObj.dayNumber} {formatBogotaMonthYear(currentDate).split(' ')[0]}
+                </span>
+                <span className="text-[10px] font-mono text-cyan-300 font-semibold bg-cyan-950/70 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                  {activeDayTasks.length} {activeDayTasks.length === 1 ? 'tarea' : 'tareas'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpenTasksDayKey(null)}
+                className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+                title="Cerrar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Task list or Empty state */}
+            {activeDayTasks.length === 0 ? (
+              <div className="py-8 text-center text-zinc-500 text-xs">
+                <CalendarIcon className="w-8 h-8 mx-auto mb-2 text-zinc-600 opacity-60" />
+                <p>No hay tareas programadas para este día.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[45vh] overflow-y-auto custom-scrollbar pr-0.5 my-1">
+                {activeDayTasks.map((t) => {
+                  const cfg = statusColors[t.status] || statusColors.iniciado;
+                  const assignee = users.find((u) => u.id === t.assignedTo);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTaskClick(t);
+                        setOpenTasksDayKey(null);
+                      }}
+                      className="w-full text-left p-3 rounded-xl bg-zinc-900/95 hover:bg-zinc-800 border border-white/[0.06] hover:border-cyan-500/40 transition-all cursor-pointer group/item flex flex-col gap-1.5 shadow-sm active:scale-[0.99]"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-zinc-100 group-hover/item:text-cyan-300 truncate">
+                          {t.title}
+                        </span>
+                        <span
+                          className={`text-[9px] font-mono px-1.5 py-0.5 rounded border capitalize shrink-0 ${cfg.bg} ${cfg.border} ${cfg.text}`}
+                        >
+                          {t.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+                        <span className="capitalize">{t.priority} prioridad</span>
+                        <span className="text-zinc-300 font-medium">
+                          {assignee?.name?.split(' ')[0] || 'Sin asignar'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Add new task shortcut */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedDateKey(activeDayObj.dateKey);
+                setOpenTasksDayKey(null);
+                if (onOpenNewTask) onOpenNewTask();
+              }}
+              className="w-full mt-3 py-2.5 text-xs font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-950/40 hover:bg-cyan-950/70 border border-cyan-500/30 hover:border-cyan-400/50 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nueva tarea en este día</span>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
