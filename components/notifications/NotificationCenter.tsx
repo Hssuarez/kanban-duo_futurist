@@ -61,7 +61,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   // Click outside and escape key handling
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
@@ -71,9 +71,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     };
 
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside as unknown as EventListener);
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside as unknown as EventListener);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
@@ -158,8 +160,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       case 'task_assigned':
         return {
           icon: UserCheck,
-          iconBg: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/25',
-          dot: 'bg-cyan-400',
+          iconBg: 'bg-purple-500/10 text-purple-400 border-purple-500/25',
+          dot: 'bg-purple-400',
           badgeText: 'Asignada',
         };
       case 'task_completed':
@@ -203,11 +205,26 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         )}
       </button>
 
-      {/* Popover Menu */}
+      {/* Mobile Dimmer Backdrop */}
       {isOpen && (
         <div
-          style={{ transformOrigin: 'top right' }}
-          className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#090e1c] border border-cyan-500/30 shadow-[0_20px_55px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.15)] rounded-2xl py-2 z-50 animate-modal-enter ring-1 ring-cyan-500/20 backdrop-blur-2xl"
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 sm:hidden animate-fade-in"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(false);
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            setIsOpen(false);
+          }}
+        />
+      )}
+
+      {/* Popover Menu: Fixed viewport on mobile, anchored on desktop */}
+      {isOpen && (
+        <div
+          style={{ transformOrigin: 'top center' }}
+          className="fixed left-3 right-3 top-[62px] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-w-sm sm:max-w-md mx-auto sm:mx-0 bg-[#090e1c]/98 border border-cyan-500/35 shadow-[0_20px_55px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.2)] rounded-2xl py-2 z-50 animate-modal-enter ring-1 ring-cyan-500/20 backdrop-blur-2xl"
           role="menu"
         >
           {/* Header */}
@@ -227,7 +244,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   type="button"
                   onClick={handleMarkAllRead}
                   title="Marcar todas como leídas"
-                  className="p-1 rounded-md text-zinc-400 hover:text-cyan-300 hover:bg-zinc-800/80 transition-colors"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-cyan-300 hover:bg-zinc-800/80 transition-colors"
                 >
                   <CheckCheck className="w-3.5 h-3.5" />
                 </button>
@@ -236,19 +253,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 type="button"
                 onClick={() => setIsOpen(false)}
                 title="Cerrar"
-                className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition-colors"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           {/* Filter Tabs */}
-          <div className="px-3 pt-2 pb-1.5 flex items-center gap-1 border-b border-white/[0.04]">
+          <div className="px-3 pt-2 pb-1.5 flex items-center gap-1.5 border-b border-white/[0.04] overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setFilterMode('all')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap shrink-0 ${
                 filterMode === 'all'
                   ? 'bg-zinc-800 text-white font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -259,7 +276,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             <button
               type="button"
               onClick={() => setFilterMode('unread')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap shrink-0 ${
                 filterMode === 'unread'
                   ? 'bg-zinc-800 text-cyan-300 font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -271,7 +288,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               <button
                 type="button"
                 onClick={() => setFilterMode('urgent')}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap shrink-0 ${
                   filterMode === 'urgent'
                     ? 'bg-zinc-800 text-rose-300 font-semibold shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -283,7 +300,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           </div>
 
           {/* Notifications Scrollable List */}
-          <div className="max-h-[320px] overflow-y-auto custom-scrollbar divide-y divide-white/[0.04] px-1 py-1">
+          <div className="max-h-[calc(100vh-220px)] sm:max-h-[340px] overflow-y-auto custom-scrollbar divide-y divide-white/[0.04] px-1 py-1">
             {filteredList.length === 0 ? (
               <div className="py-8 px-4 text-center">
                 <div className="w-10 h-10 rounded-full bg-cyan-950/30 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto mb-2 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
