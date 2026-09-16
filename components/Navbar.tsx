@@ -164,9 +164,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     const spaceKey = spaceFilter === 'mine' ? 'mine' : spaceFilter === 'all' ? 'all' : 'peer';
     const activeEl = spaceTabsRef.current.querySelector(`[data-space="${spaceKey}"]`) as HTMLElement;
     if (activeEl) {
+      const parentRect = spaceTabsRef.current.getBoundingClientRect();
+      const elRect = activeEl.getBoundingClientRect();
       setSpaceIndicator({
-        left: activeEl.offsetLeft,
-        width: activeEl.offsetWidth,
+        left: elRect.left - parentRect.left,
+        width: elRect.width,
         ready: true,
       });
     }
@@ -177,12 +179,20 @@ export const Navbar: React.FC<NavbarProps> = ({
     const handleResize = () => {
       if (viewTabsRef.current) {
         const activeEl = viewTabsRef.current.querySelector(`[data-view="${currentView}"]`) as HTMLElement;
-        if (activeEl) setViewIndicator({ left: activeEl.offsetLeft, width: activeEl.offsetWidth, ready: true });
+        if (activeEl) {
+          const parentRect = viewTabsRef.current.getBoundingClientRect();
+          const elRect = activeEl.getBoundingClientRect();
+          setViewIndicator({ left: elRect.left - parentRect.left, width: elRect.width, ready: true });
+        }
       }
       if (spaceTabsRef.current) {
         const spaceKey = spaceFilter === 'mine' ? 'mine' : spaceFilter === 'all' ? 'all' : 'peer';
         const activeEl = spaceTabsRef.current.querySelector(`[data-space="${spaceKey}"]`) as HTMLElement;
-        if (activeEl) setSpaceIndicator({ left: activeEl.offsetLeft, width: activeEl.offsetWidth, ready: true });
+        if (activeEl) {
+          const parentRect = spaceTabsRef.current.getBoundingClientRect();
+          const elRect = activeEl.getBoundingClientRect();
+          setSpaceIndicator({ left: elRect.left - parentRect.left, width: elRect.width, ready: true });
+        }
       }
     };
     window.addEventListener('resize', handleResize);
@@ -413,7 +423,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               data-view="board"
               onClick={() => setCurrentView('board')}
-              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
+              className={`relative z-10 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                 currentView === 'board'
                   ? 'text-white font-semibold'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -426,7 +436,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               data-view="calendar"
               onClick={() => setCurrentView('calendar')}
-              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
+              className={`relative z-10 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                 currentView === 'calendar'
                   ? 'text-white font-semibold'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -439,7 +449,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               data-view="dashboard"
               onClick={() => setCurrentView('dashboard')}
-              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
+              className={`relative z-10 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                 currentView === 'dashboard'
                   ? 'text-white font-semibold'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -471,7 +481,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               data-space="mine"
               onClick={() => setSpaceFilter('mine')}
-              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
+              className={`relative z-10 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                 spaceFilter === 'mine'
                   ? 'text-white font-semibold'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -488,7 +498,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => {
                   setSpaceFilter(otherMembers[0].id);
                 }}
-                className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
+                className={`relative z-10 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                   isPeerActive
                     ? 'text-white font-semibold'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -496,9 +506,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Users className="w-3.5 h-3.5" />
                 <span className="flex items-center gap-1.5">
-                  <span>{otherMembers[0].name.split(' ')[0]}</span>
+                  <span className="max-w-[75px] sm:max-w-none truncate">{otherMembers[0].name.split(' ')[0]}</span>
                   {Boolean(onlineUserIds.includes(otherMembers[0].id)) && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-living-signal" title="En línea" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-living-signal shrink-0" title="En línea" />
                   )}
                 </span>
               </button>
@@ -510,14 +520,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   data-space="peer"
                   onClick={() => setShowPeerDropdown(!showPeerDropdown)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                     isPeerActive
                       ? 'text-white font-semibold'
                       : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   <Users className="w-3.5 h-3.5" />
-                  <span>
+                  <span className="max-w-[70px] sm:max-w-none truncate">
                     {isPeerActive && selectedTeammate
                       ? selectedTeammate.name.split(' ')[0]
                       : 'Compañeros'}
@@ -599,14 +609,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               data-space="all"
               onClick={() => setSpaceFilter('all')}
-              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
+              className={`relative z-10 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap active:scale-[0.98] ${
                 spaceFilter === 'all'
                   ? 'text-white font-semibold'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Todo el equipo</span>
+              <span>
+                <span className="sm:hidden">Equipo</span>
+                <span className="hidden sm:inline">Todo el equipo</span>
+              </span>
             </button>
           </div>
 
