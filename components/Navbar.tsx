@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { User, SpaceFilter, AppView, Project } from '@/lib/types';
+import { User, SpaceFilter, AppView, Project, Task } from '@/lib/types';
 import { subscribeToPresence } from '@/lib/presence';
 import { ProjectSelector } from './project/ProjectSelector';
+import { NotificationCenter } from './notifications/NotificationCenter';
 import {
   Kanban,
   Plus,
@@ -38,6 +39,9 @@ interface NavbarProps {
   onOpenAdminPanel: () => void;
   onOpenProfileModal: () => void;
   onLogout: () => void;
+  tasks?: Task[];
+  onOpenTaskDetail?: (taskId: string) => void;
+  onOpenCommandPalette?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -58,6 +62,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdminPanel,
   onOpenProfileModal,
   onLogout,
+  tasks = [],
+  onOpenTaskDetail,
+  onOpenCommandPalette,
 }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showPeerDropdown, setShowPeerDropdown] = useState(false);
@@ -217,22 +224,44 @@ export const Navbar: React.FC<NavbarProps> = ({
             />
           </div>
 
-          {/* Search Bar (center, desktop only) */}
+          {/* Search Bar / Command Palette Trigger (center, desktop only) */}
           <div className="flex-1 max-w-xs hidden lg:block">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar tareas..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-zinc-900/80 border border-white/[0.08] text-zinc-200 placeholder:text-zinc-500 rounded-lg focus:outline-none focus:border-white/30 transition-colors"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={onOpenCommandPalette}
+              className="w-full flex items-center justify-between pl-3 pr-2.5 py-1.5 text-xs bg-zinc-900/80 hover:bg-zinc-900 border border-white/[0.08] hover:border-cyan-500/30 text-zinc-400 hover:text-zinc-200 rounded-lg transition-all group cursor-pointer text-left shadow-sm"
+              title="Buscar tareas, proyectos o ejecutar acciones rápidas (Ctrl+K)"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Search className="w-3.5 h-3.5 text-zinc-500 group-hover:text-cyan-400 transition-colors shrink-0" />
+                <span className="truncate">{searchQuery ? `Filtro: "${searchQuery}"` : 'Buscar o pulsar Ctrl+K...'}</span>
+              </div>
+              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono text-zinc-500 group-hover:text-cyan-300 bg-zinc-800/90 rounded border border-white/[0.08] shrink-0">
+                <span className="text-[9px]">⌘</span>K
+              </kbd>
+            </button>
           </div>
 
           {/* Right Action Controls */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Quick Command Button for mobile / tablet */}
+            <button
+              type="button"
+              onClick={onOpenCommandPalette}
+              title="Comandos y búsqueda rápida (Ctrl+K)"
+              className="lg:hidden p-1.5 text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 hover:bg-zinc-900 border border-white/[0.08] rounded-lg transition-colors active:scale-95"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+
+            {/* Notification Bell Center */}
+            <NotificationCenter
+              currentUser={currentUser}
+              activeProject={activeProject}
+              tasks={tasks}
+              onOpenTaskDetail={onOpenTaskDetail}
+            />
+
             {/* Admin Panel Button */}
             {currentUser.role === 'admin' && (
               <button
@@ -249,7 +278,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onOpenNewTaskModal}
               title="Nueva Tarea"
-              className="inline-flex items-center gap-1.5 bg-gradient-to-r from-white via-cyan-50 to-white hover:from-cyan-100 hover:to-white text-slate-950 font-semibold px-3 py-1.5 rounded-lg text-xs shadow-[0_0_14px_rgba(6,182,212,0.2)] hover:shadow-[0_0_22px_rgba(6,182,212,0.38)] active:scale-[0.98] transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs shadow-[0_0_14px_rgba(6,182,212,0.28)] hover:shadow-[0_0_22px_rgba(6,182,212,0.48)] active:scale-[0.98] transition-all cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
               <span className="hidden sm:inline">Nueva tarea</span>

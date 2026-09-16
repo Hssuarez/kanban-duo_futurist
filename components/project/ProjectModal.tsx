@@ -410,7 +410,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-1.5 bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium rounded-lg shadow-sm transition-all active:scale-[0.98] disabled:opacity-50"
+              className="px-4 py-1.5 bg-gradient-to-r from-cyan-400 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 text-zinc-950 text-xs font-bold rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.35)] hover:shadow-[0_0_22px_rgba(6,182,212,0.55)] transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear proyecto'}
             </button>

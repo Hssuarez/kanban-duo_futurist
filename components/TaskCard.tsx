@@ -2,10 +2,10 @@
 
 import confetti from 'canvas-confetti';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Task, User, TaskStatus } from '@/lib/types';
 import { isTaskOverdue, isTaskDueToday, formatDueDateBadge } from '@/lib/dateUtils';
-import { Calendar, CheckCircle2, Play, RotateCcw, Trash2, Edit3, User as UserIcon } from 'lucide-react';
+import { Calendar, CheckCircle2, Play, RotateCcw, Trash2, Edit3, User as UserIcon, Clock, AlertTriangle } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
@@ -35,6 +35,29 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
   const assignee = users.find((u) => u.id === task.assignedTo);
   const isAssignedToMe = task.assignedTo === currentUser.id;
+
+  // Elapsed time calculation
+  const elapsedBadge = useMemo(() => {
+    if (!task.createdAt) return null;
+    const created = new Date(task.createdAt).getTime();
+    if (isNaN(created)) return null;
+    const diffMs = Date.now() - created;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) return `${Math.max(1, diffMins)}m`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d`;
+  }, [task.createdAt]);
+
+  // Stagnation visual cue: task in 'trabajando' for >= 5 days
+  const isStagnant = useMemo(() => {
+    if (task.status !== 'trabajando' || !task.createdAt) return false;
+    const refDate = task.startedAt ? new Date(task.startedAt).getTime() : new Date(task.createdAt).getTime();
+    if (isNaN(refDate)) return false;
+    const diffDays = (Date.now() - refDate) / (1000 * 60 * 60 * 24);
+    return diffDays >= 5;
+  }, [task.status, task.startedAt, task.createdAt]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -186,7 +209,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       )}
       {/* Top Meta: Priority & Actions */}
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span
             className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border ${currentPriority.badge}`}
           >
@@ -199,6 +222,23 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               En curso
             </span>
           )}
+          {isStagnant ? (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-300 bg-rose-950/50 border border-rose-500/40 px-1.5 py-0.5 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.3)] animate-pulse"
+              title="Esta tarea lleva más de 5 días en progreso sin completarse"
+            >
+              <AlertTriangle className="w-2.5 h-2.5 text-rose-400 shrink-0" />
+              Estancada ({elapsedBadge})
+            </span>
+          ) : elapsedBadge && task.status !== 'finalizado' ? (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-mono text-zinc-400 bg-zinc-900/80 border border-white/[0.06] px-1.5 py-0.2 rounded"
+              title={`Antigüedad: ${elapsedBadge}`}
+            >
+              <Clock className="w-2.5 h-2.5 text-zinc-500" />
+              {elapsedBadge}
+            </span>
+          ) : null}
         </div>
 
         {/* Action icons or inline confirm */}
@@ -295,13 +335,29 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       {/* Quick Move Status Shortcuts */}
       <div className="mt-2.5 pt-2 border-t border-dashed border-white/[0.06] flex items-center gap-1.5 justify-end">
         {task.status === 'iniciado' && (
-          <button
-            onClick={() => onMoveStatus(task.id, 'trabajando')}
-            className="flex items-center gap-1 text-[11px] font-medium bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/20 px-2.5 py-0.5 rounded-md transition-all active:scale-[0.96]"
-          >
-            <Play className="w-3 h-3 text-amber-400 fill-amber-400" />
-            Iniciar
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onMoveStatus(task.id, 'trabajando')}
+              className="flex items-center gap-1 text-[11px] font-medium bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/20 px-2 py-0.5 rounded-md transition-all active:scale-[0.96]"
+              title="Mover a Trabajando"
+            >
+              <Play className="w-3 h-3 text-amber-400 fill-amber-400" />
+              Iniciar
+            </button>
+            <button
+              onClick={handleComplete}
+              disabled={isCompleting}
+              className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md transition-all active:scale-[0.95] ${
+                isCompleting
+                  ? 'bg-emerald-500 text-white font-semibold ring-2 ring-emerald-400/50 shadow-md scale-95'
+                  : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40'
+              }`}
+              title="Marcar como finalizada directamente"
+            >
+              <CheckCircle2 className={`w-3 h-3 ${isCompleting ? 'text-white' : 'text-emerald-400'}`} />
+              <span>{isCompleting ? '¡Lista!' : 'Completar'}</span>
+            </button>
+          </div>
         )}
 
         {task.status === 'trabajando' && (

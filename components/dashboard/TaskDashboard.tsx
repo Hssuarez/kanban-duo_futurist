@@ -199,6 +199,135 @@ const InteractiveDonutChart: React.FC<{
   );
 };
 
+const DeliveryVelocityChart: React.FC<{
+  tasks: Task[];
+}> = ({ tasks }) => {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  const daysData = useMemo(() => {
+    // Generate last 7 days in Bogota timezone
+    const result: { dateKey: string; label: string; count: number }[] = [];
+    const now = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateKey = getBogotaDayKey(d.toISOString());
+
+      let label = '';
+      if (i === 0) label = 'Hoy';
+      else if (i === 1) label = 'Ayer';
+      else {
+        const parts = dateKey.split('-');
+        label = `${parts[2]}/${parts[1]}`;
+      }
+
+      // Filter tasks finished on this date
+      const finishedOnDay = tasks.filter((t) => {
+        if (t.status !== 'finalizado') return false;
+        const compDate = t.completedAt || t.updatedAt || t.createdAt;
+        if (!compDate) return false;
+        return getBogotaDayKey(compDate) === dateKey;
+      });
+
+      result.push({
+        dateKey,
+        label,
+        count: finishedOnDay.length,
+      });
+    }
+
+    return result;
+  }, [tasks]);
+
+  const maxCount = useMemo(() => {
+    return Math.max(...daysData.map((d) => d.count), 1);
+  }, [daysData]);
+
+  const totalDelivered = useMemo(() => {
+    return daysData.reduce((acc, d) => acc + d.count, 0);
+  }, [daysData]);
+
+  const avgVelocity = useMemo(() => {
+    return (totalDelivered / 7).toFixed(1);
+  }, [totalDelivered]);
+
+  return (
+    <div className="p-4 sm:p-5 rounded-2xl bg-[#070c18]/85 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 transition-colors flex flex-col justify-between">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-3 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="text-xs font-semibold text-zinc-200">Velocidad de entrega (Últimos 7 días)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono text-zinc-400">
+            Ritmo: <strong className="text-cyan-300 font-semibold">{avgVelocity}</strong> tareas/día
+          </span>
+          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-500/20 px-1.5 py-0.2 rounded-full font-semibold">
+            {totalDelivered} completadas
+          </span>
+        </div>
+      </div>
+
+      {/* SVG Bars Chart */}
+      <div className="flex items-end justify-between gap-2 sm:gap-4 h-28 pt-2 px-1 relative">
+        {daysData.map((day, idx) => {
+          const heightPercent = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
+          const isHovered = hoveredIndex === idx;
+
+          return (
+            <div
+              key={day.dateKey}
+              onMouseEnter={() => setHoveredIndex(idx)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer relative"
+            >
+              {/* Tooltip on hover */}
+              {isHovered && (
+                <div className="absolute -top-11 z-30 bg-[#080d1a] border border-cyan-500/40 rounded-lg px-2 py-1 shadow-[0_4px_20px_rgba(0,0,0,0.8)] pointer-events-none text-center whitespace-nowrap">
+                  <span className="text-[11px] font-mono font-bold text-cyan-300 block">{day.count} {day.count === 1 ? 'tarea' : 'tareas'}</span>
+                  <span className="text-[9px] text-zinc-400 font-mono block">{day.dateKey}</span>
+                </div>
+              )}
+
+              {/* Bar Value Indicator */}
+              <span className={`text-[10px] font-mono mb-1 transition-all ${isHovered ? 'text-cyan-300 font-bold scale-110' : day.count > 0 ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                {day.count}
+              </span>
+
+              {/* Bar Container */}
+              <div className="w-full max-w-[36px] bg-zinc-800/40 rounded-t-lg h-20 flex items-end p-0.5 relative overflow-hidden border border-white/[0.04]">
+                <div
+                  className={`w-full rounded-t-md transition-all duration-500 ease-out relative ${
+                    isHovered
+                      ? 'bg-gradient-to-t from-cyan-600 via-cyan-400 to-cyan-200 shadow-[0_0_15px_rgba(6,182,212,0.6)]'
+                      : day.count > 0
+                      ? 'bg-gradient-to-t from-cyan-500/80 to-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.3)]'
+                      : 'bg-zinc-800/60'
+                  }`}
+                  style={{
+                    height: `${day.count > 0 ? Math.max(heightPercent, 14) : 4}%`,
+                  }}
+                >
+                  {day.count > 0 && (
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/80 shadow-[0_0_4px_white]" />
+                  )}
+                </div>
+              </div>
+
+              {/* Day Label */}
+              <span className={`text-[10px] mt-1.5 font-medium transition-colors ${isHovered ? 'text-cyan-300 font-semibold' : 'text-zinc-400'}`}>
+                {day.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 interface TaskDashboardProps {
   tasks: Task[];
   users: User[];
@@ -663,6 +792,9 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Delivery Velocity (Throughput) Chart */}
+      <DeliveryVelocityChart tasks={tasks} />
 
       {/* Breakdown per Team Member */}
       <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm transition-colors">

@@ -163,7 +163,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ej: Optimizar red de microservicios..."
-              className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-all font-sans"
+              className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded-lg focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all font-sans"
             />
           </div>
 
@@ -177,7 +177,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Especificaciones, criterios de aceptación o notas..."
-              className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-all resize-none font-sans"
+              className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded-lg focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all resize-none font-sans"
             />
           </div>
 
@@ -190,7 +190,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
+                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-cyan-500/50 transition-colors cursor-pointer"
               >
                 <option value="iniciado">Por hacer</option>
                 <option value="trabajando">En curso</option>
@@ -205,7 +205,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
+                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-cyan-500/50 transition-colors cursor-pointer"
               >
                 <option value="baja">Baja</option>
                 <option value="media">Media</option>
@@ -223,7 +223,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <select
                 value={assignedTo}
                 onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
+                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-cyan-500/50 transition-colors cursor-pointer"
               >
                 {eligibleUsers.map((u) => (
                   <option key={u.id} value={u.id}>
@@ -241,7 +241,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
+                className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-200 rounded-lg focus:outline-none focus:border-cyan-500/50 transition-colors cursor-pointer"
               />
             </div>
           </div>
@@ -258,7 +258,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-4 py-1.5 text-xs font-medium text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg shadow-sm transition-all active:scale-[0.98]"
+              className="px-4 py-1.5 text-xs font-bold text-zinc-950 bg-gradient-to-r from-cyan-400 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.35)] hover:shadow-[0_0_22px_rgba(6,182,212,0.55)] transition-all active:scale-[0.98] cursor-pointer"
             >
               {editingTask ? 'Guardar cambios' : 'Crear tarea'}
             </button>

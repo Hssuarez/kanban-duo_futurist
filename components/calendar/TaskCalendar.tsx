@@ -170,6 +170,21 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
     setTimeout(() => setJustClickedToday(false), 1500);
   };
 
+  // Keyboard shortcut: 'T' jumps to today when not typing in an input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+      if (isDetailModalOpen) return;
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        handleToday();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDetailModalOpen]);
+
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
     setIsDetailModalOpen(true);
@@ -345,9 +360,13 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                 ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400 ring-2 ring-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
                 : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 border border-cyan-500/22 hover:border-cyan-400/40 hover:shadow-[0_0_12px_rgba(6,182,212,0.12)]'
             }`}
+            title="Ir a hoy (Atajo: presiona 'T')"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
             <span>Hoy</span>
+            <kbd className="hidden sm:inline-block px-1 py-0.2 text-[9px] font-mono text-zinc-400 bg-zinc-800/90 rounded border border-white/[0.08]">
+              T
+            </kbd>
           </button>
 
           <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight ml-1">
@@ -509,6 +528,30 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
+
+                      {/* Status cluster density dots */}
+                      {dayTasks.length > 0 && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          {dayTasks.some((t) => isTaskOverdue(t.dueDate, t.status)) && (
+                            <span
+                              className="w-1.5 h-1.5 rounded-full bg-rose-400 shadow-[0_0_5px_rgba(244,63,94,0.8)]"
+                              title="Hay tareas vencidas este día"
+                            />
+                          )}
+                          {dayTasks.some((t) => t.status === 'trabajando') && (
+                            <span
+                              className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_5px_rgba(245,158,11,0.8)]"
+                              title="Hay tareas en curso este día"
+                            />
+                          )}
+                          {dayTasks.some((t) => t.status === 'finalizado') && (
+                            <span
+                              className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.8)]"
+                              title="Hay tareas completadas este día"
+                            />
+                          )}
+                        </div>
+                      )}
 
                       {dayTasks.length > 0 && (
                         <button

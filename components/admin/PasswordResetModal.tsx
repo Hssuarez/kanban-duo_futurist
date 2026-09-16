@@ -201,7 +201,7 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
             <button
               type="submit"
               disabled={isLoading || success}
-              className="px-4 py-1.5 text-xs font-medium text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg transition-all active:scale-[0.98] disabled:opacity-50"
+              className="px-4 py-1.5 text-xs font-bold text-zinc-950 bg-gradient-to-r from-cyan-400 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.35)] hover:shadow-[0_0_22px_rgba(6,182,212,0.55)] transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               {isLoading ? 'Guardando...' : 'Guardar contraseña'}
             </button>
