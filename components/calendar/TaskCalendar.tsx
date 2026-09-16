@@ -394,13 +394,10 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                 ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400 ring-2 ring-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
                 : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 border border-cyan-500/22 hover:border-cyan-400/40 hover:shadow-[0_0_12px_rgba(6,182,212,0.12)]'
             }`}
-            title="Ir a hoy (Atajo: presiona 'T')"
+            title="Ir a hoy (Atajo: presiona la tecla 'T')"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
             <span>Hoy</span>
-            <kbd className="hidden sm:inline-block px-1 py-0.2 text-[9px] font-mono text-zinc-400 bg-zinc-800/90 rounded border border-white/[0.08]">
-              T
-            </kbd>
           </button>
 
           <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight ml-1">
