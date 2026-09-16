@@ -45,7 +45,8 @@ import { TaskDashboard } from './dashboard/TaskDashboard';
 import { ProjectModal } from './project/ProjectModal';
 import { AmbientNetworkBackground } from './ui/AmbientNetworkBackground';
 import { CommandPalette } from './command/CommandPalette';
-import { addNotification } from '@/lib/notifications';
+import { NotificationToasts } from './notifications/NotificationToasts';
+import { addNotification, evaluateDailyBriefing } from '@/lib/notifications';
 import { initPresence } from '@/lib/presence';
 import { Filter } from 'lucide-react';
 
@@ -205,6 +206,13 @@ export const KanbanBoard: React.FC = () => {
       users[0]
     );
   }, [projectMembers, users, sessionUser]);
+
+  // Evaluar Daily Briefing inteligente al iniciar o cambiar de proyecto
+  useEffect(() => {
+    if (sessionUser && activeProject && projectTasks.length > 0) {
+      evaluateDailyBriefing(projectTasks, sessionUser, activeProject.id);
+    }
+  }, [sessionUser, activeProject, projectTasks]);
 
   // Control de selección y gestión de proyectos
   const handleSelectProject = (projId: string) => {
@@ -727,6 +735,13 @@ export const KanbanBoard: React.FC = () => {
         onOpenNewTask={() => handleOpenAddNew('iniciado')}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onSelectTask={handleOpenEdit}
+      />
+
+      {/* Real-time Floating HUD Toasts */}
+      <NotificationToasts
+        currentUser={sessionUser}
+        activeProject={activeProject}
+        onOpenTaskDetail={handleOpenEditById}
       />
     </div>
   );
