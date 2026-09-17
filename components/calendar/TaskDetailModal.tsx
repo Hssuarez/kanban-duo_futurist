@@ -19,6 +19,15 @@ import {
   Activity,
   ArrowRight,
   Edit2,
+  CheckSquare,
+  Check,
+  Tag,
+  Paperclip,
+  MessageSquare,
+  ExternalLink,
+  Github,
+  Figma,
+  FileText,
 } from 'lucide-react';
 
 interface TaskDetailModalProps {
@@ -164,6 +173,15 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <span className={`w-1.5 h-1.5 rounded-full ${priorityCfg.dot}`} />
                 Prioridad {priorityCfg.label}
               </span>
+              {task.tags && task.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 font-mono"
+                >
+                  <Tag className="w-2.5 h-2.5" />
+                  {tag}
+                </span>
+              ))}
             </div>
             <h2 className="text-lg font-semibold text-white tracking-tight">
               {task.title}
@@ -207,6 +225,96 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Subtasks Section */}
+          {task.subtasks && task.subtasks.length > 0 && (() => {
+            const completedCount = task.subtasks.filter((s) => s.completed).length;
+            const progressPct = Math.round((completedCount / task.subtasks.length) * 100);
+            return (
+              <div className="bg-zinc-900/40 rounded-xl border border-white/[0.06] p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
+                  <h4 className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckSquare className="w-3.5 h-3.5 text-cyan-400" />
+                    Subtareas ({completedCount}/{task.subtasks.length})
+                  </h4>
+                  <span className="font-mono text-xs font-semibold text-cyan-400">
+                    {progressPct}%
+                  </span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-300"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+
+                {/* Subtask Checklist */}
+                <div className="space-y-1.5 pt-1">
+                  {task.subtasks.map((st) => (
+                    <div
+                      key={st.id}
+                      className="flex items-center gap-2.5 p-2 rounded-lg bg-zinc-950/60 border border-white/[0.04] text-xs"
+                    >
+                      {st.completed ? (
+                        <div className="w-4 h-4 rounded bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center shrink-0">
+                          <Check className="w-3 h-3 text-emerald-300" />
+                        </div>
+                      ) : (
+                        <div className="w-4 h-4 rounded border border-zinc-700 shrink-0" />
+                      )}
+                      <span
+                        className={`${
+                          st.completed ? 'line-through text-zinc-500' : 'text-zinc-200'
+                        } truncate`}
+                      >
+                        {st.title}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Attachments Section */}
+          {task.attachments && task.attachments.length > 0 && (
+            <div className="bg-zinc-900/40 rounded-xl border border-white/[0.06] p-4 space-y-2.5">
+              <h4 className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-white/[0.06] pb-2">
+                <Paperclip className="w-3.5 h-3.5 text-cyan-400" />
+                Recursos y Enlaces ({task.attachments.length})
+              </h4>
+
+              <div className="space-y-1.5">
+                {task.attachments.map((att) => (
+                  <a
+                    key={att.id}
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-950/60 hover:bg-zinc-900 border border-white/[0.04] hover:border-cyan-500/40 transition-all group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      {att.type === 'github' && <Github className="w-4 h-4 text-zinc-300 shrink-0" />}
+                      {att.type === 'figma' && <Figma className="w-4 h-4 text-purple-400 shrink-0" />}
+                      {att.type === 'doc' && <FileText className="w-4 h-4 text-blue-400 shrink-0" />}
+                      {att.type === 'link' && <ExternalLink className="w-4 h-4 text-cyan-400 shrink-0" />}
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-semibold text-zinc-200 group-hover:text-cyan-300 transition-colors truncate block">
+                          {att.title}
+                        </span>
+                        <span className="text-[10px] text-zinc-500 font-mono truncate block">
+                          {att.url}
+                        </span>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-cyan-300 transition-colors shrink-0 ml-2" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Timeline & Durations */}
           <div className="bg-zinc-900/40 rounded-xl border border-white/[0.06] p-4 space-y-3">
@@ -271,6 +379,48 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Comments Section */}
+          {task.comments && task.comments.length > 0 && (
+            <div className="bg-zinc-900/40 rounded-xl border border-white/[0.06] p-4 space-y-3">
+              <h4 className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-white/[0.06] pb-2">
+                <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
+                Comentarios y Notas del Equipo ({task.comments.length})
+              </h4>
+
+              <div className="space-y-2.5 max-h-52 overflow-y-auto custom-scrollbar pr-1">
+                {task.comments.map((comm) => (
+                  <div
+                    key={comm.id}
+                    className="p-3 rounded-xl bg-zinc-950/70 border border-white/[0.04] space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        {comm.userAvatar ? (
+                          <img
+                            src={comm.userAvatar}
+                            alt={comm.userName}
+                            className="w-4 h-4 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full bg-cyan-950 text-cyan-300 flex items-center justify-center text-[9px] font-bold">
+                            {comm.userName[0]}
+                          </div>
+                        )}
+                        <span className="font-semibold text-zinc-200">{comm.userName}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-zinc-500">
+                        {formatBogotaDateTime(comm.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-300 leading-relaxed pl-6 break-words">
+                      {comm.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Status History Timeline */}
           <div>
