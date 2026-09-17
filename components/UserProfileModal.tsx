@@ -16,7 +16,9 @@ import {
   Cpu,
   Upload,
   Camera,
+  Palette,
 } from 'lucide-react';
+import { getHudTheme, setHudTheme, HUD_THEMES, HudTheme } from '@/lib/hudTheme';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -37,6 +39,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 }) => {
   const [name, setName] = useState(currentUser.name);
   const [avatar, setAvatar] = useState(currentUser.avatar);
+  const [activeTheme, setActiveTheme] = useState<HudTheme>('cyan');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -50,6 +53,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   useEffect(() => {
     setName(currentUser.name);
     setAvatar(currentUser.avatar);
+    setActiveTheme(getHudTheme());
     setNewPassword('');
     setConfirmPassword('');
     setError('');
@@ -293,6 +297,50 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               className="w-full px-3 py-2 text-xs bg-zinc-950/70 border border-zinc-800 text-zinc-100 rounded-lg focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20"
               required
             />
+          </div>
+
+          {/* HUD Visual Theme Picker */}
+          <div>
+            <label className="block text-xs font-medium text-zinc-300 mb-2 flex items-center gap-1.5">
+              <Palette className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Tema Visual HUD</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {HUD_THEMES.map((th) => {
+                const isSelected = activeTheme === th.id;
+                return (
+                  <button
+                    key={th.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTheme(th.id);
+                      setHudTheme(th.id);
+                    }}
+                    className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-zinc-800/90 border-cyan-500/60 ring-1 ring-cyan-500/40 shadow-sm'
+                        : 'bg-zinc-950/60 border-white/[0.08] hover:border-zinc-700 hover:bg-zinc-900/60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div
+                        className="w-3.5 h-3.5 rounded-full shadow-sm"
+                        style={{ backgroundColor: th.primaryColor }}
+                      />
+                      {isSelected && (
+                        <span className="text-[10px] font-mono text-cyan-400 font-bold">✓</span>
+                      )}
+                    </div>
+                    <span className="text-xs font-medium text-zinc-200 truncate mt-1">
+                      {th.name}
+                    </span>
+                    <span className="text-[10px] text-zinc-500 line-clamp-1">
+                      {th.tagline}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Password Change Section */}

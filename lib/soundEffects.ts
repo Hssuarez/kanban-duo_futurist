@@ -146,3 +146,70 @@ export function triggerHapticPulse(type: 'light' | 'success' | 'warning' = 'ligh
     // Ignore unsupported devices
   }
 }
+
+/**
+ * Focus Mode Start: Low resonant initiation chime (330Hz -> 523Hz)
+ */
+export function playFocusStartSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(329.63, now); // E4
+    osc.frequency.exponentialRampToValueAtTime(523.25, now + 0.25); // C5
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.exponentialRampToValueAtTime(0.06, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.42);
+
+    triggerHapticPulse('light');
+  } catch {
+    // Fail silently
+  }
+}
+
+/**
+ * Focus Mode Complete: Sci-Fi Harmonic Zen chime (triple bell resonance)
+ */
+export function playFocusCompleteSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const bells = [523.25, 659.25, 1046.5]; // C5, E5, C6
+
+    bells.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+
+      gain.gain.setValueAtTime(0.001, now + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.08, now + idx * 0.12 + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.12 + 0.7);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + idx * 0.12);
+      osc.stop(now + idx * 0.12 + 0.75);
+    });
+
+    triggerHapticPulse('success');
+  } catch {
+    // Fail silently
+  }
+}

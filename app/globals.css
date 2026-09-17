@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  [data-hud-theme="cyan"] {
     --background: #09090b;
     --foreground: #f4f4f5;
     --surface-panel: rgba(24, 24, 27, 0.65);
@@ -15,6 +16,24 @@
     --border-active: rgba(6, 182, 212, 0.4);
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  }
+
+  [data-hud-theme="violet"] {
+    --accent-cyan: #a855f7;
+    --accent-cyan-glow: rgba(168, 85, 247, 0.25);
+    --border-active: rgba(168, 85, 247, 0.45);
+  }
+
+  [data-hud-theme="matrix"] {
+    --accent-cyan: #10b981;
+    --accent-cyan-glow: rgba(16, 185, 129, 0.25);
+    --border-active: rgba(16, 185, 129, 0.45);
+  }
+
+  [data-hud-theme="amber"] {
+    --accent-cyan: #f59e0b;
+    --accent-cyan-glow: rgba(245, 158, 11, 0.25);
+    --border-active: rgba(245, 158, 11, 0.45);
   }
 }
 

@@ -31,6 +31,30 @@ export interface Project {
   updatedAt: string;
 }
 
+export interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface TaskAttachment {
+  id: string;
+  title: string;
+  url: string;
+  type?: 'link' | 'github' | 'figma' | 'doc';
+}
+
+export type HudTheme = 'cyan' | 'violet' | 'matrix' | 'amber';
+
 export interface Task {
   id: string;
   projectId?: string; // ID del Proyecto al que pertenece
@@ -45,6 +69,11 @@ export interface Task {
   dueDate?: string;
   startedAt?: string;   // Primera fecha en que la tarea pasó a iniciado
   completedAt?: string; // Fecha en que la tarea pasó a finalizado
+  subtasks?: Subtask[];
+  tags?: string[];
+  comments?: TaskComment[];
+  attachments?: TaskAttachment[];
+  timeSpentSeconds?: number;
 }
 
 export interface TaskStatusHistory {

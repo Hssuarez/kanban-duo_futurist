@@ -5,7 +5,22 @@ import confetti from 'canvas-confetti';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Task, User, TaskStatus } from '@/lib/types';
 import { isTaskOverdue, isTaskDueToday, formatDueDateBadge } from '@/lib/dateUtils';
-import { Calendar, CheckCircle2, Play, RotateCcw, Trash2, Edit3, User as UserIcon, Clock, AlertTriangle } from 'lucide-react';
+import {
+  Calendar,
+  CheckCircle2,
+  Play,
+  RotateCcw,
+  Trash2,
+  Edit3,
+  User as UserIcon,
+  Clock,
+  AlertTriangle,
+  CheckSquare,
+  MessageSquare,
+  Paperclip,
+  Zap,
+  Tag as TagIcon,
+} from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
@@ -15,6 +30,8 @@ interface TaskCardProps {
   onDelete: (taskId: string) => void;
   onMoveStatus: (taskId: string, newStatus: TaskStatus) => void;
   onDragStart: (e: React.DragEvent, taskId: string) => void;
+  onSelectTag?: (tag: string) => void;
+  onStartFocus?: (task: Task) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -25,6 +42,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onDelete,
   onMoveStatus,
   onDragStart,
+  onSelectTag,
+  onStartFocus,
 }) => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -58,6 +77,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     const diffDays = (Date.now() - refDate) / (1000 * 60 * 60 * 24);
     return diffDays >= 5;
   }, [task.status, task.startedAt, task.createdAt]);
+
+  // Subtask progress stats
+  const subtaskStats = useMemo(() => {
+    if (!task.subtasks || task.subtasks.length === 0) return null;
+    const completed = task.subtasks.filter((s) => s.completed).length;
+    const total = task.subtasks.length;
+    const percent = Math.round((completed / total) * 100);
+    return { completed, total, percent, isAllDone: completed === total };
+  }, [task.subtasks]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -285,39 +313,115 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
       {/* Task Description */}
       {task.description && (
-        <p className="text-xs text-zinc-400 line-clamp-2 mb-3 leading-relaxed">
+        <p className="text-xs text-zinc-400 line-clamp-2 mb-2 leading-relaxed">
           {task.description}
         </p>
       )}
 
-      {/* Task Footer: Assignee & Due Date */}
-      <div className="flex items-center justify-between pt-2 border-t border-white/[0.04] text-xs">
-        {/* Assignee */}
-        <div className="flex items-center gap-1.5">
-          {assignee?.avatar ? (
-            <img
-              src={assignee.avatar}
-              alt={assignee.name}
-              className="w-4 h-4 rounded-full object-cover ring-1 ring-white/10"
+      {/* Tags Chips */}
+      {task.tags && task.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2.5">
+          {task.tags.map((tg) => (
+            <button
+              key={tg}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectTag?.(tg);
+              }}
+              title={`Filtrar por ${tg}`}
+              className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/40 border border-cyan-500/25 text-cyan-300 hover:border-cyan-400 hover:bg-cyan-950/70 transition-all cursor-pointer"
+            >
+              <TagIcon className="w-2.5 h-2.5 text-cyan-400" />
+              <span>{tg}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Subtasks Progress HUD Bar */}
+      {subtaskStats && (
+        <div className="mb-2.5 p-2 rounded-lg bg-zinc-950/60 border border-white/[0.05] space-y-1">
+          <div className="flex items-center justify-between text-[10px] font-mono">
+            <span className="text-zinc-400 flex items-center gap-1">
+              <CheckSquare className="w-2.5 h-2.5 text-cyan-400" />
+              Subtareas
+            </span>
+            <span
+              className={
+                subtaskStats.isAllDone
+                  ? 'text-emerald-400 font-bold'
+                  : 'text-zinc-300 font-semibold'
+              }
+            >
+              {subtaskStats.completed}/{subtaskStats.total} ({subtaskStats.percent}%)
+            </span>
+          </div>
+          <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-300 ${
+                subtaskStats.isAllDone
+                  ? 'bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]'
+                  : 'bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]'
+              }`}
+              style={{ width: `${subtaskStats.percent}%` }}
             />
-          ) : (
-            <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400">
-              <UserIcon className="w-2.5 h-2.5" />
-            </div>
-          )}
-          <span
-            className={`text-[11px] ${
-              isAssignedToMe ? 'text-zinc-200 font-medium' : 'text-zinc-400'
-            }`}
-          >
-            {isAssignedToMe ? 'Tú' : assignee?.name?.split(' ')[0] || 'Sin asignar'}
-          </span>
+          </div>
+        </div>
+      )}
+
+      {/* Task Footer: Assignee, Indicators & Due Date */}
+      <div className="flex items-center justify-between pt-2 border-t border-white/[0.04] text-xs">
+        {/* Assignee & Indicators */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            {assignee?.avatar ? (
+              <img
+                src={assignee.avatar}
+                alt={assignee.name}
+                className="w-4 h-4 rounded-full object-cover ring-1 ring-white/10"
+              />
+            ) : (
+              <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400">
+                <UserIcon className="w-2.5 h-2.5" />
+              </div>
+            )}
+            <span
+              className={`text-[11px] truncate max-w-[80px] ${
+                isAssignedToMe ? 'text-zinc-200 font-medium' : 'text-zinc-400'
+              }`}
+            >
+              {isAssignedToMe ? 'Tú' : assignee?.name?.split(' ')[0] || 'Sin asignar'}
+            </span>
+          </div>
+
+          {/* Indicators: Comments & Attachments */}
+          <div className="flex items-center gap-1.5 text-zinc-500 text-[10px] font-mono shrink-0">
+            {task.comments && task.comments.length > 0 && (
+              <span
+                className="flex items-center gap-0.5 text-amber-400/90"
+                title={`${task.comments.length} notas internas`}
+              >
+                <MessageSquare className="w-2.5 h-2.5" />
+                {task.comments.length}
+              </span>
+            )}
+            {task.attachments && task.attachments.length > 0 && (
+              <span
+                className="flex items-center gap-0.5 text-blue-400/90"
+                title={`${task.attachments.length} recursos adjuntos`}
+              >
+                <Paperclip className="w-2.5 h-2.5" />
+                {task.attachments.length}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Due Date */}
         {task.dueDate && (
           <div
-            className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md transition-colors ${
+            className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md transition-colors shrink-0 ${
               overdue
                 ? 'bg-rose-500/10 text-rose-300 border border-rose-500/20'
                 : dueToday
@@ -362,6 +466,20 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
         {task.status === 'trabajando' && (
           <>
+            {onStartFocus && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStartFocus(task);
+                }}
+                className="flex items-center gap-1 text-[11px] font-medium text-amber-300 bg-amber-950/40 hover:bg-amber-950/70 border border-amber-500/30 px-2 py-0.5 rounded-md transition-all active:scale-[0.96] cursor-pointer"
+                title="Iniciar sesión Pomodoro (25 min de enfoque puro)"
+              >
+                <Zap className="w-3 h-3 text-amber-400 fill-amber-400" />
+                Enfocar
+              </button>
+            )}
             <button
               onClick={() => onMoveStatus(task.id, 'iniciado')}
               className="flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 px-2 py-0.5 rounded-md transition-colors active:scale-[0.96]"

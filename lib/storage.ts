@@ -427,21 +427,30 @@ export async function syncCloudTasks(): Promise<Task[]> {
       return getTasks();
     }
     if (data) {
-      const mapped: Task[] = data.map((t) => ({
-        id: t.id,
-        projectId: t.project_id || 'proj-default',
-        title: t.title,
-        description: t.description || '',
-        status: t.status as TaskStatus,
-        priority: t.priority,
-        assignedTo: t.assigned_to,
-        createdBy: t.created_by,
-        dueDate: t.due_date,
-        startedAt: t.started_at || undefined,
-        completedAt: t.completed_at || undefined,
-        createdAt: t.created_at,
-        updatedAt: t.updated_at,
-      }));
+      const currentTasks = getTasks();
+      const mapped: Task[] = data.map((t) => {
+        const local = currentTasks.find((lt) => lt.id === t.id);
+        return {
+          id: t.id,
+          projectId: t.project_id || 'proj-default',
+          title: t.title,
+          description: t.description || '',
+          status: t.status as TaskStatus,
+          priority: t.priority,
+          assignedTo: t.assigned_to,
+          createdBy: t.created_by,
+          dueDate: t.due_date,
+          startedAt: t.started_at || undefined,
+          completedAt: t.completed_at || undefined,
+          createdAt: t.created_at,
+          updatedAt: t.updated_at,
+          subtasks: t.subtasks || local?.subtasks,
+          tags: t.tags || local?.tags,
+          comments: t.comments || local?.comments,
+          attachments: t.attachments || local?.attachments,
+          timeSpentSeconds: t.time_spent_seconds || local?.timeSpentSeconds,
+        };
+      });
       localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(mapped));
       notifySync('tasks');
       return mapped;

@@ -11,6 +11,9 @@ import {
   SpaceFilter,
   AppView,
   Project,
+  Subtask,
+  TaskComment,
+  TaskAttachment,
 } from '@/lib/types';
 import {
   getTasks,
@@ -43,12 +46,14 @@ import { AdminPanel } from './admin/AdminPanel';
 import { TaskCalendar } from './calendar/TaskCalendar';
 import { TaskDashboard } from './dashboard/TaskDashboard';
 import { ProjectModal } from './project/ProjectModal';
+import { ProjectReportModal } from './project/ProjectReportModal';
 import { AmbientNetworkBackground } from './ui/AmbientNetworkBackground';
 import { CommandPalette } from './command/CommandPalette';
 import { NotificationToasts } from './notifications/NotificationToasts';
 import { addNotification, evaluateDailyBriefing } from '@/lib/notifications';
 import { initPresence } from '@/lib/presence';
-import { Filter } from 'lucide-react';
+import { startPomodoro } from '@/lib/pomodoro';
+import { Filter, Tag as TagIcon, X, FileBarChart } from 'lucide-react';
 
 export const KanbanBoard: React.FC = () => {
   const [mounted, setMounted] = useState(false);
@@ -65,6 +70,7 @@ export const KanbanBoard: React.FC = () => {
   const [spaceFilter, setSpaceFilter] = useState<SpaceFilter>('mine');
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
 
   // Modals state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -74,6 +80,7 @@ export const KanbanBoard: React.FC = () => {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isProjectReportOpen, setIsProjectReportOpen] = useState(false);
 
   // Load and refresh data
   const refreshData = useCallback(() => {
@@ -256,6 +263,11 @@ export const KanbanBoard: React.FC = () => {
     refreshData();
   };
 
+  // Iniciar sesión de enfoque Pomodoro (25m)
+  const handleStartFocus = (task: Task) => {
+    startPomodoro(task.id, task.title, 25);
+  };
+
   // Manejo de tareas
   const handleSaveTask = async (taskData: {
     title: string;
@@ -265,6 +277,10 @@ export const KanbanBoard: React.FC = () => {
     assignedTo: string;
     dueDate?: string;
     projectId?: string;
+    subtasks?: Subtask[];
+    tags?: string[];
+    comments?: TaskComment[];
+    attachments?: TaskAttachment[];
   }) => {
     if (!sessionUser) return;
 
@@ -472,9 +488,16 @@ export const KanbanBoard: React.FC = () => {
         return false;
       }
 
+      // 3. Etiqueta / Tag
+      if (selectedTagFilter) {
+        if (!task.tags || !task.tags.includes(selectedTagFilter)) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [spaceFilteredTasks, sessionUser, searchQuery, priorityFilter]);
+  }, [spaceFilteredTasks, sessionUser, searchQuery, priorityFilter, selectedTagFilter]);
 
   const iniciadoTasks = useMemo(
     () => filteredTasks.filter((t) => t.status === 'iniciado'),
@@ -545,6 +568,7 @@ export const KanbanBoard: React.FC = () => {
           tasks={projectTasks}
           onOpenTaskDetail={handleOpenEditById}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenProjectReport={() => setIsProjectReportOpen(true)}
         />
       </div>
 
@@ -574,6 +598,33 @@ export const KanbanBoard: React.FC = () => {
                   />
                   <span className="truncate">{activeProject.name}</span>
                 </div>
+
+                {/* Active Tag Filter Pill */}
+                {selectedTagFilter && (
+                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 text-xs font-mono shrink-0 animate-fade-in">
+                    <TagIcon className="w-3 h-3 text-cyan-400" />
+                    <span>{selectedTagFilter}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTagFilter(null)}
+                      className="ml-1 hover:text-white cursor-pointer"
+                      title="Quitar filtro de etiqueta"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Project Report Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsProjectReportOpen(true)}
+                  className="px-2.5 py-1 text-xs font-medium text-zinc-300 hover:text-white bg-zinc-900/80 hover:bg-zinc-800 border border-white/[0.08] hover:border-cyan-500/30 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+                  title="Generar y Exportar Reporte de Proyecto"
+                >
+                  <FileBarChart className="w-3.5 h-3.5 text-cyan-400" />
+                  <span className="hidden sm:inline">Reporte</span>
+                </button>
 
                 <h2 className="text-xs sm:text-sm font-medium text-zinc-300 flex items-center gap-1.5 truncate">
                   <span className="truncate">
@@ -634,6 +685,8 @@ export const KanbanBoard: React.FC = () => {
                 onDelete={handleDeleteTask}
                 onMoveStatus={handleMoveStatus}
                 onDropTask={handleDropTask}
+                onSelectTag={setSelectedTagFilter}
+                onStartFocus={handleStartFocus}
               />
 
               {/* Columna 2: Trabajando */}
@@ -648,6 +701,8 @@ export const KanbanBoard: React.FC = () => {
                 onDelete={handleDeleteTask}
                 onMoveStatus={handleMoveStatus}
                 onDropTask={handleDropTask}
+                onSelectTag={setSelectedTagFilter}
+                onStartFocus={handleStartFocus}
               />
 
               {/* Columna 3: Finalizado */}
@@ -662,6 +717,8 @@ export const KanbanBoard: React.FC = () => {
                 onDelete={handleDeleteTask}
                 onMoveStatus={handleMoveStatus}
                 onDropTask={handleDropTask}
+                onSelectTag={setSelectedTagFilter}
+                onStartFocus={handleStartFocus}
               />
             </div>
           </div>
@@ -721,6 +778,15 @@ export const KanbanBoard: React.FC = () => {
         editingProject={editingProject}
         onSaveProject={handleSaveProject}
         onDeleteProject={handleDeleteProject}
+      />
+
+      {/* Project Executive Report Modal */}
+      <ProjectReportModal
+        isOpen={isProjectReportOpen}
+        onClose={() => setIsProjectReportOpen(false)}
+        project={activeProject}
+        tasks={projectTasks}
+        users={users}
       />
 
       {/* Global Command Palette HUD (Ctrl+K / Cmd+K) */}
