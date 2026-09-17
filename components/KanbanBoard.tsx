@@ -799,6 +799,17 @@ export const KanbanBoard: React.FC = () => {
           <div className="animate-view-fade flex-1 flex flex-col">
             <ChallengeDashboard
               currentUser={sessionUser}
+              users={users}
+              tasks={tasks}
+              onOpenNewTaskModal={() => {
+                handleOpenAddNew('iniciado');
+              }}
+              onToggleTaskStatus={async (task) => {
+                const nextStatus: TaskStatus = task.status === 'finalizado' ? 'iniciado' : 'finalizado';
+                await updateTask(task.id, { status: nextStatus }, sessionUser);
+                refreshData();
+              }}
+              onOpenTaskDetail={handleOpenEdit}
               onBackToHabits={() => {
                 setHabitSubView('habits');
                 setCurrentView('habits');
