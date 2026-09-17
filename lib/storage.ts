@@ -317,7 +317,7 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
 
 const localListeners = new Set<(type: string) => void>();
 
-export function notifySync(type: 'tasks' | 'users' | 'logs' | 'security' | 'session' | 'history' | 'projects' | 'active_project' | 'notifications') {
+export function notifySync(type: 'tasks' | 'users' | 'logs' | 'security' | 'session' | 'history' | 'projects' | 'active_project' | 'notifications' | 'habits' | 'challenges') {
   if (syncChannel) {
     try {
       syncChannel.postMessage({ type, timestamp: Date.now() });

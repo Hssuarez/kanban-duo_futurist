@@ -54,11 +54,17 @@ import { addNotification, evaluateDailyBriefing } from '@/lib/notifications';
 import { initPresence } from '@/lib/presence';
 import { startPomodoro } from '@/lib/pomodoro';
 import { Filter, Tag as TagIcon, X, FileBarChart } from 'lucide-react';
+import { HabitCoreSubView } from '@/lib/habitTypes';
+import { AppSidebar } from './navigation/AppSidebar';
+import { HabitDashboard } from './habits/HabitDashboard';
+import { ChallengeDashboard } from './challenges/ChallengeDashboard';
 
 export const KanbanBoard: React.FC = () => {
   const [mounted, setMounted] = useState(false);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<AppView>('board');
+  const [habitSubView, setHabitSubView] = useState<HabitCoreSubView>('habits');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -569,8 +575,34 @@ export const KanbanBoard: React.FC = () => {
           onOpenTaskDetail={handleOpenEditById}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onOpenProjectReport={() => setIsProjectReportOpen(true)}
+          onToggleSidebar={() => setIsMobileSidebarOpen(true)}
         />
       </div>
+
+      {/* Global HUD AppSidebar (Offcanvas Drawer) */}
+      <AppSidebar
+        currentUser={sessionUser}
+        currentView={currentView}
+        habitSubView={habitSubView}
+        onSelectWorkspaceView={(view) => {
+          setCurrentView(view);
+        }}
+        onSelectHabitSubView={(sub) => {
+          setHabitSubView(sub);
+          setCurrentView(sub);
+        }}
+        isOpenMobile={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onOpenPomodoro={() => {
+          const userTask = tasks.find((t) => t.assignedTo === sessionUser?.id && t.status === 'trabajando') || tasks[0];
+          if (userTask) {
+            handleStartFocus(userTask);
+          } else {
+            startPomodoro('pomodoro-general', 'Enfoque General', 25);
+          }
+        }}
+        onOpenProfileModal={() => setIsProfileModalOpen(true)}
+      />
 
       {/* Main Container */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 flex flex-col relative z-10">
@@ -744,6 +776,33 @@ export const KanbanBoard: React.FC = () => {
               users={projectMembers}
               currentUser={sessionUser}
               onOpenTaskDetail={handleOpenEdit}
+            />
+          </div>
+        )}
+
+        {/* HABIT CORE: Mis Hábitos / Objetivos / Progreso */}
+        {(currentView === 'habits' || currentView === 'goals' || currentView === 'progress') && (
+          <div className="animate-view-fade flex-1 flex flex-col">
+            <HabitDashboard
+              currentUser={sessionUser}
+              currentSubView={habitSubView}
+              onChangeSubView={(sub) => {
+                setHabitSubView(sub);
+                setCurrentView(sub);
+              }}
+            />
+          </div>
+        )}
+
+        {/* HABIT CORE: Retos Colectivos (Phase C Preview) */}
+        {currentView === 'challenges' && (
+          <div className="animate-view-fade flex-1 flex flex-col">
+            <ChallengeDashboard
+              currentUser={sessionUser}
+              onBackToHabits={() => {
+                setHabitSubView('habits');
+                setCurrentView('habits');
+              }}
             />
           </div>
         )}

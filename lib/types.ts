@@ -58,6 +58,8 @@ export type HudTheme = 'cyan' | 'violet' | 'matrix' | 'amber';
 export interface Task {
   id: string;
   projectId?: string; // ID del Proyecto al que pertenece
+  challengeId?: string; // Opcional: vinculado a un reto de Habit Core
+  habitId?: string;     // Opcional: vinculado a un hábito de Habit Core
   title: string;
   description?: string;
   status: TaskStatus;
@@ -116,4 +118,6 @@ export interface SecurityLog {
 
 export type SpaceFilter = 'all' | 'mine' | 'peer' | string;
 
-export type AppView = 'board' | 'calendar' | 'dashboard' | 'admin';
+export type AppDomain = 'workspace' | 'habits';
+
+export type AppView = 'board' | 'calendar' | 'dashboard' | 'admin' | 'habits' | 'challenges' | 'goals' | 'progress';
