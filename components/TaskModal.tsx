@@ -275,18 +275,18 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       className="fixed inset-0 z-[60] overflow-y-auto bg-black/80 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-start sm:items-center justify-center font-sans"
     >
       <div
-        className="relative w-full max-w-lg my-auto bg-[#070c18]/95 backdrop-blur-2xl border border-cyan-500/25 rounded-2xl shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.1)] overflow-hidden text-zinc-100 flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] animate-modal-enter"
+        className="relative w-full max-w-xl sm:max-w-2xl md:max-w-3xl my-auto bg-[#070c18]/95 backdrop-blur-2xl border border-cyan-500/25 rounded-2xl shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.1)] overflow-hidden text-zinc-100 flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] animate-modal-enter"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Sticky Top */}
-        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 py-3 border-b border-white/[0.08] bg-[#070c18]/95 backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-white">
+        <div className="shrink-0 sticky top-0 z-10 flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-white/[0.08] bg-[#070c18]/95 backdrop-blur-md">
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-sm sm:text-base font-semibold text-white">
               {editingTask ? 'Editar tarea' : 'Nueva tarea'}
             </h3>
             {activeProject && (
               <span
-                className="hidden sm:inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border font-medium"
+                className="hidden sm:inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-md border font-medium"
                 style={{
                   backgroundColor: `${activeProject.color || '#3b82f6'}15`,
                   borderColor: `${activeProject.color || '#3b82f6'}40`,
@@ -300,18 +300,18 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tabs Bar */}
-        <div className="flex items-center gap-1 px-4 pt-2 pb-1 border-b border-white/[0.06] bg-[#050811] overflow-x-auto no-scrollbar shrink-0">
+        <div className="flex items-center gap-1.5 px-4 sm:px-6 py-2 border-b border-white/[0.06] bg-[#050811] overflow-x-auto custom-scrollbar shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('general')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeTab === 'general'
                 ? 'bg-zinc-800 text-cyan-300 font-semibold shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
@@ -323,7 +323,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('subtasks')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeTab === 'subtasks'
                 ? 'bg-zinc-800 text-cyan-300 font-semibold shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
@@ -340,7 +340,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('tags')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeTab === 'tags'
                 ? 'bg-zinc-800 text-cyan-300 font-semibold shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
@@ -357,7 +357,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('attachments')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeTab === 'attachments'
                 ? 'bg-zinc-800 text-cyan-300 font-semibold shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
@@ -375,7 +375,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('comments')}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'comments'
                   ? 'bg-zinc-800 text-cyan-300 font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -394,7 +394,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
         {/* Form Container */}
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+          <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
             {error && (
               <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/40 border border-rose-500/40 rounded-lg">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -825,21 +825,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           </div>
 
           {/* Modal Footer - Sticky Bottom */}
-          <div className="shrink-0 sticky bottom-0 z-10 flex items-center justify-between px-5 py-3.5 border-t border-white/[0.06] bg-zinc-950/95 backdrop-blur-md">
-            <span className="text-[11px] text-zinc-500 font-mono">
+          <div className="shrink-0 sticky bottom-0 z-10 flex items-center justify-between px-5 sm:px-6 py-3.5 border-t border-white/[0.06] bg-zinc-950/95 backdrop-blur-md">
+            <span className="text-[11px] text-zinc-500 font-mono max-w-[200px] truncate">
               {activeProject?.name || 'KanbanDuo'}
             </span>
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-white bg-zinc-800/80 hover:bg-zinc-800 rounded-lg transition-colors active:scale-[0.98]"
+                className="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white bg-zinc-800/80 hover:bg-zinc-800 rounded-lg transition-colors active:scale-[0.98]"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 text-xs font-bold text-zinc-950 bg-gradient-to-r from-cyan-400 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.35)] hover:shadow-[0_0_22px_rgba(6,182,212,0.55)] transition-all active:scale-[0.98] cursor-pointer"
+                className="px-5 py-2 text-xs font-bold text-zinc-950 bg-gradient-to-r from-cyan-400 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.35)] hover:shadow-[0_0_22px_rgba(6,182,212,0.55)] transition-all active:scale-[0.98] cursor-pointer"
               >
                 {editingTask ? 'Guardar cambios' : 'Crear tarea'}
               </button>

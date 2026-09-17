@@ -400,8 +400,8 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
             <span>Hoy</span>
           </button>
 
-          <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight ml-1">
-            {formatBogotaMonthYear(currentDate)}
+          <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight ml-1 capitalize">
+            {viewMode === 'day' ? formatBogotaDate(selectedDateKey) : formatBogotaMonthYear(currentDate)}
           </h2>
         </div>
 
@@ -663,19 +663,19 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                   {isOpen && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className={`hidden sm:block day-task-popover absolute z-50 w-72 sm:w-80 bg-[#070c18] border border-cyan-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.98),0_0_30px_rgba(6,182,212,0.25)] rounded-2xl p-3.5 animate-modal-enter pointer-events-auto ${
+                      className={`hidden sm:block day-task-popover absolute z-50 w-80 sm:w-96 md:w-[420px] bg-[#070c18] border border-cyan-500/50 shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_35px_rgba(6,182,212,0.3)] rounded-2xl p-4 sm:p-5 animate-modal-enter pointer-events-auto ${
                         isRightCol ? 'right-1 left-auto' : 'left-1 right-auto'
                       } ${
                         isBottomRow ? 'bottom-1 top-auto' : 'top-1 bottom-auto'
                       }`}
                     >
                       {/* Popover Header */}
-                      <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/[0.08]">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs sm:text-sm font-bold text-white font-mono">
-                            {day.dayNumber} {formatBogotaMonthYear(currentDate).split(' ')[0]}
+                      <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.08]">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xs sm:text-sm font-bold text-white font-mono capitalize truncate">
+                            {formatBogotaDate(day.dateKey)}
                           </span>
-                          <span className="text-[10px] font-mono text-cyan-300 font-semibold bg-cyan-950/70 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-mono text-cyan-300 font-semibold bg-cyan-950/80 border border-cyan-500/30 px-2.5 py-0.5 rounded-full shrink-0">
                             {dayTasks.length} {dayTasks.length === 1 ? 'tarea' : 'tareas'}
                           </span>
                         </div>
@@ -685,7 +685,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                             e.stopPropagation();
                             setOpenTasksDayKey(null);
                           }}
-                          className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer shrink-0"
                           title="Cerrar"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -694,12 +694,13 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
                       {/* Clickable Tasks List or Empty state */}
                       {dayTasks.length === 0 ? (
-                        <div className="py-5 text-center text-zinc-500 text-xs">
-                          <CalendarIcon className="w-6 h-6 mx-auto mb-1.5 text-zinc-600 opacity-60" />
-                          <p>No hay tareas programadas para este día.</p>
+                        <div className="py-8 text-center text-zinc-500 text-xs">
+                          <CalendarIcon className="w-8 h-8 mx-auto mb-2 text-zinc-600 opacity-60" />
+                          <p className="font-medium text-zinc-400">No hay tareas programadas para este día.</p>
+                          <p className="text-[11px] text-zinc-600 mt-1">Crea una nueva tarea para comenzar.</p>
                         </div>
                       ) : (
-                        <div className="space-y-1.5 max-h-[200px] overflow-y-auto custom-scrollbar pr-0.5">
+                        <div className="space-y-2 max-h-[280px] sm:max-h-[320px] overflow-y-auto custom-scrollbar pr-0.5">
                           {dayTasks.map((t) => {
                             const cfg = statusColors[t.status] || statusColors.iniciado;
                             const assignee = users.find((u) => u.id === t.assignedTo);
@@ -712,19 +713,19 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                                   handleTaskClick(t);
                                   setOpenTasksDayKey(null);
                                 }}
-                                className="w-full text-left p-2.5 rounded-xl bg-zinc-900/95 hover:bg-zinc-800 border border-white/[0.06] hover:border-cyan-500/40 transition-all cursor-pointer group/item flex flex-col gap-1 shadow-sm"
+                                className="w-full text-left p-3 rounded-xl bg-zinc-900/95 hover:bg-zinc-800 border border-white/[0.08] hover:border-cyan-500/40 transition-all cursor-pointer group/item flex flex-col gap-1.5 shadow-sm active:scale-[0.99]"
                               >
-                                <div className="flex items-center justify-between gap-1.5">
+                                <div className="flex items-center justify-between gap-2">
                                   <span className="text-xs font-semibold text-zinc-100 group-hover/item:text-cyan-300 truncate">
                                     {t.title}
                                   </span>
                                   <span
-                                    className={`text-[9px] font-mono px-1.5 py-0.2 rounded border capitalize shrink-0 ${cfg.bg} ${cfg.border} ${cfg.text}`}
+                                    className={`text-[9px] font-mono px-2 py-0.5 rounded border capitalize shrink-0 ${cfg.bg} ${cfg.border} ${cfg.text}`}
                                   >
                                     {t.status}
                                   </span>
                                 </div>
-                                <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+                                <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono">
                                   <span className="capitalize">{t.priority} prioridad</span>
                                   <span className="text-zinc-300 font-medium">
                                     {assignee?.name?.split(' ')[0] || 'Sin asignar'}
@@ -745,7 +746,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                           setOpenTasksDayKey(null);
                           if (onOpenNewTask) onOpenNewTask();
                         }}
-                        className="w-full mt-3 py-2 text-xs font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-950/30 hover:bg-cyan-950/60 border border-cyan-500/30 hover:border-cyan-400/50 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+                        className="w-full mt-3.5 py-2.5 text-xs font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-950/40 hover:bg-cyan-950/70 border border-cyan-500/30 hover:border-cyan-400/50 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Nueva tarea en este día</span>
@@ -862,65 +863,206 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
       )}
 
       {/* VIEW: DAY VIEW */}
-      {viewMode === 'day' && (
-        <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-6 shadow-sm transition-colors">
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/[0.06]">
-            <div>
-              <span className="text-xs text-zinc-500 font-medium uppercase tracking-wider block">
-                Tareas programadas para
-              </span>
-              <h3 className="text-lg font-bold text-white mt-0.5">
-                {formatBogotaDate(selectedDateKey)}
-                {selectedDateKey === realTodayKey && (
-                  <span className="ml-2 text-xs font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md">
-                    Hoy
+      {viewMode === 'day' && (() => {
+        const dayTasks = tasksByDay.get(selectedDateKey) || [];
+        const completedCount = dayTasks.filter((t) => t.status === 'finalizado').length;
+        const inProgressCount = dayTasks.filter((t) => t.status === 'trabajando').length;
+        const pendingCount = dayTasks.filter((t) => t.status === 'iniciado').length;
+
+        return (
+          <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-5 sm:p-7 shadow-sm transition-colors min-h-[540px] sm:min-h-[620px] flex flex-col">
+            {/* Day View Subheader with Quick Day Navigation */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-5 border-b border-white/[0.08]">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider">
+                    Vista Diaria
                   </span>
-                )}
-              </h3>
-            </div>
-            <span className="text-xs text-zinc-400 font-mono">
-              {(tasksByDay.get(selectedDateKey) || []).length} tareas registradas
-            </span>
-          </div>
-
-          <div className="space-y-2.5 max-h-[500px] overflow-y-auto custom-scrollbar">
-            {(tasksByDay.get(selectedDateKey) || []).length === 0 ? (
-              <div className="py-12 text-center text-zinc-500 text-xs">
-                No hay tareas programadas para este día.
+                  {selectedDateKey === realTodayKey && (
+                    <span className="text-[10px] font-semibold text-cyan-400 bg-cyan-500/15 border border-cyan-500/30 px-2.5 py-0.5 rounded-full">
+                      Hoy
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight capitalize">
+                  {formatBogotaDate(selectedDateKey)}
+                </h3>
               </div>
-            ) : (
-              (tasksByDay.get(selectedDateKey) || []).map((task) => {
-                const cfg = statusColors[task.status] || statusColors.iniciado;
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => handleTaskClick(task)}
-                    className={`p-3.5 rounded-xl border flex items-center justify-between cursor-pointer hover:bg-zinc-800/40 transition-all ${cfg.border} bg-zinc-900/60`}
-                  >
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase px-2 py-0.5 rounded border ${cfg.bg} ${cfg.border} ${cfg.text}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                          {task.status}
-                        </span>
-                        <span className="text-xs text-zinc-400 capitalize">
-                          Prioridad: {task.priority}
-                        </span>
-                      </div>
-                      <h4 className="font-semibold text-white text-sm">{task.title}</h4>
-                    </div>
 
-                    <div className="text-right text-xs text-zinc-400 font-mono">
-                      {task.startedAt && <div>Inicio: {formatBogotaDateTime(task.startedAt)}</div>}
-                      {task.completedAt && <div className="text-emerald-400">Fin: {formatBogotaDateTime(task.completedAt)}</div>}
-                    </div>
+              {/* Day Navigation Controls & Quick Add */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center bg-zinc-900/90 rounded-xl border border-white/[0.08] p-0.5">
+                  <button
+                    type="button"
+                    onClick={handlePrev}
+                    className="px-2.5 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors flex items-center gap-1"
+                    title="Día anterior"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Anterior</span>
+                  </button>
+                  <div className="w-px h-4 bg-white/[0.08]" />
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="px-2.5 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors flex items-center gap-1"
+                    title="Día siguiente"
+                  >
+                    <span className="hidden sm:inline">Siguiente</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onOpenNewTask) onOpenNewTask();
+                  }}
+                  className="px-3.5 py-2 text-xs font-semibold text-zinc-950 bg-cyan-400 hover:bg-cyan-300 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nueva tarea</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Day Metrics Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
+              <div className="p-3 rounded-xl bg-zinc-900/50 border border-white/[0.06] flex flex-col">
+                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-mono">
+                  Total Tareas
+                </span>
+                <span className="text-base font-bold text-white font-mono mt-0.5">
+                  {dayTasks.length}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/20 flex flex-col">
+                <span className="text-[10px] text-cyan-400 uppercase tracking-wider font-mono">
+                  Por Iniciar
+                </span>
+                <span className="text-base font-bold text-cyan-300 font-mono mt-0.5">
+                  {pendingCount}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/20 flex flex-col">
+                <span className="text-[10px] text-amber-400 uppercase tracking-wider font-mono">
+                  En Progreso
+                </span>
+                <span className="text-base font-bold text-amber-300 font-mono mt-0.5">
+                  {inProgressCount}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/20 flex flex-col">
+                <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-mono">
+                  Completadas
+                </span>
+                <span className="text-base font-bold text-emerald-300 font-mono mt-0.5">
+                  {completedCount}
+                </span>
+              </div>
+            </div>
+
+            {/* Tasks Stream or Generous Empty State */}
+            <div className="flex-1 flex flex-col min-h-0">
+              {dayTasks.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-12 px-4 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-zinc-900/80 border border-white/[0.08] flex items-center justify-center text-zinc-500 mb-3 shadow-[0_0_20px_rgba(6,182,212,0.05)]">
+                    <CalendarIcon className="w-7 h-7 text-cyan-400/60" />
                   </div>
-                );
-              })
-            )}
+                  <h4 className="text-sm font-semibold text-zinc-200 mb-1">
+                    No hay tareas programadas para este día
+                  </h4>
+                  <p className="text-xs text-zinc-500 max-w-sm mb-4">
+                    Organiza tu jornada programando tareas con fecha límite o inicio para esta fecha.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onOpenNewTask) onOpenNewTask();
+                    }}
+                    className="px-4 py-2 text-xs font-semibold text-cyan-300 bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-500/40 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Añadir tarea para el {formatBogotaDate(selectedDateKey)}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3 overflow-y-auto custom-scrollbar flex-1 max-h-[460px] pr-1">
+                  {dayTasks.map((task) => {
+                    const cfg = statusColors[task.status] || statusColors.iniciado;
+                    const assignee = users.find((u) => u.id === task.assignedTo);
+                    const overdue = isTaskOverdue(task.dueDate, task.status);
+
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => handleTaskClick(task)}
+                        className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-zinc-850/60 hover:border-cyan-500/40 transition-all ${cfg.border} bg-zinc-900/60 group shadow-sm`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase px-2 py-0.5 rounded border ${cfg.bg} ${cfg.border} ${cfg.text}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                              {task.status}
+                            </span>
+                            <span className="text-[11px] text-zinc-400 capitalize">
+                              Prioridad: {task.priority}
+                            </span>
+                            {overdue && (
+                              <span className="text-[10px] font-medium bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2 py-0.2 rounded-full">
+                                Vencida
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="font-semibold text-white text-sm group-hover:text-cyan-300 transition-colors">
+                            {task.title}
+                          </h4>
+                          {task.description && (
+                            <p className="text-xs text-zinc-400 line-clamp-1 mt-1">
+                              {task.description}
+                            </p>
+                          )}
+                          {task.subtasks && task.subtasks.length > 0 && (
+                            <div className="flex items-center gap-1.5 mt-2 text-[10px] font-mono text-zinc-400">
+                              <span className="text-cyan-400 font-medium">
+                                Subtareas: {task.subtasks.filter((s) => s.completed).length}/
+                                {task.subtasks.length}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Assignee and Times */}
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between text-xs text-zinc-400 font-mono gap-1 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.05]">
+                          {assignee && (
+                            <div className="flex items-center gap-1.5">
+                              <img
+                                src={assignee.avatar}
+                                alt={assignee.name}
+                                className="w-5 h-5 rounded-full object-cover"
+                              />
+                              <span className="text-zinc-300 text-[11px]">
+                                {assignee.name.split(' ')[0]}
+                              </span>
+                            </div>
+                          )}
+                          {task.dueDate && (
+                            <div className="text-[11px] text-zinc-400">
+                              Límite: {formatBogotaDate(task.dueDate)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Task Detail Modal */}
       <TaskDetailModal
