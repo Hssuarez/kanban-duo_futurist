@@ -1,7 +1,7 @@
-# 🛸 KANBAN//DUO — ESPECIFICACIÓN TÉCNICA DEL SISTEMA (SPEC v1.0)
-> **Sistema Colaborativo Futurista de Gestión Ágil de Tareas, Proyectos y Telemetría en Tiempo Real**  
-> **Versión**: 1.0.0-Production  
-> **Fecha de Emisión**: Septiembre 2026  
+# 🛸 KANBAN//DUO — ESPECIFICACIÓN TÉCNICA DEL SISTEMA (SPEC v2.0)
+> **Sistema Colaborativo Futurista de Gestión Ágil de Tareas, Proyectos, Telemetría y Personalización HUD en Tiempo Real**  
+> **Versión**: 2.0.0-Production (Suite Completa de Productividad & HUD)  
+> **Fecha de Actualización**: Septiembre 2026  
 > **Zona Horaria del Sistema**: `America/Bogota` (UTC-5)  
 > **URL Producción**: [https://kanban-duo-futurist.vercel.app](https://kanban-duo-futurist.vercel.app)  
 > **Repositorio**: [https://github.com/Hssuarez/kanban-duo_futurist.git](https://github.com/Hssuarez/kanban-duo_futurist.git)
@@ -11,18 +11,19 @@
 ## 1. Resumen Ejecutivo y Filosofía de Diseño
 
 ### 1.1 Misión del Producto
-**KANBAN//DUO** es una plataforma web de alto rendimiento orientada a la gestión ágil de tareas colaborativas para duplas operativas y equipos multidisciplinarios. Combina la agilidad de un tablero Kanban con herramientas de telemetría de operadores en tiempo real, calendario interactivo multidimensional y un panel de analítica ejecutiva.
+**KANBAN//DUO** es una plataforma web colaborativa de alto rendimiento orientada a la gestión de tareas y misiones operativas para duplas y equipos multidisciplinarios. Fusiona la flexibilidad del tablero Kanban visual con telemetría de operadores en tiempo real, calendario interactivo tridimensional (Mes, Semana, Día), panel de métricas analíticas, suite de enfoque Pomodoro, sistema de checklist/subtareas, bitácora de comentarios y un motor visual HUD personalizable.
 
-### 1.2 Filosofía Visual e Identidad (Cyberpunk Futurism)
-- **Modo Oscuro Profundo OLED**: Fondo base `#080a11`, contenedores `#0b0e18`/`#101423` con bordes semitransparentes (`border-cyan-500/30`, `border-slate-800`).
-- **Paleta Neón Funcional**:
-  - `Cyan (#06b6d4)`: Identidad del sistema, estado **Iniciado**, enlaces y acciones principales.
-  - `Ámbar (#f59e0b)`: Estado **Trabajando**, alertas de advertencia y prioridad media.
-  - `Esmeralda (#10b981)`: Estado **Finalizado**, operadores en línea y métricas de éxito.
-  - `Rosa / Fucsia (#f43f5e / #d946ef)`: Prioridad alta, vencimientos críticos y celebraciones.
-  - `Índigo (#6366f1)`: Consola de Administración y seguridad.
-- **Tipografía y Estética HUD**: Tipografía monospace (`font-mono`) en etiquetas, códigos de comando (`// MI ESPACIO`, `CONSOLE//ADMIN`, `TELEMETRÍA //`), bordes con resplandor (*glow effect*) y microinteracciones de pulso.
-- **Micro-feedback Emocional**: Integración de confeti cinético (`canvas-confetti`) sincronizado al finalizar tareas o metas del sprint.
+### 1.2 Filosofía Visual e Identidad (Cyberpunk Futurism & HUD)
+- **Modo Oscuro Profundo OLED**: Paleta base de alto contraste `#070c18` / `#090f1f` con bordes semitransparentes reactivos (`border-cyan-500/25`, `border-white/[0.08]`).
+- **Sistema Multitemático HUD Dinámico**:
+  - `Cyber Cyan (#06b6d4)` [Default]: Cuántico / Clásico neón cian.
+  - `Synthwave Violet (#a855f7)`: Neón retro púrpura y fucsia.
+  - `Matrix Green (#10b981)`: Terminal bio-digital esmeralda.
+  - `Solar Amber (#f59e0b)`: Aeroespacial ámbar y dorado cálido.
+- **Microinteracciones y Audio Procedural Web Audio API**:
+  - Cero archivos MP3 externos. 100% de síntesis procedural en el navegador mediante osciladores Web Audio API (`AudioContext`).
+  - Chimes de confirmación, acordes armónicos mayores de éxito y retroalimentación háptica táctil (`navigator.vibrate`) en dispositivos móviles.
+- **Tipografía y Microestética Sci-Fi**: Código monospaciado (`font-mono`) para identificadores, marcas temporales, cronómetros Pomodoro, barras de avance de subtareas y contadores de telemetría.
 
 ---
 
@@ -31,41 +32,40 @@
 ### 2.1 Stack Tecnológico
 | Capa | Tecnología | Versión | Propósito |
 | :--- | :--- | :--- | :--- |
-| **Framework Web** | Next.js (App Router) | `14.2.18` | Enrutamiento moderno, Server Components, API routes dinámicas |
-| **Librería UI** | React / React DOM | `18.3.1` | Renderizado declarativo con hooks y estado reactivo |
-| **Lenguaje** | TypeScript | `^5.6.3` | Tipado estricto de extremo a extremo |
-| **Estilos** | Tailwind CSS | `^3.4.15` | Utilidades CSS atómicas, temas cyberpunk y diseño responsive |
-| **Iconografía** | Lucide React | `^0.460.0` | Iconos vectoriales consistentes |
-| **Base de Datos & Realtime** | Supabase (PostgreSQL) | `@supabase/supabase-js ^2.46.1` | Persistencia en la nube, RLS, WebSockets Postgres Changes y Presence |
-| **Efectos Visuales** | Canvas Confetti | `^1.9.3` | Animaciones de celebración en el cliente |
-| **Despliegue** | Vercel Platform | CI/CD Git-driven | Hosting serverless global con SSL automático |
+| **Framework Web** | Next.js (App Router) | `14.2.18` | Server Components, Client Hydration, API routes dinámicas |
+| **Librería UI** | React / React DOM | `18.3.1` | Renderizado reactivo, portales y hooks de estado |
+| **Lenguaje** | TypeScript | `^5.6.3` | Tipado estático riguroso (0 errores `tsc --noEmit`) |
+| **Estilos** | Tailwind CSS | `^3.4.15` | Clases atómicas, variables CSS de temas HUD y layout responsive |
+| **Iconografía** | Lucide React | `^0.460.0` | Iconos vectoriales semánticos |
+| **Base de Datos & Realtime** | Supabase (PostgreSQL) | `@supabase/supabase-js ^2.46.1` | Almacenamiento nube, WebSockets Postgres Changes y Presence |
+| **Efectos Visuales** | Canvas Confetti | `^1.9.3` | Celebración cinética al completar misiones |
+| **Despliegue & CI/CD** | Vercel Platform | Integración continua | Alojamiento serverless en red perimetral con SSL automático |
 
 ---
 
-### 2.2 Motor de Almacenamiento Dual Híbrido (Dual-Tier Storage Engine)
+### 2.2 Motor de Sincronización Dual Híbrido (Dual-Tier Architecture)
 
-El sistema implementa una arquitectura híbrida de sincronización reactiva bidireccional que asegura funcionamiento sin conexión, latencia percibida de 0 ms y persistencia en la nube:
+El sistema combina inmediatez local con persistencia en la nube:
 
 ```mermaid
 graph TD
-    UI[Interfaz de Usuario / React] <-->|Lectura/Escritura Inmediata| LocalStorage[Almacenamiento Local Browser]
-    UI <-->|Suscripción| BC[BroadcastChannel Local Multi-Tab]
-    UI <-->|Petición Async| SupabaseClient[Cliente Supabase JS]
-    SupabaseClient <-->|REST API / Postgres| SupabaseDB[(PostgreSQL Supabase)]
-    SupabaseDB -->|Realtime WebSockets| SupabaseRealtime[Canal Realtime kanban-realtime-channel]
-    SupabaseRealtime -->|Eventos postgres_changes| UI
-    UI <-->|Canal Presence| SupabasePresence[Supabase Presence Channel]
+    UI[Interfaz de Usuario / React] <-->|Lectura/Escritura 0ms| LocalStorage[Almacenamiento Local Browser]
+    UI <-->|Sync Pestañas| BC[BroadcastChannel Local Multi-Tab]
+    UI <-->|Merge Resiliente| CloudSync[lib/storage.ts syncCloudTasks]
+    CloudSync <-->|REST API / Postgres| SupabaseDB[(PostgreSQL Supabase)]
+    SupabaseDB -->|WebSockets postgres_changes| SupabaseRealtime[Canal Realtime kanban-realtime-channel]
+    SupabaseRealtime -->|Eventos INSERT/UPDATE/DELETE| UI
+    UI <-->|Presencia Activa| SupabasePresence[Supabase Presence Channel]
 ```
 
-1. **Nivel Local (Local Tier - Zero-Latency)**:
-   - Toda lectura y actualización se refleja inmediatamente en `localStorage`.
-   - Canal `BroadcastChannel('kanban_sync_local_v1')` sincroniza pestañas abiertas en el mismo navegador sin recargar.
-2. **Nivel Nube (Cloud Tier - Supabase PostgreSQL)**:
-   - Las operaciones de creación, actualización y eliminación se replican asíncronamente en PostgreSQL.
-   - Si la red falla o está degradada, la interfaz continúa operativa localmente sin bloquear al usuario.
-   - Un canal WebSocket `kanban-realtime-channel` escucha eventos `INSERT`, `UPDATE` y `DELETE` en las tablas `projects`, `users`, `tasks` y `task_status_history`.
-3. **Autoconfiguración Dinámica (`app/api/config/route.ts`)**:
-   - Endpoint seguro en el servidor Next.js que expone las credenciales públicas de Supabase inyectadas por variables de entorno sin necesidad de recompilación en tiempo de ejecución.
+1. **Capa Local (Zero Latency & Offline-Ready)**:
+   - Toda interacción (mover tarjeta, agregar subtarea, alternar tag, comentar) se aplica en 0 ms en `localStorage`.
+   - `BroadcastChannel('kanban_sync_local_v1')` propaga cambios entre pestañas sin requerir recargar la página.
+2. **Capa Nube Resiliente (Supabase Cloud Tier)**:
+   - Sincronización asíncrona no bloqueante con PostgreSQL.
+   - `syncCloudTasks()` implementa una estrategia de fusión inteligente (*smart merge*): preserva los metadatos cliente extendidos (`subtasks`, `tags`, `comments`, `attachments`, `timeSpentSeconds`) ante respuestas del esquema básico en la nube.
+3. **Endpoint de Autoconfiguración (`app/api/config/route.ts`)**:
+   - Inyección en tiempo de ejecución de variables de entorno de Supabase sin recompilación del frontend.
 
 ---
 
@@ -77,34 +77,35 @@ export type TaskPriority = 'baja' | 'media' | 'alta';
 export type UserRole = 'admin' | 'member';
 export type SpaceFilter = 'all' | 'mine' | 'peer';
 export type AppView = 'board' | 'calendar' | 'dashboard' | 'admin';
+export type HudTheme = 'cyan' | 'violet' | 'matrix' | 'amber';
 
-// 1. Usuario del Sistema
-export interface User {
+// 1. Subtarea / Checklist
+export interface Subtask {
   id: string;
-  name: string;
-  email: string;
-  avatar: string;
-  color: string;
-  role: UserRole;
-  passwordHash: string;
-  isActive: boolean;
+  title: string;
+  completed: boolean;
   createdAt: string;
-  lastLogin?: string;
 }
 
-// 2. Tablero de Proyecto
-export interface Project {
+// 2. Comentario / Bitácora Interna
+export interface TaskComment {
   id: string;
-  name: string;
-  description?: string;
-  color: string;
-  createdBy: string;
-  memberIds: string[];
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  content: string;
   createdAt: string;
-  updatedAt: string;
 }
 
-// 3. Tarea
+// 3. Recurso Externo / Adjunto
+export interface TaskAttachment {
+  id: string;
+  title: string;
+  url: string;
+  type: 'link' | 'github' | 'figma' | 'doc';
+}
+
+// 4. Tarea (Esquema Completo de Misión)
 export interface Task {
   id: string;
   projectId?: string;
@@ -119,9 +120,40 @@ export interface Task {
   dueDate?: string;
   startedAt?: string;
   completedAt?: string;
+  subtasks?: Subtask[];
+  tags?: string[];
+  comments?: TaskComment[];
+  attachments?: TaskAttachment[];
+  timeSpentSeconds?: number;
 }
 
-// 4. Histórico Inmutable de Estados (Auditoría de Tiempo)
+// 5. Usuario del Sistema
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  color: string;
+  role: UserRole;
+  passwordHash: string;
+  isActive: boolean;
+  createdAt: string;
+  lastLogin?: string;
+}
+
+// 6. Proyecto / Tablero
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  createdBy: string;
+  memberIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 7. Histórico Inmutable de Estados
 export interface TaskStatusHistory {
   id: string;
   taskId: string;
@@ -132,219 +164,166 @@ export interface TaskStatusHistory {
   createdAt: string;
   observations?: string;
 }
-
-// 5. Logs de Actividad de Tareas
-export interface ActivityLog {
-  id: string;
-  userId: string;
-  userName: string;
-  action: string;
-  taskTitle: string;
-  timestamp: string;
-}
-
-// 6. Logs de Seguridad y Auditoría Administrativa
-export interface SecurityLog {
-  id: string;
-  adminId: string;
-  adminName: string;
-  targetUserId?: string;
-  targetUserName?: string;
-  action: string;
-  details: string;
-  timestamp: string;
-}
 ```
 
 ---
 
-## 3. Esquema de Base de Datos (Supabase / PostgreSQL)
+## 3. Especificación de Módulos Funcionales
 
-### 3.1 Tablas y Relaciones
-El esquema de base de datos se encuentra normalizado, con claves foráneas e integridad referencial en cascada:
-
-```mermaid
-erDiagram
-    users ||--o{ projects : "crea"
-    users ||--o{ tasks : "asignado / crea"
-    users ||--o{ task_status_history : "cambia estado"
-    users ||--o{ activity_logs : "genera"
-    users ||--o{ security_logs : "administra"
-    projects ||--o{ tasks : "contiene"
-    tasks ||--o{ task_status_history : "audita tiempos"
-
-    users {
-        TEXT id PK
-        TEXT name
-        TEXT email UK
-        TEXT avatar
-        TEXT color
-        TEXT role
-        TEXT password_hash
-        BOOLEAN is_active
-        TIMESTAMP created_at
-        TIMESTAMP last_login
-    }
-
-    projects {
-        TEXT id PK
-        TEXT name
-        TEXT description
-        TEXT color
-        TEXT created_by FK
-        TEXT[] member_ids
-        TIMESTAMP created_at
-        TIMESTAMP updated_at
-    }
-
-    tasks {
-        TEXT id PK
-        TEXT project_id FK
-        TEXT title
-        TEXT description
-        TEXT status
-        TEXT priority
-        TEXT assigned_to FK
-        TEXT created_by FK
-        TEXT due_date
-        TIMESTAMP started_at
-        TIMESTAMP completed_at
-        TIMESTAMP created_at
-        TIMESTAMP updated_at
-    }
-
-    task_status_history {
-        TEXT id PK
-        TEXT task_id FK
-        TEXT previous_status
-        TEXT new_status
-        TEXT changed_by FK
-        TEXT changed_by_name
-        TIMESTAMP created_at
-        TEXT observations
-    }
-
-    activity_logs {
-        TEXT id PK
-        TEXT user_id FK
-        TEXT user_name
-        TEXT action
-        TEXT task_title
-        TIMESTAMP timestamp
-    }
-
-    security_logs {
-        TEXT id PK
-        TEXT admin_id FK
-        TEXT admin_name
-        TEXT target_user_id FK
-        TEXT target_user_name
-        TEXT action
-        TEXT details
-        TIMESTAMP timestamp
-    }
-```
-
-### 3.2 Índices de Rendimiento
-Para acelerar las consultas analíticas del Dashboard y la vista de Calendario:
-- `idx_projects_created_by` sobre `public.projects(created_by)`
-- `idx_tasks_project_id` sobre `public.tasks(project_id)`
-- `idx_tasks_assigned_to` sobre `public.tasks(assigned_to)`
-- `idx_tasks_started_at` sobre `public.tasks(started_at)`
-- `idx_tasks_completed_at` sobre `public.tasks(completed_at)`
-- `idx_tsh_task_id` sobre `public.task_status_history(task_id)`
-- `idx_tsh_created_at` sobre `public.task_status_history(created_at)`
-- `idx_logs_timestamp` sobre `public.activity_logs(timestamp)`
+### 3.1 Tablero Kanban Dinámico (`KanbanBoard.tsx`, `Column.tsx`, `TaskCard.tsx`)
+- **3 Columnas de Flujo Operativo**:
+  - `Iniciado`: Tareas planificadas o en backlog.
+  - `Trabajando`: Tareas activas en desarrollo. Cuenta con filamento de actividad neón animado en el borde inferior.
+  - `Finalizado`: Tareas concluidas con onda expansiva (*Energy Completion Wave*) y confeti cinético.
+- **Gestión de Carga de Trabajo (WIP Limits)**:
+  - Límite recomendado de 5 tareas activas por columna. Si una columna supera el límite, se activa un badge de alerta pulsante (`⚠️ X/5 WIP`).
+- **Ordenamiento Rápido de Columnas**:
+  - Selector en cada columna para ordenar instantáneamente por: *Fecha de Vencimiento*, *Prioridad* (Urgente > Alta > Media > Baja) o *Más Recientes*.
+- **Estados Vacíos Holográficos**:
+  - Ilustración holográfica Sci-Fi con icono representativo, mensaje inspirador y botón de acción rápida `+ Iniciar tarea`.
+- **Micro-indicadores en Tarjetas**:
+  - Chips de tags coloreados con truncado inteligente (`max-w-[120px]`).
+  - Barra de progreso HUD de subtareas (`[████░░] 3/5` o badge esmeralda radiante `✓ 5/5`).
+  - Contadores de comentarios (`MessageSquare`) y recursos adjuntos (`Paperclip`).
+  - Botón directo "Enfocar" en tareas en progreso para arrancar sesión de concentración Pomodoro.
 
 ---
 
-## 4. Módulos y Funcionalidades del Sistema
-
-### 4.1 Módulo Multi-Proyecto y Tableros Compartidos
-- **Aislamiento por Tablero**: Cada proyecto posee sus propias tareas, miembros asignados y métricas.
-- **Acceso Granular**:
-  - Los administradores pueden visualizar todos los tableros.
-  - Los miembros regulares solo tienen acceso a los tableros creados por ellos o compartidos explícitamente a través de `memberIds`.
-- **Proyecto Base ('proj-default')**: Tablero central "Protocolo Alpha" protegido contra eliminación accidental.
-- **Selector Responsive Inteligente**: En escritorio se ubica en el Navbar; en teléfonos móviles se despliega en una barra dedicada horizontal con soporte para texto truncado y navegación táctil rápida.
-
-### 4.2 Tablero Kanban y Motor de Tareas
-- **3 Columnas de Flujo de Trabajo**:
-  - `Iniciado` (🟦 Cyan): Tareas planificadas o en cola. Registra automáticamente `started_at` en su primera transición.
-  - `Trabajando` (🟧 Ámbar): Tareas activamente en desarrollo por un operador.
-  - `Finalizado` (🟩 Esmeralda): Tareas completadas. Registra `completed_at` y dispara confeti visual.
-- **Filtros por Espacio de Operador**:
-  - `// MI ESPACIO`: Muestra exclusivamente las tareas asignadas al usuario activo.
-  - `// ESPACIO PEER`: Enfocado en el compañero de trabajo seleccionado.
-  - `// REJILLA DE EQUIPO`: Visión integral de todas las tareas del tablero.
-  - *Comportamiento Inteligente*: Al crear una tarea asignada a un colega desde "Mi Espacio", el sistema conmuta automáticamente a la "Rejilla de Equipo" para que la tarea no quede oculta.
-- **Arrastre y Soltado (Drag & Drop)**: Implementación nativa HTML5 Drag & Drop fluida con estados visuales de hover neón (`isDragOver`).
-- **Botones de Ejecución Rápida**: Atajos directos en cada tarjeta (`EJECUTAR`, `PAUSAR`, `COMPLETAR`, `REABRIR`).
-
-### 4.3 Telemetría y Presencia en Tiempo Real (`PeerActivityBar`)
-- **Supabase Realtime Presence**: Conexión bidireccional WebSocket que detecta automáticamente cuando un usuario abre la aplicación en cualquier dispositivo y marca su indicador en verde pulsante (`LINK_STABLE // EN LÍNEA`).
-- **Detección de Tarea Activa**: Muestra en tiempo real qué tarea está ejecutando actualmente el operador (`"EJECUTANDO AHORA"`).
-- **Feed Desplegable de Actividad**: Registro en vivo de las últimas 30 acciones de tareas (creaciones, cambios de estado, eliminaciones).
-
-### 4.4 Vista de Calendario Operativo (`TaskCalendar`)
-- **Modos de Vista**: Mensual, Semanal y Diario.
-- **Normalización Horaria de Bogotá (`America/Bogota` UTC-5)**: Todas las fechas límite (`dueDate`) y fechas de inicio/fin se calculan estrictamente en la zona horaria colombiana sin desfasajes de UTC.
-- **Alertas de Vencimiento**: Distintivo rojo neón cuando una tarea supera su fecha límite sin haber finalizado.
-- **Modal de Detalle Rápido (`TaskDetailModal`)**: Vista de inspección con cálculo de duración y opciones de edición.
-
-### 4.5 Panel de Analítica y Rendimiento Ejecutivo (`TaskDashboard`)
-- **Métricas Clave (KPIs)**:
-  - Total de Tareas en el periodo seleccionado.
-  - Tasa de Finalización (% completado vs total).
-  - Tiempo Promedio de Ciclo (Lead Time / Cycle Time en horas y días).
-  - Puntuación de Velocidad Operativa (*Velocity Index*).
-  - Conteo de Tareas Vencidas.
-- **Filtros Temporales Rápidos**: *Hoy*, *Esta Semana*, *Este Mes*, *Mes Anterior*, o *Rango Personalizado*.
-- **Desglose por Operador**: Comparativa de rendimiento individual (tareas asignadas vs completadas y tiempos de resolución).
-- **Generador de Reportes Mensuales (`MonthlyReportModal`)**:
-  - Resumen ejecutivo formal listo para auditorías o rendición de cuentas de fin de mes.
-  - Formato imprimible y exportable.
-
-### 4.6 Panel de Administración y Seguridad (`AdminPanel`)
-- Acceso exclusivo para usuarios con rol `admin`.
-- **Gestión de Usuarios**: Creación de nuevas cuentas, edición de perfiles, alternancia de rol (`admin`/`member`) y suspensión de acceso (`isActive`).
-- **Restablecimiento Maestro de Contraseñas**: Modal con advertencias de seguridad para asignar nuevas credenciales temporales.
-- **Auditoría de Seguridad Inmutable**: Visualización cronológica de eventos críticos en `security_logs`.
+### 3.2 Modal de Creación y Edición de Tareas (`TaskModal.tsx`)
+- **Diseño Ergonómico Ampliado (`max-w-3xl`)**:
+  - Ancho de hasta 768px para evitar cualquier corte o desborde en pantallas de escritorio y tablets.
+  - Barra superior de 5 pestañas con navegación fluida y scroll táctil en dispositivos móviles:
+    1. **General**: Título, descripción enriquecida, selector de estado, prioridad, responsable y fecha límite con zona horaria de Bogotá.
+    2. **Subtareas**: Creación con atajo `Enter`, checklist interactivo, eliminación rápida y barra de porcentaje de completado.
+    3. **Etiquetas (Tags)**: Selector de etiquetas sugeridas (`#Bug`, `#Feature`, `#Diseño`, `#Frontend`, `#Backend`, `#Urgente`) y creador de tags personalizadas.
+    4. **Recursos**: Vinculación de especificaciones con autodetección de plataforma (Figma, GitHub, Docs, Links web).
+    5. **Comentarios**: Hilo de notas internas con marca de tiempo precisa y avatar del autor.
+- **Pie de Modal Fijo**: Botones de acción `Cancelar` y `Guardar cambios` con espacio holgado y contraste visual de alta visibilidad.
 
 ---
 
-## 5. Optimizaciones Críticas Implementadas
-
-### 5.1 Compresor de Avatares en el Cliente (`lib/imageUtils.ts`)
-Para evitar el alto consumo de almacenamiento y costos en bases de datos:
-1. El usuario selecciona cualquier fotografía (incluso de 5 a 15 MB tomada desde un smartphone moderno).
-2. Se procesa en el navegador mediante la API HTML5 Canvas:
-   - Se realiza un recorte centrado proporcional (`aspect-fill`).
-   - Se escala a una resolución óptima de **128 x 128 píxeles**.
-   - Se exporta a formato **WebP** al 82% de calidad (con fallback automático a JPEG).
-3. **Resultado**: La imagen se reduce a un string Base64 de entre **8 y 15 KB** (>99.7% de ahorro), permitiendo almacenarla directamente en la columna `avatar` sin saturar la cuota de almacenamiento de Supabase.
-
-### 5.2 Diseño Responsivo Móvil Avanzado
-- **Navbar en 3 Niveles en Móvil**:
-  - Fila 1: Logo + Acciones rápidas (Admin, + Tarea, Menú de usuario).
-  - Fila 2: Selector horizontal completo de Tableros/Proyectos con texto truncado seguro.
-  - Fila 3: Navegación horizontal táctil entre Kanban, Calendario y Dashboard sin saltos de línea desordenados.
-- **Protección de Textos Largos**: Aplicación de `truncate`, `max-w-[...]` y nombres compactos en pantallas de menos de 640px para evitar desbordamientos horizontales.
-
----
-
-## 6. Configuración de Entorno y Variables
-
-| Variable | Descripción | Ejemplo / Formato |
-| :--- | :--- | :--- |
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase | `https://ckwqsaygxmrgplwruglx.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave anónima pública de Supabase | `eyJhbGciOiJIUzI1NiIsInR5cCI6...` |
+### 3.3 Calendario Multidimensional (`TaskCalendar.tsx`, `TaskDetailModal.tsx`)
+- **Modos de Visualización**:
+  1. **Mes (`month`)**: Rejilla mensual completa de 35 o 42 casillas con fecha normalizada de Bogotá.
+     - **Ventana Flotante de Día (`day-task-popover`)**: Ampliada a `w-80 sm:w-96 md:w-[420px]` con altura de lista de hasta `320px`, fecha completa en cabecera y botón `+ Nueva tarea en este día`.
+  2. **Semana (`week`)**: 7 columnas verticales (`min-h-[380px]`) con tarjetas arrastrables entre días para reprogramar fechas de entrega.
+  3. **Día (`day`)**: Reingeniería completa de vista diaria con altura sólida (`min-h-[540px] sm:min-h-[620px]`):
+     - Navegación rápida entre días (`◀ Anterior` / `Siguiente ▶`).
+     - Métricas diarias en vivo: *Total*, *Por Iniciar*, *En Progreso*, *Completadas*.
+     - Tarjetas de tarea completas con responsable, descripción, subtareas y estado.
+     - Estado vacío holográfico con botón de planificación para la fecha.
+- **Modal de Detalle de Tarea (`TaskDetailModal.tsx`)**:
+  - Ventana ampliada (`max-w-2xl sm:max-w-3xl`) que expone la radiografía exhaustiva de la tarea:
+    - Estado, prioridad y chips de etiquetas (#Tags).
+    - Responsable y creador.
+    - **Checklist de subtareas** con porcentaje de avance y casillas de verificación.
+    - **Recursos externos** con iconos de Figma, GitHub, Docs y enlaces directos.
+    - **Hilo de comentarios** con autor, fecha y contenido.
+    - Cronología de tiempos (Fecha de creación, inicio, finalización y duración total).
+    - Historial inmutable de cambios de estado auditado con observaciones.
+    - Botón de acceso directo a edición (`Editar tarea`).
 
 ---
 
-## 7. Próximos Pasos y Roadmap Sugerido
+### 3.4 Modo Enfoque & Temporizador Pomodoro Sci-Fi (`lib/pomodoro.ts`)
+- **Motor de Concentración de 25 Minutos**:
+  - Cuenta regresiva con almacenamiento local persistente (no se reinicia al recargar o cambiar de pestaña).
+  - Efectos de sonido procedurales con osciladores Web Audio API al iniciar (`playFocusStartSound`) y al concluir (`playFocusCompleteSound`).
+- **Widget HUD en Navbar**:
+  - Contador `MM:SS` en tiempo real con indicador radial/lineal de avance porcentual.
+  - Botones de Pausa, Reanudación y Descarte.
+- **Sincronización Automática con Modo Concentración (DND)**:
+  - Durante la sesión activa, el sistema silencia notificaciones flotantes y sonidos no críticos para evitar distracciones operativas.
 
-1. **Notificaciones Push PWA**: Alertar a los miembros cuando se les asigne una nueva tarea o se aproxime una fecha límite.
-2. **Adjuntos de Archivos Comprimidos**: Permitir adjuntar capturas de pantalla o PDFs ligeros en los comentarios de cada tarea.
-3. **Subtareas y Checklists**: Listas de verificación dentro de cada tarjeta para tareas complejas.
-4. **Exportación a CSV / Excel**: Descarga de reportes en hojas de cálculo directamente desde el Dashboard.
+---
+
+### 3.5 Sistema de Reportes Ejecutivos de Proyecto (`ProjectReportModal.tsx`)
+- **KPIs Estratégicos de Proyecto**:
+  - Total de tareas registradas.
+  - Tasa global de finalización (%).
+  - Avance promedio de subtareas.
+  - Tareas en riesgo de vencimiento y tareas de prioridad alta.
+- **Matriz de Productividad por Miembro**:
+  - Asignadas vs Completadas por cada operador con barra de rendimiento porcentual.
+- **Tabla Exhaustiva de Tareas Multi-Formato**:
+  - **Imprimir / Guardar como PDF**: Formato de documento oficial con estilos limpios `@media print`.
+  - **Descargar CSV**: Codificación UTF-8 con BOM para apertura inmediata en Microsoft Excel y Google Sheets.
+  - **Copiar Markdown**: Texto formateado estructurado para bitácoras en Notion, GitHub o Slack.
+
+---
+
+### 3.6 Centro de Notificaciones Inteligente & Modo DND (`components/notifications/`)
+- **Avisos Flotantes Holográficos (`NotificationToasts.tsx`)**:
+  - Notificaciones flotantes en esquina superior derecha (escritorio) o banner superior centrado (móvil).
+  - Auto-descarte tras 4.5 segundos con barra de progreso animada (`@keyframes toastProgress`).
+  - Códigos de color HUD por severidad (Esmeralda = Completada, Ámbar = Vencimiento/Resumen, Rosa = Vencida/Estancada, Cian = Asignación).
+- **Flujos de Alerta Automatizados**:
+  - **Daily Briefing Matutino**: Saludo una sola vez al día con resumen de tareas que vencen hoy en Bogotá.
+  - **Detección de Tareas Estancadas**: Alerta automática cuando una tarea lleva más de 5 días en la columna "Trabajando".
+- **Notificaciones Nativas del Sistema Operativo (`browserNotifications.ts`)**:
+  - API HTML5 de escritorio para avisos incluso con la pestaña minimizada.
+- **Panel de Preferencias y Modo No Molestar (DND)**:
+  - Presets de 1h, 2h y Todo el día con icono lunar en la campana del Navbar.
+  - Ajustes granulares para activar/desactivar sonido, alertas de escritorio, resumen matutino y alertas de estancamiento.
+
+---
+
+### 3.7 Selector de Temas Visuales HUD (`lib/hudTheme.ts`, `globals.css`)
+- **4 Paletas Visuales Conmutables**:
+  - Accesibles desde el menú de usuario del Navbar y desde el modal de edición de perfil (`UserProfileModal`).
+  - Aplicación inmediata a nivel de variable CSS en el elemento raíz `<html>` (`data-hud-theme="cyan|violet|matrix|amber"`).
+  - Persistencia en almacenamiento local para recordar el tema preferido del usuario.
+
+---
+
+### 3.8 Telemetría y Presencia en Tiempo Real (`PeerActivityBar.tsx`)
+- **Supabase Realtime Presence**:
+  - Indicador verde pulsante (`LINK_STABLE // EN LÍNEA`) al abrir la plataforma.
+  - Muestra la tarea que cada compañero está ejecutando activamente (`"EJECUTANDO AHORA"`).
+  - Feed en vivo de las últimas 30 actividades registradas en el proyecto activo.
+
+---
+
+### 3.9 Administración y Perfiles de Usuario (`AdminPanel.tsx`, `UserProfileModal.tsx`)
+- **Consola de Administración (`AdminPanel.tsx`)**:
+  - Acceso restringido a rol `admin`.
+  - Creación de cuentas, cambio de roles, suspensión de usuarios (`isActive`) y restablecimiento maestro de contraseñas.
+  - Auditoría de seguridad cronológica (`security_logs`).
+- **Edición de Perfil de Usuario (`UserProfileModal.tsx`)**:
+  - Selector de tema HUD visual.
+  - **Compresor de Avatares en el Cliente**: Reducción de imágenes de hasta 10 MB a WebP de 128x128 píxeles (~8-15 KB), ahorrando más del 99.7% de almacenamiento.
+  - Generador procedural de avatares con DiceBear y presets visuales.
+  - Cambio seguro de contraseña.
+
+---
+
+## 4. Garantías de Integridad y Restricciones del Sistema
+
+1. **Pantalla de Login 100% Congelada e Inmutable**:
+   - `components/LoginForm.tsx`, `components/Globe.tsx`, `components/InteractiveConstellationBackground.tsx` y `app/login/page.tsx` no deben ser modificados bajo ninguna circunstancia sin autorización explícita.
+2. **Cero Rupturas de Esquema**:
+   - Todos los campos nuevos (`subtasks`, `tags`, `comments`, `attachments`, `timeSpentSeconds`) son opcionales en el tipado de TypeScript.
+   - Sincronización resiliente con Supabase para no sobreescribir ni truncar datos preexistentes.
+3. **Control Horario Estricto**:
+   - Todos los cálculos temporales de inicio, fin, vencimientos, resumen matutino y calendario se ejecutan bajo la zona horaria `America/Bogota` (UTC-5).
+4. **Cero Consumo de Almacenamiento en Notificaciones**:
+   - Los avisos, sonidos y registros del centro de notificaciones operan en memoria y almacenamiento local con buffer circular FIFO limitado a 100 elementos.
+
+---
+
+## 5. Matriz de Pruebas y Validación Técnica
+
+| Módulo / Función | Tipo de Prueba | Estado | Resultado |
+| :--- | :--- | :--- | :--- |
+| **Tipado TypeScript** | `npx tsc --noEmit` | Validado | 0 errores en todo el proyecto |
+| **Compilación de Producción** | `npm run build` | Validado | Next.js 14 empaquetó con éxito rutas estáticas y dinámicas |
+| **Subtareas & Checklist** | Funcional & Visual | Validado | Progreso porcentual y estados completados en tarjetas y modales |
+| **Filtro por Etiquetas** | Funcional | Validado | Filtrado reactivo en Kanban y píldora con botón de descarte |
+| **WIP Limits & Ordenamiento** | Funcional | Validado | Badge de alerta a partir de 6 tareas y orden por fecha/prioridad |
+| **Pomodoro Sci-Fi** | Funcional & Audio | Validado | Síntesis Web Audio procedural, timer persistente y auto-DND |
+| **Reporte de Proyecto** | Funcional | Validado | Exportación probada en PDF, CSV (Excel) y Markdown |
+| **Selector de Tema HUD** | Visual | Validado | Cambio dinámico entre Cyan, Violet, Matrix y Amber |
+| **Ampliación Modal Tarea** | Responsive (<640px y >1024px) | Validado | Pestaña "Comentarios" 100% visible, sin cortes |
+| **Vistas Mes y Día Calendario** | Visual & Layout | Validado | Popover espacioso en Mes y vista Día completa (`min-h-[540px]`) |
+| **Detalle de Tarea** | Funcional & Visual | Validado | Subtareas, comentarios, tags y adjuntos visibles |
+| **Integridad de Login** | Inspección Git | Validado | Cero cambios en componentes de login o constelaciones |
