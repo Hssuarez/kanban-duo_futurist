@@ -573,7 +573,7 @@ export const KanbanBoard: React.FC = () => {
       </div>
 
       {/* Main Container */}
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 flex flex-col relative z-10">
+      <main className={`${currentView === 'calendar' ? 'max-w-[1680px]' : 'max-w-7xl'} w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 flex flex-col relative z-10`}>
         {currentView === 'board' && (
           <div className="animate-view-fade flex-1 flex flex-col">
             {/* Peer Activity Bar enfocada en miembros y tareas del proyecto activo */}
@@ -725,7 +725,7 @@ export const KanbanBoard: React.FC = () => {
         )}
 
         {currentView === 'calendar' && (
-          <div className="animate-view-fade">
+          <div className="animate-view-fade flex-1 flex flex-col pb-6">
             <TaskCalendar
               tasks={projectTasks}
               users={projectMembers}

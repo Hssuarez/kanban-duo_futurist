@@ -365,7 +365,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
   const weekDayHeaders = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
 
   return (
-    <div className="space-y-4 font-sans animate-view-fade">
+    <div className="space-y-4 font-sans animate-view-fade flex-1 flex flex-col">
       {/* Top Controls Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 p-3 sm:p-4 rounded-2xl shadow-sm transition-colors">
         {/* Navigation & Month */}
@@ -471,7 +471,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
       {/* VIEW: MONTH GRID */}
       {viewMode === 'month' && (
-        <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl relative shadow-sm transition-colors">
+        <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl relative shadow-sm transition-colors flex-1 flex flex-col">
           {/* Day Headers */}
           <div className="grid grid-cols-7 border-b border-white/[0.06] bg-zinc-900/80 text-[11px] font-medium text-zinc-400 text-center py-2.5 rounded-t-2xl">
             {weekDayHeaders.map((dayName, idx) => (
@@ -762,8 +762,8 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
 
       {/* VIEW: WEEK GRID */}
       {viewMode === 'week' && (
-        <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl overflow-x-auto custom-scrollbar shadow-sm transition-colors">
-          <div className="grid grid-cols-7 divide-x divide-white/[0.04] min-w-[720px]">
+        <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl overflow-x-auto sm:overflow-x-visible custom-scrollbar shadow-sm transition-colors flex-1 flex flex-col min-h-[640px] lg:min-h-[calc(100vh-230px)]">
+          <div className="grid grid-cols-7 divide-x divide-white/[0.04] min-w-[700px] sm:min-w-0 flex-1">
             {weekData.map((day) => {
               const dayTasks = tasksByDay.get(day.dateKey) || [];
               const isOver = dragOverDayKey === day.dateKey;
@@ -790,7 +790,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                     }
                   }}
                   onMouseMove={handleCellMouseMove}
-                  className={`min-h-[380px] p-2.5 flex flex-col transition-colors relative group ${
+                  className={`min-h-[580px] lg:min-h-[calc(100vh-250px)] p-2.5 sm:p-3.5 flex flex-col transition-colors relative group flex-1 ${
                     day.isSelected ? 'bg-zinc-900/60' : 'bg-zinc-900/20 hover:bg-zinc-900/40'
                   } ${isOver ? 'bg-cyan-950/30 ring-2 ring-cyan-400/50' : ''}`}
                 >
@@ -802,9 +802,9 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                     }}
                   />
 
-                  <div className="text-center pb-2.5 mb-2 border-b border-white/[0.06] relative z-10">
+                  <div className="text-center pb-2.5 mb-2.5 border-b border-white/[0.06] relative z-10">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-zinc-500 font-medium block uppercase tracking-wider text-left">
+                      <span className="text-[11px] text-zinc-400 font-medium block uppercase tracking-wider text-left">
                         {day.dayName}
                       </span>
                       <button
@@ -814,15 +814,15 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                           if (onOpenNewTask) onOpenNewTask();
                         }}
                         title={`Crear tarea para el ${day.dateKey}`}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950/40 active:scale-95"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950/40 active:scale-95"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
                     <span
-                      className={`text-sm font-mono font-medium inline-flex items-center justify-center mt-1 ${
+                      className={`text-sm sm:text-base font-mono font-medium inline-flex items-center justify-center mt-1 ${
                         day.isToday
-                          ? `w-7 h-7 rounded-md bg-cyan-400 text-zinc-950 font-bold ${justClickedToday ? 'ring-4 ring-cyan-400/50 animate-pulse' : ''}`
+                          ? `w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-cyan-400 text-zinc-950 font-bold ${justClickedToday ? 'ring-4 ring-cyan-400/50 animate-pulse' : ''}`
                           : 'text-zinc-200'
                       }`}
                     >
@@ -830,9 +830,10 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex-1 space-y-1.5 overflow-y-auto custom-scrollbar">
+                  <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-0.5">
                     {dayTasks.map((task) => {
                       const cfg = statusColors[task.status] || statusColors.iniciado;
+                      const assignee = users.find((u) => u.id === task.assignedTo);
                       return (
                         <div
                           key={task.id}
@@ -842,15 +843,36 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
                             e.dataTransfer.setData('text/plain', task.id);
                           }}
                           onClick={() => handleTaskClick(task)}
-                          className={`p-2 rounded-lg text-xs font-medium border cursor-pointer hover:scale-[1.01] transition-all ${cfg.bg} ${cfg.border} ${cfg.text}`}
+                          className={`p-2.5 rounded-xl text-xs font-medium border cursor-pointer hover:scale-[1.01] transition-all shadow-sm ${cfg.bg} ${cfg.border} ${cfg.text}`}
                         >
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                            <span className="text-[10px] uppercase font-semibold text-zinc-400">
-                              {task.status}
-                            </span>
+                          <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+                              <span className="text-[10px] uppercase font-semibold text-zinc-400 truncate">
+                                {task.status}
+                              </span>
+                            </div>
+                            {task.priority && (
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/40 text-zinc-400 border border-white/5 capitalize shrink-0">
+                                {task.priority}
+                              </span>
+                            )}
                           </div>
-                          <p className="font-semibold text-white line-clamp-2">{task.title}</p>
+                          <p className="font-semibold text-white line-clamp-2 mb-2 leading-snug">{task.title}</p>
+                          <div className="flex items-center justify-between text-[10px] text-zinc-400 pt-1.5 border-t border-white/[0.04]">
+                            {task.subtasks && task.subtasks.length > 0 ? (
+                              <span className="font-mono text-cyan-400 font-medium">
+                                ✓ {task.subtasks.filter((s) => s.completed).length}/{task.subtasks.length}
+                              </span>
+                            ) : (
+                              <span />
+                            )}
+                            {assignee && (
+                              <span className="text-zinc-400 truncate max-w-[85px]">
+                                {assignee.name.split(' ')[0]}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -870,7 +892,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({
         const pendingCount = dayTasks.filter((t) => t.status === 'iniciado').length;
 
         return (
-          <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-5 sm:p-7 shadow-sm transition-colors min-h-[540px] sm:min-h-[620px] flex flex-col">
+          <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-5 sm:p-7 shadow-sm transition-colors min-h-[580px] lg:min-h-[calc(100vh-230px)] flex flex-col">
             {/* Day View Subheader with Quick Day Navigation */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-5 border-b border-white/[0.08]">
               <div>
