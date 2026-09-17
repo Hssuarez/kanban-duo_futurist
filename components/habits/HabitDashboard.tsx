@@ -217,6 +217,11 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
     [habits]
   );
 
+  const activeHabitsCount = useMemo(
+    () => habits.filter((h) => h.isActive && !h.isArchived).length,
+    [habits]
+  );
+
   const monthName = MONTH_NAMES_ES[currentMonth - 1];
 
   return (
@@ -379,7 +384,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
 
       {/* 4. Analytics Section: Progreso Diario del Mes + Progreso Semanal */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <HabitDailyChart dailyData={dailyData} />
+        <HabitDailyChart dailyData={dailyData} totalHabits={activeHabitsCount} />
         <HabitWeeklyChart weeklyData={weeklyData} />
       </div>
 
