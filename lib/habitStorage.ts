@@ -266,7 +266,10 @@ export const DEFAULT_INITIAL_HABITS: Habit[] = [
 // Semilla de logs para Septiembre 2026 (días 1 al 17) para que la pantalla cobre vida inmediatamente
 export function generateSeedLogsForUser(userId: string): HabitLog[] {
   const seedLogs: HabitLog[] = [];
-  const activeIds = ['habit-1', 'habit-2', 'habit-3', 'habit-4', 'habit-5', 'habit-6', 'habit-7', 'habit-8'];
+  const activeIds =
+    userId === 'user-admin'
+      ? ['habit-1', 'habit-2', 'habit-3', 'habit-4', 'habit-5', 'habit-6', 'habit-7', 'habit-8']
+      : Array.from({ length: 8 }, (_, i) => `habit-${userId}-${i + 1}`);
 
   // Generamos un patrón realista de cumplimiento para los días 1 al 17 de Septiembre 2026
   for (let d = 1; d <= 17; d++) {
@@ -397,17 +400,29 @@ export function getLocalHabits(userId?: string): Habit[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(HABIT_STORAGE_KEYS.HABITS);
-    if (!raw) {
-      // Inicializar con la semilla
-      localStorage.setItem(HABIT_STORAGE_KEYS.HABITS, JSON.stringify(DEFAULT_INITIAL_HABITS));
-      return userId
-        ? DEFAULT_INITIAL_HABITS.filter((h) => h.userId === userId || h.userId === 'user-admin')
-        : DEFAULT_INITIAL_HABITS;
+    let parsed: Habit[] = raw ? JSON.parse(raw) : [];
+
+    if (!raw || parsed.length === 0) {
+      parsed = [...DEFAULT_INITIAL_HABITS];
+      localStorage.setItem(HABIT_STORAGE_KEYS.HABITS, JSON.stringify(parsed));
     }
-    const parsed: Habit[] = JSON.parse(raw);
+
     if (userId) {
-      // Retornar hábitos propios o asignados
-      return parsed.filter((h) => h.userId === userId || h.userId === 'user-admin');
+      const userHabits = parsed.filter((h) => h.userId === userId);
+      // Si este usuario específico no tiene ningún hábito registrado aún:
+      if (userHabits.length === 0) {
+        const userTemplate = DEFAULT_INITIAL_HABITS.map((h, idx) => ({
+          ...h,
+          id: `habit-${userId}-${idx + 1}`,
+          userId: userId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }));
+        const combined = [...parsed, ...userTemplate];
+        localStorage.setItem(HABIT_STORAGE_KEYS.HABITS, JSON.stringify(combined));
+        return userTemplate;
+      }
+      return userHabits;
     }
     return parsed;
   } catch {
@@ -536,14 +551,23 @@ export function getLocalHabitLogs(userId?: string): HabitLog[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(HABIT_STORAGE_KEYS.LOGS);
-    if (!raw) {
+    let parsed: HabitLog[] = raw ? JSON.parse(raw) : [];
+
+    if (!raw || parsed.length === 0) {
       const seed = generateSeedLogsForUser(userId || 'user-admin');
       localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify(seed));
       return seed;
     }
-    const parsed: HabitLog[] = JSON.parse(raw);
+
     if (userId) {
-      return parsed.filter((l) => l.userId === userId || l.userId === 'user-admin');
+      const userLogs = parsed.filter((l) => l.userId === userId);
+      if (userLogs.length === 0) {
+        const userSeed = generateSeedLogsForUser(userId);
+        const combined = [...parsed, ...userSeed];
+        localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify(combined));
+        return userSeed;
+      }
+      return userLogs;
     }
     return parsed;
   } catch {
@@ -708,16 +732,36 @@ export function getLocalGoals(userId?: string, monthKey?: string): Goal[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(HABIT_STORAGE_KEYS.GOALS);
-    if (!raw) {
-      localStorage.setItem(HABIT_STORAGE_KEYS.GOALS, JSON.stringify(DEFAULT_INITIAL_GOALS));
-      let goals = DEFAULT_INITIAL_GOALS;
-      if (userId) goals = goals.filter((g) => g.userId === userId || g.userId === 'user-admin');
-      if (monthKey) goals = goals.filter((g) => !g.monthKey || g.monthKey === monthKey);
-      return goals;
+    let parsed: Goal[] = raw ? JSON.parse(raw) : [];
+
+    if (!raw || parsed.length === 0) {
+      parsed = [...DEFAULT_INITIAL_GOALS];
+      localStorage.setItem(HABIT_STORAGE_KEYS.GOALS, JSON.stringify(parsed));
     }
-    let parsed: Goal[] = JSON.parse(raw);
-    if (userId) parsed = parsed.filter((g) => g.userId === userId || g.userId === 'user-admin');
-    if (monthKey) parsed = parsed.filter((g) => !g.monthKey || g.monthKey === monthKey);
+
+    if (userId) {
+      let userGoals = parsed.filter((g) => g.userId === userId);
+      if (userGoals.length === 0) {
+        const initialUserGoals = DEFAULT_INITIAL_GOALS.map((g, idx) => ({
+          ...g,
+          id: `goal-${userId}-${idx + 1}`,
+          userId: userId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }));
+        parsed = [...parsed, ...initialUserGoals];
+        localStorage.setItem(HABIT_STORAGE_KEYS.GOALS, JSON.stringify(parsed));
+        userGoals = initialUserGoals;
+      }
+      if (monthKey) {
+        return userGoals.filter((g) => !g.monthKey || g.monthKey === monthKey);
+      }
+      return userGoals;
+    }
+
+    if (monthKey) {
+      return parsed.filter((g) => !g.monthKey || g.monthKey === monthKey);
+    }
     return parsed;
   } catch {
     return DEFAULT_INITIAL_GOALS;
