@@ -19,12 +19,12 @@ export const HabitKpiRow: React.FC<HabitKpiRowProps> = ({ kpis }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4 font-sans">
       {/* 1. HÁBITOS ACTIVOS */}
-      <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-4 sm:p-4.5 shadow-sm transition-all relative overflow-hidden group flex flex-col justify-between">
+      <div className="bg-[#070c18]/85 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-4 sm:p-4.5 shadow-sm transition-all relative overflow-hidden group flex flex-col justify-between">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] uppercase font-mono font-semibold text-zinc-400 tracking-wider">
             Hábitos Activos
           </span>
-          <div className="w-7 h-7 rounded-lg bg-cyan-950/50 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+          <div className="w-7 h-7 rounded-lg bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
             <Layers className="w-3.5 h-3.5" />
           </div>
         </div>
@@ -39,19 +39,19 @@ export const HabitKpiRow: React.FC<HabitKpiRowProps> = ({ kpis }) => {
       </div>
 
       {/* 2. RACHA ACTUAL */}
-      <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-amber-500/25 rounded-2xl p-4 sm:p-4.5 shadow-sm transition-all relative overflow-hidden group flex flex-col justify-between">
+      <div className="bg-[#070c18]/85 backdrop-blur-xl border border-white/[0.08] hover:border-amber-500/25 rounded-2xl p-4 sm:p-4.5 shadow-sm transition-all relative overflow-hidden group flex flex-col justify-between">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] uppercase font-mono font-semibold text-zinc-400 tracking-wider">
             Racha Actual
           </span>
-          <div className="w-7 h-7 rounded-lg bg-amber-950/50 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+          <div className="w-7 h-7 rounded-lg bg-amber-950/60 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.25)]">
             <Flame className="w-3.5 h-3.5" />
           </div>
         </div>
         <div>
-          <div className="text-2xl sm:text-3xl font-bold font-mono text-amber-300 tracking-tight flex items-baseline gap-1.5">
+          <div className="text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight flex items-baseline gap-1.5">
             <span>{kpis.currentStreak}</span>
-            <span className="text-xs font-medium text-amber-400/80">días</span>
+            <span className="text-xs font-medium text-amber-400">días</span>
           </div>
           <div className="text-xs text-zinc-400 mt-1 font-mono">
             mejor racha <span className="text-amber-400 font-semibold">{kpis.bestStreak} días</span>
@@ -60,12 +60,12 @@ export const HabitKpiRow: React.FC<HabitKpiRowProps> = ({ kpis }) => {
       </div>
 
       {/* 3. CUMPLIMIENTO DEL MES */}
-      <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-4 sm:p-4.5 shadow-sm transition-all relative overflow-hidden group flex flex-col justify-between">
+      <div className="bg-[#070c18]/85 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-4 sm:p-4.5 shadow-sm transition-all relative overflow-hidden group flex flex-col justify-between">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] uppercase font-mono font-semibold text-zinc-400 tracking-wider">
             Cumplimiento del Mes
           </span>
-          <div className="w-7 h-7 rounded-lg bg-cyan-950/50 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+          <div className="w-7 h-7 rounded-lg bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.25)]">
             <Target className="w-3.5 h-3.5" />
           </div>
         </div>
@@ -80,17 +80,17 @@ export const HabitKpiRow: React.FC<HabitKpiRowProps> = ({ kpis }) => {
       </div>
 
       {/* 4. OBJETIVOS COMPLETOS */}
-      <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-emerald-500/25 rounded-2xl p-4 sm:p-4.5 shadow-sm transition-all relative overflow-hidden group flex flex-col justify-between">
+      <div className="bg-[#070c18]/85 backdrop-blur-xl border border-white/[0.08] hover:border-emerald-500/25 rounded-2xl p-4 sm:p-4.5 shadow-sm transition-all relative overflow-hidden group flex flex-col justify-between">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] uppercase font-mono font-semibold text-zinc-400 tracking-wider">
             Objetivos Completos
           </span>
-          <div className="w-7 h-7 rounded-lg bg-emerald-950/50 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+          <div className="w-7 h-7 rounded-lg bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
             <Flag className="w-3.5 h-3.5" />
           </div>
         </div>
         <div>
-          <div className="text-2xl sm:text-3xl font-bold font-mono text-emerald-300 tracking-tight">
+          <div className="text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight">
             {kpis.completedGoalsCount} / {kpis.totalGoalsCount}
           </div>
           <div className="text-xs text-zinc-400 mt-1 font-mono">
@@ -100,7 +100,8 @@ export const HabitKpiRow: React.FC<HabitKpiRowProps> = ({ kpis }) => {
       </div>
 
       {/* 5. PROGRESO GENERAL (CIRCULAR DONUT GAUGE) */}
-      <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-3.5 sm:p-4 shadow-sm transition-all sm:col-span-2 lg:col-span-1 flex items-center justify-between gap-3">
+      <div className="bg-[#070c18]/85 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-3.5 sm:p-4 shadow-sm transition-all sm:col-span-2 lg:col-span-1 flex items-center justify-between gap-3">
+        {/* Radial Donut Gauge */}
         <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 96 96">
             <circle
@@ -122,7 +123,7 @@ export const HabitKpiRow: React.FC<HabitKpiRowProps> = ({ kpis }) => {
               strokeLinecap="round"
               fill="transparent"
               style={{
-                filter: 'drop-shadow(0 0 6px rgba(6, 182, 212, 0.6))',
+                filter: 'drop-shadow(0 0 6px rgba(6, 182, 212, 0.7))',
               }}
             />
           </svg>
@@ -131,13 +132,14 @@ export const HabitKpiRow: React.FC<HabitKpiRowProps> = ({ kpis }) => {
               {kpis.monthCompliancePercentage}%
             </span>
             <span className="text-[9px] font-mono text-zinc-400 mt-0.5">
-              {kpis.totalCompletedChecks}/{kpis.totalExpectedChecks}
+              {kpis.totalCompletedChecks} / {kpis.totalExpectedChecks}
             </span>
           </div>
         </div>
 
+        {/* Legend */}
         <div className="flex-1 space-y-1 text-[11px] font-mono">
-          <div className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider mb-1">
+          <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider mb-1">
             Progreso General
           </div>
           <div className="flex items-center justify-between text-zinc-300">
@@ -147,19 +149,19 @@ export const HabitKpiRow: React.FC<HabitKpiRowProps> = ({ kpis }) => {
             </span>
             <span className="font-semibold text-white">{kpis.totalCompletedChecks}</span>
           </div>
-          <div className="flex items-center justify-between text-zinc-400">
+          <div className="flex items-center justify-between text-zinc-300">
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-zinc-600" />
+              <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
               Pendiente
             </span>
-            <span>{pendingChecks}</span>
+            <span className="font-semibold text-white">{pendingChecks}</span>
           </div>
-          <div className="flex items-center justify-between text-zinc-500">
+          <div className="flex items-center justify-between text-zinc-400">
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-zinc-700/60" />
+              <span className="w-2 h-2 rounded-full bg-slate-500" />
               No aplica
             </span>
-            <span>{kpis.notApplicableCount}</span>
+            <span className="text-zinc-400">{kpis.notApplicableCount}</span>
           </div>
         </div>
       </div>

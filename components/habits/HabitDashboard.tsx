@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { User, AppView } from '@/lib/types';
+import { User } from '@/lib/types';
 import {
   Habit,
   HabitLog,
@@ -32,6 +32,7 @@ import {
   calculateTopHabits,
   calculateDailyCompliance,
   calculateWeeklyCompliance,
+  calculatePeriodSummary,
   MONTH_NAMES_ES,
 } from '@/lib/habitCalculations';
 import { subscribeToSync } from '@/lib/storage';
@@ -39,6 +40,7 @@ import { HabitKpiRow } from './HabitKpiRow';
 import { HabitMatrix } from './HabitMatrix';
 import { HabitTopList } from './HabitTopList';
 import { HabitDailyChart } from './HabitDailyChart';
+import { HabitPeriodSummaryCard } from './HabitPeriodSummaryCard';
 import { HabitWeeklyChart } from './HabitWeeklyChart';
 import { HabitGoalsCard } from './HabitGoalsCard';
 import { HabitNotesCard } from './HabitNotesCard';
@@ -207,6 +209,11 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
     [habits, logs, currentYear, currentMonth, todayKey]
   );
 
+  const periodSummary = useMemo(
+    () => calculatePeriodSummary(dailyData, currentMonth),
+    [dailyData, currentMonth]
+  );
+
   const weeklyData = useMemo(
     () => calculateWeeklyCompliance(habits, logs, currentYear, currentMonth, todayKey),
     [habits, logs, currentYear, currentMonth, todayKey]
@@ -225,23 +232,23 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
   const monthName = MONTH_NAMES_ES[currentMonth - 1];
 
   return (
-    <div className="space-y-5 font-sans animate-view-fade pb-10 w-full">
+    <div className="space-y-4 sm:space-y-5 font-sans animate-view-fade pb-10 w-full">
       {/* 1. Header de HABIT CORE con Sub-navegación y Selector de Mes */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 p-4 sm:p-5 rounded-2xl shadow-sm transition-colors">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-[#070c18]/85 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 p-4 sm:p-5 rounded-2xl shadow-sm transition-colors relative overflow-hidden">
+        {/* Glow ambient background */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+
         {/* Título & Sub-tabs */}
-        <div className="space-y-3">
+        <div className="space-y-3 relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-950/70 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.35)]">
               <Target className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-white font-mono tracking-tight uppercase">
+                <h2 className="text-base sm:text-lg font-bold text-white font-mono tracking-wider uppercase">
                   Habit Core
                 </h2>
-                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-300">
-                  v1.0
-                </span>
               </div>
               <p className="text-xs text-zinc-400">
                 Construye tu mejor versión, día a día.
@@ -256,7 +263,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
               onClick={() => onChangeSubView?.('habits')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
                 currentSubView === 'habits'
-                  ? 'bg-zinc-800 text-white font-semibold shadow-sm ring-1 ring-white/10'
+                  ? 'bg-cyan-950/80 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] ring-1 ring-cyan-500/40'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -269,7 +276,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
               onClick={() => onChangeSubView?.('challenges')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
                 currentSubView === 'challenges'
-                  ? 'bg-zinc-800 text-white font-semibold shadow-sm ring-1 ring-white/10'
+                  ? 'bg-cyan-950/80 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] ring-1 ring-cyan-500/40'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -282,7 +289,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
               onClick={() => onChangeSubView?.('goals')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
                 currentSubView === 'goals'
-                  ? 'bg-zinc-800 text-white font-semibold shadow-sm ring-1 ring-white/10'
+                  ? 'bg-cyan-950/80 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] ring-1 ring-cyan-500/40'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -295,7 +302,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
               onClick={() => onChangeSubView?.('progress')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
                 currentSubView === 'progress'
-                  ? 'bg-zinc-800 text-white font-semibold shadow-sm ring-1 ring-white/10'
+                  ? 'bg-cyan-950/80 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] ring-1 ring-cyan-500/40'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -306,7 +313,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
         </div>
 
         {/* Month Selector Controls & New Habit Button */}
-        <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center">
+        <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center relative z-10">
           <div className="flex items-center bg-zinc-950/90 border border-white/[0.08] rounded-xl p-0.5">
             <button
               type="button"
@@ -343,7 +350,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
               setEditingHabit(null);
               setIsHabitModalOpen(true);
             }}
-            className="px-3.5 py-2 text-xs font-semibold text-zinc-950 bg-cyan-400 hover:bg-cyan-300 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0"
+            className="px-3.5 py-2 text-xs font-semibold text-zinc-950 bg-cyan-400 hover:bg-cyan-300 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.35)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Nuevo hábito</span>
@@ -351,64 +358,93 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
         </div>
       </div>
 
-      {/* 2. Top KPI Cards Row */}
-      <HabitKpiRow kpis={kpiSummary} />
+      {/* ======================================================== */}
+      {/* VISTA PRINCIPAL: MIS HÁBITOS (EXACTA AL MOCKUP)          */}
+      {/* ======================================================== */}
+      {currentSubView === 'habits' && (
+        <div className="space-y-4 sm:space-y-5 animate-view-fade">
+          {/* FILA 1: Top 5 KPI Cards Row */}
+          <HabitKpiRow kpis={kpiSummary} />
 
-      {/* 3. Hero Section: Matriz de Hábitos + Top 10 Consistentes */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-5 items-start">
-        <div className="xl:col-span-3">
-          <HabitMatrix
-            habits={habits}
-            logs={logs}
-            days={daysInfo}
-            year={currentYear}
-            month={currentMonth}
-            todayKey={todayKey}
-            onToggleCell={handleToggleCell}
-            onSetCellStatus={handleSetCellStatus}
+          {/* FILA 2: Matriz de Hábitos (75%) + Top 10 Consistentes (25%) */}
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 sm:gap-5 items-start">
+            <div className="xl:col-span-3 min-w-0">
+              <HabitMatrix
+                habits={habits}
+                logs={logs}
+                days={daysInfo}
+                year={currentYear}
+                month={currentMonth}
+                todayKey={todayKey}
+                onToggleCell={handleToggleCell}
+                onSetCellStatus={handleSetCellStatus}
+                onOpenNewHabit={() => {
+                  setEditingHabit(null);
+                  setIsHabitModalOpen(true);
+                }}
+                onEditHabit={(h) => {
+                  setEditingHabit(h);
+                  setIsHabitModalOpen(true);
+                }}
+              />
+            </div>
+
+            <div className="xl:col-span-1 min-w-0 h-full">
+              <HabitTopList ranks={topRanks} />
+            </div>
+          </div>
+
+          {/* FILA 3: Progreso Diario con Curva Spline (75%) + Resumen del Período (25%) */}
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 sm:gap-5 items-stretch">
+            <div className="xl:col-span-3 min-w-0">
+              <HabitDailyChart
+                dailyData={dailyData}
+                totalHabits={activeHabitsCount}
+                habits={habits}
+                logs={logs}
+                month={currentMonth}
+              />
+            </div>
+
+            <div className="xl:col-span-1 min-w-0 h-full">
+              <HabitPeriodSummaryCard summary={periodSummary} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* OTRAS SUB-VISTAS: OBJETIVOS Y PROGRESO EXTENDIDO         */}
+      {/* ======================================================== */}
+      {currentSubView === 'goals' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-view-fade">
+          <HabitGoalsCard
+            goals={goals}
+            onToggleGoal={handleToggleGoal}
+            onOpenNewGoal={() => setIsGoalModalOpen(true)}
+            onDeleteGoal={handleDeleteGoal}
+          />
+          <HabitNotesCard
+            initialContent={noteContent}
+            onSave={handleSaveNote}
+          />
+          <AdditionalHabitsCard
+            inactiveHabits={inactiveHabits}
+            onActivateHabit={handleActivateHabit}
             onOpenNewHabit={() => {
               setEditingHabit(null);
               setIsHabitModalOpen(true);
             }}
-            onEditHabit={(h) => {
-              setEditingHabit(h);
-              setIsHabitModalOpen(true);
-            }}
           />
         </div>
+      )}
 
-        <div className="xl:col-span-1">
-          <HabitTopList ranks={topRanks} />
+      {currentSubView === 'progress' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 animate-view-fade">
+          <HabitWeeklyChart weeklyData={weeklyData} />
+          <HabitPeriodSummaryCard summary={periodSummary} />
         </div>
-      </div>
-
-      {/* 4. Analytics Section: Progreso Diario del Mes + Progreso Semanal */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <HabitDailyChart dailyData={dailyData} totalHabits={activeHabitsCount} />
-        <HabitWeeklyChart weeklyData={weeklyData} />
-      </div>
-
-      {/* 5. Bottom Section: Objetivos del Mes + Notas + Hábitos Adicionales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <HabitGoalsCard
-          goals={goals}
-          onToggleGoal={handleToggleGoal}
-          onOpenNewGoal={() => setIsGoalModalOpen(true)}
-          onDeleteGoal={handleDeleteGoal}
-        />
-        <HabitNotesCard
-          initialContent={noteContent}
-          onSave={handleSaveNote}
-        />
-        <AdditionalHabitsCard
-          inactiveHabits={inactiveHabits}
-          onActivateHabit={handleActivateHabit}
-          onOpenNewHabit={() => {
-            setEditingHabit(null);
-            setIsHabitModalOpen(true);
-          }}
-        />
-      </div>
+      )}
 
       {/* Modal de Hábito */}
       <HabitModal

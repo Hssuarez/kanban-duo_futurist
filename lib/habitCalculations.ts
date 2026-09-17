@@ -426,3 +426,65 @@ export function calculateWeeklyCompliance(
       };
     });
 }
+
+// Resumen del Período para la tarjeta HUD
+export interface PeriodSummary {
+  totalCheckIns: number;
+  dailyAverage: number;
+  bestDay: {
+    dayNumber: number;
+    count: number;
+    label: string;
+  };
+  lowestDay: {
+    dayNumber: number;
+    count: number;
+    label: string;
+  };
+}
+
+export function calculatePeriodSummary(
+  dailyData: DayCompliance[],
+  month: number
+): PeriodSummary {
+  const pastDays = dailyData.filter((d) => !d.isFuture);
+  const totalCheckIns = pastDays.reduce((acc, d) => acc + d.completedCount, 0);
+  const countDays = pastDays.length > 0 ? pastDays.length : 1;
+  const dailyAverage = Math.round((totalCheckIns / countDays) * 10) / 10;
+
+  const monthShort = MONTH_NAMES_ES[month - 1] ? MONTH_NAMES_ES[month - 1].slice(0, 3) : '';
+
+  let best = pastDays[0] || dailyData[0];
+  let lowest = pastDays[0] || dailyData[0];
+
+  pastDays.forEach((d) => {
+    if (d.completedCount > (best?.completedCount ?? -1)) {
+      best = d;
+    }
+    if (d.completedCount < (lowest?.completedCount ?? 999)) {
+      lowest = d;
+    }
+  });
+
+  const formatDayLabel = (d?: DayCompliance) => {
+    if (!d) return '';
+    const dayNameCapitalized = d.dayName.charAt(0) + d.dayName.slice(1).toLowerCase();
+    return `${dayNameCapitalized} ${d.dayNumber} ${monthShort}`;
+  };
+
+  return {
+    totalCheckIns,
+    dailyAverage,
+    bestDay: {
+      dayNumber: best ? best.dayNumber : 1,
+      count: best ? best.completedCount : 0,
+      label: formatDayLabel(best),
+    },
+    lowestDay: {
+      dayNumber: lowest ? lowest.dayNumber : 1,
+      count: lowest ? lowest.completedCount : 0,
+      label: formatDayLabel(lowest),
+    },
+  };
+}
+
