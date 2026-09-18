@@ -27,6 +27,7 @@ import {
   getLocalChallengeGoals,
   toggleChallengeGoal,
   saveChallengeGoal,
+  deleteChallengeGoal,
   saveChallengeHabit,
   deleteChallenge,
   getLastSelectedChallengeId,
@@ -49,6 +50,7 @@ import { ChallengeActivityFeed } from './ChallengeActivityFeed';
 import { ChallengeTeamChart, ChallengeWeeklyProgressCard } from './ChallengeTeamChart';
 import { ChallengeTasksCard } from './ChallengeTasksCard';
 import { ChallengeGoalsCard } from './ChallengeGoalsCard';
+import { ChallengeGoalModal } from './ChallengeGoalModal';
 import { ChallengeModal } from './ChallengeModal';
 import { ChallengeMembersModal } from './ChallengeMembersModal';
 import { Plus } from 'lucide-react';
@@ -74,7 +76,11 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
 }) => {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [selectedChallengeId, setSelectedChallengeId] = useState<string>(() => {
-    return getLastSelectedChallengeId() || 'ch-gym-30d';
+    if (typeof window !== 'undefined') {
+      const saved = getLastSelectedChallengeId();
+      if (saved) return saved;
+    }
+    return 'ch-gym-30d';
   });
   const [members, setMembers] = useState<ChallengeMember[]>([]);
   const [habits, setHabits] = useState<ChallengeHabit[]>([]);
@@ -91,6 +97,8 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<ChallengeGoal | null>(null);
 
   const todayKey = useMemo(() => getBogotaToday(), []);
 
@@ -110,11 +118,15 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     setActivities(loadedActivities);
     setGoals(loadedGoals);
 
-    // Asegurar que haya un reto seleccionado válido
+    // Asegurar que haya un reto seleccionado válido y priorizar el guardado por el usuario
     if (loadedChallenges.length > 0) {
-      if (!loadedChallenges.some((c) => c.id === selectedChallengeId)) {
-        const savedId = getLastSelectedChallengeId();
-        const validId = loadedChallenges.find((c) => c.id === savedId)?.id || loadedChallenges[0].id;
+      const savedId = getLastSelectedChallengeId();
+      if (savedId && loadedChallenges.some((c) => c.id === savedId)) {
+        if (selectedChallengeId !== savedId) {
+          setSelectedChallengeId(savedId);
+        }
+      } else if (!loadedChallenges.some((c) => c.id === selectedChallengeId)) {
+        const validId = loadedChallenges[0].id;
         setSelectedChallengeId(validId);
         saveLastSelectedChallengeId(validId);
       }
@@ -343,6 +355,38 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     loadChallengeData();
   };
 
+  // Gestión de Objetivos del Reto
+  const handleOpenNewGoal = () => {
+    setEditingGoal(null);
+    setIsGoalModalOpen(true);
+  };
+
+  const handleOpenEditGoal = (goal: ChallengeGoal) => {
+    setEditingGoal(goal);
+    setIsGoalModalOpen(true);
+  };
+
+  const handleSaveGoal = async (goalData: Partial<ChallengeGoal>) => {
+    const goalId = goalData.id || `cg-${Date.now()}`;
+    const newGoal: ChallengeGoal = {
+      id: goalId,
+      challengeId: goalData.challengeId || currentChallenge.id,
+      title: goalData.title || 'Nuevo objetivo',
+      targetValue: goalData.targetValue ?? 20,
+      currentValue: goalData.currentValue ?? 0,
+      unit: goalData.unit || 'sesiones',
+      isCompleted: goalData.isCompleted ?? false,
+      createdAt: goalData.createdAt || new Date().toISOString(),
+    };
+    await saveChallengeGoal(newGoal);
+    loadChallengeData();
+  };
+
+  const handleDeleteGoal = async (goalId: string) => {
+    await deleteChallengeGoal(goalId);
+    loadChallengeData();
+  };
+
   // Asegurar que el usuario activo sea miembro del reto seleccionado para que tenga su propia fila
   useEffect(() => {
     if (currentChallenge?.id && currentUser?.id) {
@@ -449,19 +493,9 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
                   toggleChallengeGoal(gId);
                   loadChallengeData();
                 }}
-                onOpenNewGoal={() => {
-                  const newGoal: ChallengeGoal = {
-                    id: `cg-${Date.now()}`,
-                    challengeId: currentChallenge.id,
-                    title: 'Nuevo objetivo del reto',
-                    targetValue: 20,
-                    currentValue: 0,
-                    isCompleted: false,
-                    createdAt: new Date().toISOString(),
-                  };
-                  saveChallengeGoal(newGoal);
-                  loadChallengeData();
-                }}
+                onOpenNewGoal={handleOpenNewGoal}
+                onEditGoal={handleOpenEditGoal}
+                onDeleteGoal={handleDeleteGoal}
               />
 
               <ChallengeTasksCard
@@ -537,19 +571,9 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
               toggleChallengeGoal(gId);
               loadChallengeData();
             }}
-            onOpenNewGoal={() => {
-              const newGoal: ChallengeGoal = {
-                id: `cg-${Date.now()}`,
-                challengeId: currentChallenge.id,
-                title: 'Nuevo objetivo del reto',
-                targetValue: 20,
-                currentValue: 0,
-                isCompleted: false,
-                createdAt: new Date().toISOString(),
-              };
-              saveChallengeGoal(newGoal);
-              loadChallengeData();
-            }}
+            onOpenNewGoal={handleOpenNewGoal}
+            onEditGoal={handleOpenEditGoal}
+            onDeleteGoal={handleDeleteGoal}
           />
         </div>
       )}
@@ -575,6 +599,16 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
         currentUser={currentUser}
         onAddMember={handleAddMember}
         onRemoveMember={handleRemoveMember}
+      />
+
+      {/* Modal para Crear / Personalizar Objetivo del Reto */}
+      <ChallengeGoalModal
+        isOpen={isGoalModalOpen}
+        onClose={() => setIsGoalModalOpen(false)}
+        onSave={handleSaveGoal}
+        onDelete={handleDeleteGoal}
+        editingGoal={editingGoal}
+        challengeId={currentChallenge.id}
       />
     </div>
   );

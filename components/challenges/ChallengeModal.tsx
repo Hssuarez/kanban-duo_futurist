@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Challenge, ChallengeMode } from '@/lib/challengeTypes';
 import { User } from '@/lib/types';
 import { X, Trophy, Handshake, Calendar, Check, Sparkles, Trash2 } from 'lucide-react';
@@ -27,6 +28,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
   users,
   currentUser,
 }) => {
+  const [mounted, setMounted] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('🏆');
@@ -35,6 +37,10 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
   const [startDate, setStartDate] = useState(getBogotaToday());
   const [habitTitle, setHabitTitle] = useState('Entrenar');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (editingChallenge) {
@@ -56,7 +62,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
     }
   }, [editingChallenge, isOpen, users]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   // Calcular fecha de fin según duración
   const calculateEndDate = (start: string, days: number) => {
@@ -100,7 +106,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in font-sans">
       <div className="bg-[#070c18] border border-cyan-500/30 rounded-2xl w-full max-w-lg overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.9)] max-h-[90vh] flex flex-col">
         {/* Header */}
@@ -348,6 +354,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

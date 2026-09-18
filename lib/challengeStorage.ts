@@ -261,8 +261,34 @@ export function getLocalChallenges(): Challenge[] {
     const raw = localStorage.getItem(STORAGE_KEYS.CHALLENGES);
     let challenges: Challenge[] = raw ? JSON.parse(raw) : [];
 
+    // Auto-migración desde claves legacy (v1 o sin sufijo de versión)
+    const legacyRaw =
+      localStorage.getItem('kanban_duo_challenges') ||
+      localStorage.getItem('kanban_duo_challenges_v1');
+    if (legacyRaw) {
+      try {
+        const legacy: Challenge[] = JSON.parse(legacyRaw);
+        if (Array.isArray(legacy) && legacy.length > 0) {
+          const idSet = new Set(challenges.map((c) => c.id));
+          let hasNewLegacy = false;
+          legacy.forEach((legCh) => {
+            if (!idSet.has(legCh.id) && !deletedIds.includes(legCh.id)) {
+              challenges.push(legCh);
+              idSet.add(legCh.id);
+              hasNewLegacy = true;
+            }
+          });
+          if (hasNewLegacy) {
+            localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(challenges));
+          }
+        }
+      } catch (e) {
+        console.warn('Error migrando retos legacy:', e);
+      }
+    }
+
     // Si no hay datos iniciales en localStorage, cargar los defaults excluyendo los eliminados
-    if (!raw) {
+    if (!raw && challenges.length === 0) {
       const initial = DEFAULT_CHALLENGES.filter((c) => !deletedIds.includes(c.id));
       localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(initial));
       return initial;
@@ -920,7 +946,33 @@ export function getLocalChallengeGoals(challengeId?: string): ChallengeGoal[] {
     const raw = localStorage.getItem(STORAGE_KEYS.GOALS);
     let goals: ChallengeGoal[] = raw ? JSON.parse(raw) : [];
 
-    if (!raw || goals.length === 0) {
+    // Auto-migración desde claves legacy
+    const legacyRaw =
+      localStorage.getItem('kanban_duo_challenge_goals') ||
+      localStorage.getItem('kanban_duo_challenge_goals_v1');
+    if (legacyRaw) {
+      try {
+        const legacy: ChallengeGoal[] = JSON.parse(legacyRaw);
+        if (Array.isArray(legacy) && legacy.length > 0) {
+          const idSet = new Set(goals.map((g) => g.id));
+          let hasNewLegacy = false;
+          legacy.forEach((legG) => {
+            if (!idSet.has(legG.id)) {
+              goals.push(legG);
+              idSet.add(legG.id);
+              hasNewLegacy = true;
+            }
+          });
+          if (hasNewLegacy) {
+            localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals));
+          }
+        }
+      } catch (e) {
+        console.warn('Error migrando goals legacy:', e);
+      }
+    }
+
+    if (!raw && goals.length === 0) {
       goals = [...DEFAULT_CHALLENGE_GOALS];
       localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals));
     }
@@ -943,6 +995,15 @@ export function toggleChallengeGoal(goalId: string): void {
   target.isCompleted = !target.isCompleted;
   localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(current));
   notifySync('challenges');
+
+  getOrInitSupabase().then((client) => {
+    if (client) {
+      (client.from('challenge_goals') as any)
+        .update({ is_completed: target.isCompleted })
+        .eq('id', goalId)
+        .catch((e: any) => console.warn('Sync toggle challenge goal Supabase:', e));
+    }
+  });
 }
 
 export function saveChallengeGoal(goal: ChallengeGoal): void {
@@ -958,6 +1019,42 @@ export function saveChallengeGoal(goal: ChallengeGoal): void {
 
   localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(current));
   notifySync('challenges');
+
+  getOrInitSupabase().then((client) => {
+    if (client) {
+      (client.from('challenge_goals') as any)
+        .upsert({
+          id: goal.id,
+          challenge_id: goal.challengeId,
+          title: goal.title,
+          target_value: goal.targetValue,
+          current_value: goal.currentValue,
+          unit: goal.unit || null,
+          is_completed: goal.isCompleted,
+          created_at: goal.createdAt,
+        })
+        .catch((e: any) => console.warn('Sync save challenge goal Supabase:', e));
+    }
+  });
+}
+
+export function deleteChallengeGoal(goalId: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const current = getLocalChallengeGoals();
+  const filtered = current.filter((g) => g.id !== goalId);
+  localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(filtered));
+  notifySync('challenges');
+
+  getOrInitSupabase().then((client) => {
+    if (client) {
+      (client.from('challenge_goals') as any)
+        .delete()
+        .eq('id', goalId)
+        .catch((e: any) => console.warn('Sync delete challenge goal Supabase:', e));
+    }
+  });
+
+  return true;
 }
 
 // ========================================================
@@ -1127,6 +1224,45 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
         }
       });
       saveLocalChallengeLogs(Array.from(logMap.values()));
+    }
+
+    // 5. Sincronizar objetivos de reto (challenge_goals)
+    const { data: cloudGoals, error: gErr } = await client.from('challenge_goals').select('*');
+    if (!gErr && cloudGoals) {
+      const currentGoals = getLocalChallengeGoals();
+      const mappedGoals: ChallengeGoal[] = cloudGoals
+        .filter((g: any) => !deletedIds.includes(g.challenge_id))
+        .map((g: any) => ({
+          id: g.id,
+          challengeId: g.challenge_id,
+          title: g.title,
+          targetValue: g.target_value || 0,
+          currentValue: g.current_value || 0,
+          unit: g.unit || undefined,
+          isCompleted: !!g.is_completed,
+          createdAt: g.created_at || new Date().toISOString(),
+        }));
+
+      const goalMap = new Map<string, ChallengeGoal>();
+      mappedGoals.forEach((g) => goalMap.set(g.id, g));
+      currentGoals.forEach((g) => {
+        if (!deletedIds.includes(g.challengeId) && !goalMap.has(g.id)) {
+          goalMap.set(g.id, g);
+          (client.from('challenge_goals') as any).upsert({
+            id: g.id,
+            challenge_id: g.challengeId,
+            title: g.title,
+            target_value: g.targetValue,
+            current_value: g.currentValue,
+            unit: g.unit || null,
+            is_completed: g.isCompleted,
+            created_at: g.createdAt,
+          }).catch((e: any) => console.warn('Sync pending goal:', e));
+        }
+      });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(Array.from(goalMap.values())));
+      }
     }
 
     notifySync('challenges');

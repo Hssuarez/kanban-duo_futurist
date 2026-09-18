@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Challenge, ChallengeMember } from '@/lib/challengeTypes';
 import { User } from '@/lib/types';
 import { X, Users, UserPlus, UserMinus, ShieldCheck } from 'lucide-react';
@@ -26,11 +27,17 @@ export const ChallengeMembersModal: React.FC<ChallengeMembersModalProps> = ({
   onAddMember,
   onRemoveMember,
 }) => {
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const isOwner = challenge.createdBy === currentUser.id;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in font-sans">
       <div className="bg-[#070c18] border border-cyan-500/30 rounded-2xl w-full max-w-md overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.9)] max-h-[85vh] flex flex-col">
         {/* Header */}
@@ -162,6 +169,7 @@ export const ChallengeMembersModal: React.FC<ChallengeMembersModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
