@@ -637,11 +637,7 @@ export async function initCloudSync() {
           import('./challengeStorage').then((m) => m.syncCloudChallenges());
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'challenge_logs' }, (payload: any) => {
-          if (payload?.eventType === 'DELETE' && payload.old) {
-            import('./challengeStorage').then((m) => m.handleRemoteChallengeLogDeleted(payload.old));
-          } else {
-            import('./challengeStorage').then((m) => m.syncCloudChallenges());
-          }
+          import('./challengeStorage').then((m) => m.handleRemoteChallengeLogRealtime(payload));
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'challenge_goals' }, () => {
           import('./challengeStorage').then((m) => m.syncCloudChallenges());

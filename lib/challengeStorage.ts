@@ -26,9 +26,15 @@ const STORAGE_KEYS = {
   DELETED_IDS: 'kanban_duo_deleted_challenge_ids_v1',
   LAST_SELECTED: 'kanban_duo_last_selected_challenge_id_v1',
   PENDING_UPLOADS: 'kanban_duo_pending_upload_challenges_v1',
-  DELETED_LOG_KEYS: 'kanban_duo_deleted_challenge_log_keys_v1',
   PENDING_UPLOAD_LOG_IDS: 'kanban_duo_pending_upload_challenge_logs_v1',
 };
+
+// Limpieza proactiva de lápidas antiguas que pudieran causar interferencia en sesiones previas
+if (typeof window !== 'undefined') {
+  try {
+    localStorage.removeItem('kanban_duo_deleted_challenge_log_keys_v1');
+  } catch {}
+}
 
 export const LEGACY_DELETED_DEMO_IDS = ['ch-lectura-30d', 'ch-hidrata-21d', 'ch-sueno-31d'];
 
@@ -184,53 +190,8 @@ export function handleRemoteChallengeDeleted(challengeId: string): void {
 }
 
 // --------------------------------------------------------
-// LÁPIDAS Y COLA OFFLINE DE LOGS / CHECK-INS
+// SINCRONIZACIÓN REALTIME Y COLA OFFLINE DE LOGS / CHECK-INS
 // --------------------------------------------------------
-
-export function getDeletedLogKeys(): string[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.DELETED_LOG_KEYS);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function markLogAsDeleted(challengeId: string, userId: string, dateKey: string, logId?: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const deleted = getDeletedLogKeys();
-    if (challengeId && userId && dateKey) {
-      const key = `${challengeId}_${userId}_${dateKey}`;
-      if (!deleted.includes(key)) {
-        deleted.push(key);
-      }
-    }
-    if (logId && !deleted.includes(logId)) {
-      deleted.push(logId);
-    }
-    localStorage.setItem(STORAGE_KEYS.DELETED_LOG_KEYS, JSON.stringify(deleted.slice(-500)));
-    if (logId) {
-      removePendingUploadLogId(logId);
-    }
-  } catch (e) {
-    console.error('Error guardando deleted log key:', e);
-  }
-}
-
-export function removeDeletedLogKey(challengeId: string, userId: string, dateKey: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const key = `${challengeId}_${userId}_${dateKey}`;
-    const deleted = getDeletedLogKeys().filter(
-      (k) => k !== key && !k.startsWith(`clog-${challengeId}-`) && !k.includes(`-${userId}-${dateKey}`)
-    );
-    localStorage.setItem(STORAGE_KEYS.DELETED_LOG_KEYS, JSON.stringify(deleted));
-  } catch (e) {
-    console.error('Error removiendo deleted log key:', e);
-  }
-}
 
 export function getPendingUploadLogIds(): string[] {
   if (typeof window === 'undefined') return [];
@@ -265,30 +226,71 @@ export function removePendingUploadLogId(logId: string): void {
   }
 }
 
-// Eliminación de log provocada por un evento remoto en Realtime (otra pestaña o dispositivo)
-export function handleRemoteChallengeLogDeleted(oldPayload: any): void {
-  if (!oldPayload) return;
-  const { id, challenge_id, user_id, date_key } = oldPayload;
-
-  if (challenge_id && user_id && date_key) {
-    markLogAsDeleted(challenge_id, user_id, date_key, id);
-  } else if (id) {
-    markLogAsDeleted('', '', '', id);
-  }
+// Manejador centralizado de eventos Realtime de Postgres para check-ins
+export function handleRemoteChallengeLogRealtime(payload: {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new?: any;
+  old?: any;
+}): void {
+  if (!payload || !payload.eventType) return;
 
   const currentLogs = getLocalChallengeLogs();
-  const filtered = currentLogs.filter((l) => {
-    if (id && l.id === id) return false;
-    if (challenge_id && user_id && date_key) {
-      if (l.challengeId === challenge_id && l.userId === user_id && l.dateKey === date_key) {
+
+  if (payload.eventType === 'DELETE') {
+    const oldLog = payload.old;
+    if (!oldLog) return;
+    const deletedId = oldLog.id;
+    const chId = oldLog.challenge_id;
+    const uId = oldLog.user_id;
+    const dKey = oldLog.date_key;
+
+    const updated = currentLogs.filter((l) => {
+      if (deletedId && l.id === deletedId) return false;
+      if (chId && uId && dKey && l.challengeId === chId && l.userId === uId && l.dateKey === dKey) {
         return false;
       }
-    }
-    return true;
-  });
+      return true;
+    });
 
-  saveLocalChallengeLogs(filtered);
-  notifySync('challenges');
+    saveLocalChallengeLogs(updated);
+    return;
+  }
+
+  if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+    const raw = payload.new;
+    if (!raw || !raw.id || !raw.challenge_id) return;
+
+    const incomingLog: ChallengeLog = {
+      id: raw.id,
+      challengeId: raw.challenge_id,
+      challengeHabitId: raw.challenge_habit_id,
+      userId: raw.user_id,
+      dateKey: raw.date_key,
+      status: raw.status || 'completed',
+      numericValue: raw.numeric_value,
+      notes: raw.notes,
+      createdAt: raw.created_at || new Date().toISOString(),
+      updatedAt: raw.updated_at || new Date().toISOString(),
+    };
+
+    const index = currentLogs.findIndex(
+      (l) =>
+        l.id === incomingLog.id ||
+        (l.challengeId === incomingLog.challengeId &&
+          l.userId === incomingLog.userId &&
+          l.dateKey === incomingLog.dateKey)
+    );
+
+    let updated: ChallengeLog[];
+    if (index >= 0) {
+      updated = [...currentLogs];
+      updated[index] = incomingLog;
+    } else {
+      updated = [...currentLogs, incomingLog];
+    }
+
+    saveLocalChallengeLogs(updated);
+  }
 }
 
 // ========================================================
@@ -850,21 +852,6 @@ export function getLocalChallengeLogs(challengeId?: string): ChallengeLog[] {
       localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
     }
 
-    // Filtrar cualquier log marcado como eliminado por lápida
-    const deletedKeys = new Set(getDeletedLogKeys());
-    let changed = false;
-    if (deletedKeys.size > 0) {
-      const prevLen = logs.length;
-      logs = logs.filter((l) => {
-        if (deletedKeys.has(l.id)) return false;
-        if (deletedKeys.has(`${l.challengeId}_${l.userId}_${l.dateKey}`)) return false;
-        return true;
-      });
-      if (logs.length !== prevLen) {
-        changed = true;
-      }
-    }
-
     // Auto-migración de logs de octubre a septiembre
     let migrated = false;
     logs = logs.map((l) => {
@@ -875,7 +862,7 @@ export function getLocalChallengeLogs(challengeId?: string): ChallengeLog[] {
       return l;
     });
 
-    if (migrated || changed) {
+    if (migrated) {
       localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
     }
 
@@ -891,16 +878,9 @@ export function getLocalChallengeLogs(challengeId?: string): ChallengeLog[] {
 export function saveLocalChallengeLogs(logs: ChallengeLog[]): void {
   if (typeof window === 'undefined') return;
   try {
-    const deletedKeys = new Set(getDeletedLogKeys());
-    const validLogs = logs.filter((l) => {
-      if (deletedKeys.has(l.id)) return false;
-      if (deletedKeys.has(`${l.challengeId}_${l.userId}_${l.dateKey}`)) return false;
-      return true;
-    });
-
     // Deduplicación estricta por (challengeId, userId, dateKey)
     const uniqueMap = new Map<string, ChallengeLog>();
-    validLogs.forEach((l) => {
+    logs.forEach((l) => {
       const dedupeKey = `${l.challengeId}_${l.userId}_${l.dateKey}`;
       const existing = uniqueMap.get(dedupeKey);
       if (!existing || l.status === 'completed') {
@@ -916,7 +896,7 @@ export function saveLocalChallengeLogs(logs: ChallengeLog[]): void {
   }
 }
 
-// Toggle Check-in: Protegido por ID de usuario con eliminación garantizada y prevención de resurrección
+// Toggle Check-in: Protegido por ID de usuario con eliminación garantizada y sincronización limpia
 export async function toggleChallengeLog(
   challengeId: string,
   challengeHabitId: string,
@@ -945,15 +925,14 @@ export async function toggleChallengeLog(
     newStatus = 'removed';
     const removedIds = matchingLogs.map((l) => l.id);
 
-    // 1. Registrar lápida permanente para evitar que otra pestaña o sync lo reviva
-    markLogAsDeleted(challengeId, userId, dateKey);
-    removedIds.forEach((id) => markLogAsDeleted(challengeId, userId, dateKey, id));
-
-    // 2. Filtrar localmente de inmediato
+    // 1. Filtrar localmente de inmediato
     const remainingLogs = currentLogs.filter(
       (l) => !(l.challengeId === challengeId && l.userId === userId && l.dateKey === dateKey)
     );
     saveLocalChallengeLogs(remainingLogs);
+
+    // 2. Limpiar de la cola pendiente si estaba
+    removedIds.forEach((id) => removePendingUploadLogId(id));
 
     // 3. Purgar de Supabase (por ID exacto y por combinación reto/usuario/fecha)
     const client = await getOrInitSupabase();
@@ -976,9 +955,6 @@ export async function toggleChallengeLog(
     // ACCIÓN: MARCAR (Nuevo check-in)
     newStatus = 'completed';
 
-    // 1. Quitar de las lápidas si existía antes
-    removeDeletedLogKey(challengeId, userId, dateKey);
-
     resultingLog = {
       id: `clog-${challengeId}-${challengeHabitId}-${userId}-${dateKey}`,
       challengeId,
@@ -990,13 +966,11 @@ export async function toggleChallengeLog(
       updatedAt: new Date().toISOString(),
     };
 
-    // 2. Marcar para confirmación en la nube
     markLogAsPendingUpload(resultingLog.id);
-
     const updatedLogs = [...currentLogs, resultingLog];
     saveLocalChallengeLogs(updatedLogs);
 
-    // 3. Sincronizar creación en Supabase
+    // Sincronizar creación en Supabase
     const client = await getOrInitSupabase();
     if (client) {
       try {
@@ -1554,52 +1528,29 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
     const { data: cloudLogs, error: lErr } = await client.from('challenge_logs').select('*');
     if (!lErr && cloudLogs) {
       const activeChallengeIds = new Set(getLocalChallenges().map((c) => c.id));
-      const deletedLogKeysSet = new Set(getDeletedLogKeys());
       const pendingLogIds = new Set(getPendingUploadLogIds());
 
-      // 4.1. Si Supabase contiene algún log que fue borrado localmente, purgarlo de la base de datos
-      for (const cl of cloudLogs) {
-        const key = `${cl.challenge_id}_${cl.user_id}_${cl.date_key}`;
-        if (deletedLogKeysSet.has(key) || deletedLogKeysSet.has(cl.id)) {
-          console.log('🗑️ Purgando de Supabase check-in eliminado:', key, cl.id);
-          try {
-            await client.from('challenge_logs').delete().eq('id', cl.id);
-          } catch (e) {
-            console.warn('Error purgando log en Supabase:', e);
-          }
-        }
-      }
-
-      // 4.2. Mapear logs válidos (excluyendo los borrados por lápida)
-      const validCloudLogs = cloudLogs.filter((l: any) => {
-        if (!activeChallengeIds.has(l.challenge_id)) return false;
-        const key = `${l.challenge_id}_${l.user_id}_${l.date_key}`;
-        if (deletedLogKeysSet.has(key) || deletedLogKeysSet.has(l.id)) return false;
-        return true;
-      });
-
-      const mappedLogs: ChallengeLog[] = validCloudLogs.map((l: any) => ({
-        id: l.id,
-        challengeId: l.challenge_id,
-        challengeHabitId: l.challenge_habit_id,
-        userId: l.user_id,
-        dateKey: l.date_key,
-        status: l.status || 'completed',
-        numericValue: l.numeric_value,
-        notes: l.notes,
-        createdAt: l.created_at || new Date().toISOString(),
-        updatedAt: l.updated_at || new Date().toISOString(),
-      }));
+      const mappedLogs: ChallengeLog[] = cloudLogs
+        .filter((l: any) => activeChallengeIds.has(l.challenge_id))
+        .map((l: any) => ({
+          id: l.id,
+          challengeId: l.challenge_id,
+          challengeHabitId: l.challenge_habit_id,
+          userId: l.user_id,
+          dateKey: l.date_key,
+          status: l.status || 'completed',
+          numericValue: l.numeric_value,
+          notes: l.notes,
+          createdAt: l.created_at || new Date().toISOString(),
+          updatedAt: l.updated_at || new Date().toISOString(),
+        }));
 
       const logMap = new Map<string, ChallengeLog>();
       mappedLogs.forEach((l) => logMap.set(l.id, l));
 
-      // 4.3. Solo subir logs locales que estén explícitamente en pendingLogIds (creados offline)
+      // Solo subir logs locales que estén explícitamente en pendingLogIds (creados offline)
       const currentLogs = getLocalChallengeLogs();
       for (const l of currentLogs) {
-        const key = `${l.challengeId}_${l.userId}_${l.dateKey}`;
-        if (deletedLogKeysSet.has(key) || deletedLogKeysSet.has(l.id)) continue;
-
         if (activeChallengeIds.has(l.challengeId) && pendingLogIds.has(l.id) && !logMap.has(l.id)) {
           logMap.set(l.id, l);
           try {

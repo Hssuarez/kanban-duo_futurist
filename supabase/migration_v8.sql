@@ -105,6 +105,10 @@ ALTER TABLE public.challenge_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.challenge_goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.challenge_activities ENABLE ROW LEVEL SECURITY;
 
+-- Publicación Realtime con REPLICA IDENTITY FULL para capturar eliminaciones completas
+ALTER TABLE public.challenge_logs REPLICA IDENTITY FULL;
+ALTER TABLE public.challenges REPLICA IDENTITY FULL;
+
 DO $$
 BEGIN
   -- 1. challenges

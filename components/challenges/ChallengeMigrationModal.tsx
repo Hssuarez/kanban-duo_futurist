@@ -112,6 +112,9 @@ ALTER TABLE public.challenge_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.challenge_goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.challenge_activities ENABLE ROW LEVEL SECURITY;
 
+ALTER TABLE public.challenge_logs REPLICA IDENTITY FULL;
+ALTER TABLE public.challenges REPLICA IDENTITY FULL;
+
 DO $$
 BEGIN
   DROP POLICY IF EXISTS "Acceso a challenges" ON public.challenges;
