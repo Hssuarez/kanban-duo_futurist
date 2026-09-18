@@ -133,10 +133,13 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
     }
   };
 
-  // Map de logs por userId_dateKey
+  // Map de logs por userId_habitId_dateKey y por userId_dateKey para matching consistente
   const logMap = new Map<string, ChallengeLog>();
   logs.forEach((l) => {
     logMap.set(`${l.userId}_${l.challengeHabitId}_${l.dateKey}`, l);
+    if (!logMap.has(`${l.userId}_${l.dateKey}`) || l.status === 'completed') {
+      logMap.set(`${l.userId}_${l.dateKey}`, l);
+    }
   });
 
   const primaryHabit = habits[0] || {
@@ -444,7 +447,9 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
 
                   {/* Day Check-in Cells */}
                   {days.map((day) => {
-                    const log = logMap.get(`${member.userId}_${primaryHabit.id}_${day.dateKey}`);
+                    const log =
+                      logMap.get(`${member.userId}_${primaryHabit.id}_${day.dateKey}`) ||
+                      logMap.get(`${member.userId}_${day.dateKey}`);
                     const joinedKey = (member.joinedAt ? member.joinedAt.slice(0, 10) : challenge.startDate) || challenge.startDate;
                     const isOutside = !!day.isOutsideChallenge;
                     const isBeforeJoin = joinedKey ? day.dateKey < joinedKey : false;

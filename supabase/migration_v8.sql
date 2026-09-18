@@ -131,6 +131,10 @@ BEGIN
   CREATE POLICY "Acceso a challenge_habits" ON public.challenge_habits FOR ALL USING (true) WITH CHECK (true);
 
   -- 4. challenge_logs
+  DROP POLICY IF EXISTS "Members can select all challenge logs for the matrix" ON public.challenge_logs;
+  DROP POLICY IF EXISTS "Users can only insert their own challenge logs" ON public.challenge_logs;
+  DROP POLICY IF EXISTS "Users can only update their own challenge logs" ON public.challenge_logs;
+  DROP POLICY IF EXISTS "Users can only delete their own challenge logs" ON public.challenge_logs;
   DROP POLICY IF EXISTS "Users can view challenge logs" ON public.challenge_logs;
   DROP POLICY IF EXISTS "Users can log their own habits" ON public.challenge_logs;
   DROP POLICY IF EXISTS "Users can update their own logs" ON public.challenge_logs;

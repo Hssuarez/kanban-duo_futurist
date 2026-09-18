@@ -262,6 +262,32 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
       return;
     }
 
+    // Actualización optimista inmediata en la UI local
+    const existingLogs = logs.filter(
+      (l) => l.challengeId === challengeId && l.userId === userId && l.dateKey === dateKey
+    );
+    const isCurrentlyChecked = existingLogs.some((l) => l.status === 'completed') || existingLogs.length > 0;
+
+    if (isCurrentlyChecked) {
+      setLogs((prev) =>
+        prev.filter(
+          (l) => !(l.challengeId === challengeId && l.userId === userId && l.dateKey === dateKey)
+        )
+      );
+    } else {
+      const optimisticLog: ChallengeLog = {
+        id: `clog-${challengeId}-${challengeHabitId}-${userId}-${dateKey}`,
+        challengeId,
+        challengeHabitId,
+        userId,
+        dateKey,
+        status: 'completed',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setLogs((prev) => [...prev, optimisticLog]);
+    }
+
     const res = await toggleChallengeLog(challengeId, challengeHabitId, userId, dateKey);
     loadChallengeData();
 
