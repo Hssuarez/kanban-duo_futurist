@@ -168,10 +168,10 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     return goals.filter((g) => g.challengeId === currentChallenge.id);
   }, [goals, currentChallenge.id]);
 
-  // Días del reto
+  // Días del reto sincronizados con el mes del calendario
   const challengeDays = useMemo(() => {
-    return getChallengeDays(currentChallenge, todayKey);
-  }, [currentChallenge, todayKey]);
+    return getChallengeDays(currentChallenge, todayKey, currentYear, currentMonth);
+  }, [currentChallenge, todayKey, currentYear, currentMonth]);
 
   // Leaderboard calculado con resolución determinística de empates y fechas de ingreso
   const leaderboard = useMemo(() => {
@@ -264,13 +264,13 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
 
     await saveChallenge(newChallenge);
 
-    // Si es nuevo, añadir al creador como owner y a los invitados
+    // Si es nuevo, añadir al creador como owner y a los invitados desde startDate
     if (isNew) {
-      await addChallengeMember(challengeId, currentUser.id, 'owner');
+      await addChallengeMember(challengeId, currentUser.id, 'owner', newChallenge.startDate);
       if (invitedUserIds) {
         for (const uId of invitedUserIds) {
           if (uId !== currentUser.id) {
-            await addChallengeMember(challengeId, uId, 'member');
+            await addChallengeMember(challengeId, uId, 'member', newChallenge.startDate);
           }
         }
       }

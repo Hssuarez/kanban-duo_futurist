@@ -11,7 +11,7 @@ import {
 } from '@/lib/challengeTypes';
 import { User } from '@/lib/types';
 import { HabitCell } from '../habits/HabitCell';
-import { Habit } from '@/lib/habitTypes';
+import { Habit, HabitLogStatus } from '@/lib/habitTypes';
 import {
   Flame,
   Settings2,
@@ -22,6 +22,8 @@ import {
   Navigation,
   Sparkles,
   ShieldAlert,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 interface ChallengeMatrixProps {
@@ -82,14 +84,26 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
 
   const scrollToDay = (dayNum: number) => {
     if (!tableContainerRef.current) return;
-    const dayElement = tableContainerRef.current.querySelector(
+    let dayElement = tableContainerRef.current.querySelector(
       `[data-day-col="${dayNum}"]`
     ) as HTMLElement | null;
+
+    // Si el día exacto no está (ej. inicio de mes o rango acotado), buscar el más cercano
+    if (!dayElement) {
+      const allCols = Array.from(
+        tableContainerRef.current.querySelectorAll('[data-day-col]')
+      ) as HTMLElement[];
+      if (allCols.length > 0) {
+        dayElement =
+          allCols.find((el) => Number(el.getAttribute('data-day-col')) >= dayNum) ||
+          allCols[allCols.length - 1];
+      }
+    }
 
     if (dayElement) {
       const containerLeft = tableContainerRef.current.getBoundingClientRect().left;
       const elementLeft = dayElement.getBoundingClientRect().left;
-      const scrollOffset = elementLeft - containerLeft + tableContainerRef.current.scrollLeft - 70;
+      const scrollOffset = elementLeft - containerLeft + tableContainerRef.current.scrollLeft - 80;
       tableContainerRef.current.scrollTo({
         left: Math.max(0, scrollOffset),
         behavior: 'smooth',
@@ -97,10 +111,25 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
     }
   };
 
+  const handleScrollStep = (direction: 'left' | 'right') => {
+    if (!tableContainerRef.current) return;
+    const step = 220;
+    tableContainerRef.current.scrollBy({
+      left: direction === 'left' ? -step : step,
+      behavior: 'smooth',
+    });
+  };
+
   const handleScrollToToday = () => {
     const todayDay = days.find((d) => d.isToday);
     if (todayDay) {
       scrollToDay(todayDay.dayNumber);
+    } else {
+      // Si hoy no está en el mes actual mostrado, ir al primer día activo del reto
+      const activeDay = days.find((d) => !d.isOutsideChallenge) || days[0];
+      if (activeDay) {
+        scrollToDay(activeDay.dayNumber);
+      }
     }
   };
 
@@ -194,6 +223,26 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
         {/* Quick Navigation and Toggle Row */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           <div className="flex items-center gap-1 text-[10px] font-mono">
+            {/* Controles de deslizamiento horizontal */}
+            <div className="flex items-center bg-zinc-950 border border-white/[0.08] rounded-lg p-0.5 mr-1">
+              <button
+                type="button"
+                onClick={() => handleScrollStep('left')}
+                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                title="Desplazar a la izquierda"
+              >
+                <ChevronLeft className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleScrollStep('right')}
+                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                title="Desplazar a la derecha"
+              >
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={handleScrollToToday}
@@ -206,28 +255,28 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
             <button
               type="button"
               onClick={() => scrollToDay(1)}
-              className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06]"
+              className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06] transition-colors"
             >
               1-7
             </button>
             <button
               type="button"
               onClick={() => scrollToDay(8)}
-              className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06]"
+              className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06] transition-colors"
             >
               8-14
             </button>
             <button
               type="button"
               onClick={() => scrollToDay(15)}
-              className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06]"
+              className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06] transition-colors"
             >
               15-21
             </button>
             <button
               type="button"
               onClick={() => scrollToDay(22)}
-              className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06]"
+              className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06] transition-colors"
             >
               22-30
             </button>
@@ -280,6 +329,8 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                   className={`py-2 px-1 text-center font-mono font-medium transition-colors select-none min-w-[32px] sm:min-w-[35px] ${
                     day.isToday
                       ? 'bg-cyan-950/40 text-cyan-300 ring-1 ring-cyan-500/40 font-bold shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                      : day.isOutsideChallenge
+                      ? 'opacity-35 text-zinc-600'
                       : 'hover:bg-zinc-900/40 text-zinc-400'
                   }`}
                 >
@@ -394,8 +445,19 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                   {/* Day Check-in Cells */}
                   {days.map((day) => {
                     const log = logMap.get(`${member.userId}_${primaryHabit.id}_${day.dateKey}`);
-                    const joinedKey = (member.joinedAt ? member.joinedAt.slice(0, 10) : challenge.startDate) || '';
+                    const joinedKey = (member.joinedAt ? member.joinedAt.slice(0, 10) : challenge.startDate) || challenge.startDate;
+                    const isOutside = !!day.isOutsideChallenge;
                     const isBeforeJoin = joinedKey ? day.dateKey < joinedKey : false;
+
+                    // PRIORIDAD TOTAL: si existe un check-in completado, se visualiza siempre como completado
+                    let cellStatus: HabitLogStatus | undefined = undefined;
+                    if (log && log.status === 'completed') {
+                      cellStatus = 'completed';
+                    } else if (isOutside || isBeforeJoin) {
+                      cellStatus = 'not_applicable';
+                    } else if (log) {
+                      cellStatus = log.status;
+                    }
 
                     return (
                       <td
@@ -407,12 +469,14 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                       >
                         <div
                           className={`flex items-center justify-center ${
-                            !isCurrentUser
+                            !isCurrentUser || isOutside
                               ? 'pointer-events-none cursor-default opacity-90'
                               : ''
                           }`}
                           title={
-                            !isCurrentUser
+                            isOutside
+                              ? 'Fecha fuera del período del reto'
+                              : !isCurrentUser
                               ? `${user.name}: Solo lectura (protegido por RLS)`
                               : undefined
                           }
@@ -421,17 +485,11 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                             habit={virtualHabit}
                             dateKey={day.dateKey}
                             dayNumber={day.dayNumber}
-                            status={
-                              isBeforeJoin
-                                ? 'not_applicable'
-                                : log
-                                ? log.status
-                                : undefined
-                            }
+                            status={cellStatus}
                             isToday={day.isToday}
                             isFuture={day.isFuture}
                             onToggle={(hId, dKey) => {
-                              if (isCurrentUser) {
+                              if (isCurrentUser && !isOutside && !day.isFuture) {
                                 onToggleLog(challenge.id, primaryHabit.id, currentUser.id, dKey);
                               }
                             }}

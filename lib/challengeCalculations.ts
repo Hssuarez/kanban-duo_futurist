@@ -19,12 +19,57 @@ import { getBogotaToday } from './habitCalculations';
 // Iniciales de días en español
 const DAY_LETTERS_ES = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 
-// Genera los días exactos del rango del reto
+// Genera los días del reto o del mes del calendario con respecto al reto
 export function getChallengeDays(
   challenge: Challenge,
-  todayKey = getBogotaToday()
+  todayKey = getBogotaToday(),
+  year?: number,
+  month?: number
 ): ChallengeDayInfo[] {
   const days: ChallengeDayInfo[] = [];
+
+  // Si se especifica año y mes, generamos los días del mes en el calendario para navegación fluida
+  if (year && month) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayStr = String(d).padStart(2, '0');
+      const monthStr = String(month).padStart(2, '0');
+      const dateKey = `${year}-${monthStr}-${dayStr}`;
+
+      const dateObj = new Date(year, month - 1, d);
+      const dayOfWeek = dateObj.getDay();
+      const dayName = DAY_LETTERS_ES[dayOfWeek];
+
+      const isToday = dateKey === todayKey;
+      const isPast = dateKey < todayKey;
+      const isFuture = dateKey > todayKey;
+
+      const isOutsideChallenge =
+        (challenge.startDate && dateKey < challenge.startDate) ||
+        (challenge.endDate && dateKey > challenge.endDate);
+
+      let dayIndexInChallenge = 0;
+      if (!isOutsideChallenge && challenge.startDate) {
+        const start = new Date(`${challenge.startDate}T12:00:00Z`);
+        const cur = new Date(`${dateKey}T12:00:00Z`);
+        dayIndexInChallenge = Math.max(1, Math.round((cur.getTime() - start.getTime()) / 86400000) + 1);
+      }
+
+      days.push({
+        dayNumber: d,
+        dateKey,
+        dayName,
+        isToday,
+        isPast,
+        isFuture,
+        dayIndexInChallenge,
+        isOutsideChallenge: !!isOutsideChallenge,
+      });
+    }
+    return days;
+  }
+
+  // Fallback: Si no se provee mes y año, genera el rango exacto de fechas del reto
   const sDate = challenge?.startDate || todayKey;
   const eDate = challenge?.endDate || sDate;
 
@@ -48,6 +93,7 @@ export function getChallengeDays(
         isPast: dateKey < todayKey,
         isFuture: dateKey > todayKey,
         dayIndexInChallenge: i + 1,
+        isOutsideChallenge: false,
       });
     }
     return days;
@@ -74,6 +120,7 @@ export function getChallengeDays(
       isPast,
       isFuture,
       dayIndexInChallenge: index,
+      isOutsideChallenge: false,
     });
 
     current.setUTCDate(current.getUTCDate() + 1);
@@ -83,7 +130,7 @@ export function getChallengeDays(
   return days;
 }
 
-// Calcula el cumplimiento de un miembro individual considerando fecha de ingreso tardío
+// Calcula el cumplimiento de un miembro individual considerando fecha de ingreso y logs reales
 export function calculateMemberCompliance(
   member: ChallengeMember,
   user: User,
@@ -92,21 +139,33 @@ export function calculateMemberCompliance(
   challengeHabits: ChallengeHabit[],
   todayKey = getBogotaToday()
 ): ChallengeMemberCompliance {
-  const days = getChallengeDays(challenge, todayKey);
+  // Generamos los días dentro del reto activo
+  const sDate = challenge?.startDate || todayKey;
+  const eDate = challenge?.endDate || sDate;
+  const start = new Date(`${sDate}T12:00:00Z`);
+  const end = new Date(`${eDate}T12:00:00Z`);
 
-  // Fecha efectiva de inicio: si se unió después de que el reto inició,
-  // sus días esperados solo cuentan desde su fecha de ingreso
-  const joinedDateKey = member.joinedAt
-    ? member.joinedAt.slice(0, 10)
-    : challenge.startDate;
-  const effectiveStartDate =
-    joinedDateKey > challenge.startDate ? joinedDateKey : challenge.startDate;
+  const challengeDays: { dateKey: string; isToday: boolean }[] = [];
+  if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
+    let cur = new Date(start);
+    while (cur <= end) {
+      const y = cur.getUTCFullYear();
+      const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(cur.getUTCDate()).padStart(2, '0');
+      challengeDays.push({ dateKey: `${y}-${m}-${d}`, isToday: `${y}-${m}-${d}` === todayKey });
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+  } else {
+    challengeDays.push({ dateKey: todayKey, isToday: true });
+  }
 
   // Mapa rápido de logs del miembro para este reto
   const memberLogSet = new Set<string>();
   logs.forEach((l) => {
     if (l.challengeId === challenge.id && l.userId === member.userId && l.status === 'completed') {
       memberLogSet.add(`${l.challengeHabitId}_${l.dateKey}`);
+      // Indexar también por dateKey para matching infalible de check-ins del reto
+      memberLogSet.add(l.dateKey);
     }
   });
 
@@ -116,21 +175,20 @@ export function calculateMemberCompliance(
   let expectedDays = 0;
   const completedDateKeys = new Set<string>();
 
-  days.forEach((day) => {
-    // Si el día es anterior a la fecha de ingreso del usuario, NO se cuenta en expectedDays
-    if (day.dateKey < effectiveStartDate) return;
+  // Fecha de ingreso normalizada
+  const joinedDateKey = (member.joinedAt ? member.joinedAt.slice(0, 10) : challenge.startDate) || challenge.startDate;
+
+  challengeDays.forEach((day) => {
+    // Si completó cualquier hábito del reto o tiene check en la fecha, el día es COMPLETADO
+    const isCompleted = habitsToTrack.some((h) => memberLogSet.has(`${h.id}_${day.dateKey}`)) || memberLogSet.has(day.dateKey);
+
+    // Si el día es anterior a joinedDateKey y NO tiene log completado, no se le exige
+    if (day.dateKey < joinedDateKey && !isCompleted) return;
 
     // Solo cuentan días pasados o el día de hoy
     if (day.dateKey <= todayKey) {
       expectedDays++;
-
-      // Un día cuenta como completado si completó todos los hábitos del reto en esa fecha
-      // (o al menos uno si hay hábitos definidos)
-      const completedHabitsCount = habitsToTrack.filter((h) =>
-        memberLogSet.has(`${h.id}_${day.dateKey}`)
-      ).length;
-
-      if (completedHabitsCount >= habitsToTrack.length && habitsToTrack.length > 0) {
+      if (isCompleted) {
         completedDays++;
         completedDateKeys.add(day.dateKey);
       }
@@ -145,8 +203,7 @@ export function calculateMemberCompliance(
   let bestStreak = 0;
   let tempStreak = 0;
 
-  // Calcular racha máxima histórica en el reto
-  days.forEach((day) => {
+  challengeDays.forEach((day) => {
     if (completedDateKeys.has(day.dateKey)) {
       tempStreak++;
       if (tempStreak > bestStreak) bestStreak = tempStreak;
@@ -156,11 +213,10 @@ export function calculateMemberCompliance(
   });
 
   // Racha actual activa
-  const pastDaysDesc = days
+  const pastDaysDesc = challengeDays
     .filter((d) => d.dateKey <= todayKey)
     .reverse();
 
-  let streakActive = true;
   for (let i = 0; i < pastDaysDesc.length; i++) {
     const d = pastDaysDesc[i];
     if (completedDateKeys.has(d.dateKey)) {
@@ -385,8 +441,8 @@ export function calculateChallengeSummaryKpis(
     totalChecksCompleted: totalCompleted,
     totalChecksExpected: totalExpected,
     daysRemaining,
-    currentTeamStreak: Math.max(currentTeamStreak, 12), // Valor base realista o calculado
-    bestTeamStreak: Math.max(bestTeamStreak, 18),
+    currentTeamStreak,
+    bestTeamStreak,
     totalMembersCount: members.length,
     activeMembersCount: members.length,
     mostConsistentMember,

@@ -114,6 +114,7 @@ export interface ChallengeDayInfo {
   isPast: boolean;
   isFuture: boolean;
   dayIndexInChallenge: number; // Día 1 del reto, Día 2, etc.
+  isOutsideChallenge?: boolean;// True si la fecha está fuera del rango del reto
 }
 
 // Sub-pestañas internas dentro de la vista de detalle del reto

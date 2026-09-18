@@ -354,6 +354,18 @@ export function getLocalChallengeMembers(challengeId?: string): ChallengeMember[
       return m;
     });
 
+    // Auto-migración para todos los retos: si un miembro tiene joinedAt > challenge.startDate,
+    // normalizar a startDate para no bloquear check-ins previos
+    const allChallenges = getLocalChallenges();
+    members = members.map((m) => {
+      const ch = allChallenges.find((c) => c.id === m.challengeId);
+      if (ch && m.joinedAt && m.joinedAt > ch.startDate) {
+        migrated = true;
+        return { ...m, joinedAt: ch.startDate };
+      }
+      return m;
+    });
+
     // Asegurar que los miembros del sistema tengan su fila en ch-gym-30d
     if (!members.some((m) => m.challengeId === 'ch-gym-30d' && m.userId === 'user-alex')) {
       members.push({ id: 'cm-ch-gym-alex', challengeId: 'ch-gym-30d', userId: 'user-alex', role: 'member', joinedAt: '2026-09-01' });
@@ -391,18 +403,25 @@ export async function addChallengeMember(
   challengeId: string,
   userId: string,
   role: 'owner' | 'member' = 'member',
-  joinedAt = new Date().toISOString().slice(0, 10)
+  joinedAt?: string
 ): Promise<ChallengeMember> {
   const current = getLocalChallengeMembers();
   const exists = current.find((m) => m.challengeId === challengeId && m.userId === userId);
   if (exists) return exists;
+
+  // Si no se especifica joinedAt, heredar startDate del reto o la fecha actual
+  let effectiveJoinedAt = joinedAt;
+  if (!effectiveJoinedAt) {
+    const ch = getLocalChallenges().find((c) => c.id === challengeId);
+    effectiveJoinedAt = ch?.startDate || new Date().toISOString().slice(0, 10);
+  }
 
   const newMember: ChallengeMember = {
     id: `cm-${challengeId}-${userId}`,
     challengeId,
     userId,
     role,
-    joinedAt,
+    joinedAt: effectiveJoinedAt,
   };
 
   const updated = [...current, newMember];
