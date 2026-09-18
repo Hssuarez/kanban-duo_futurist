@@ -27,6 +27,9 @@ import {
   saveChallengeGoal,
   saveChallengeHabit,
   deleteChallenge,
+  getLastSelectedChallengeId,
+  saveLastSelectedChallengeId,
+  syncCloudChallenges,
 } from '@/lib/challengeStorage';
 import {
   getChallengeDays,
@@ -68,7 +71,9 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
   onBackToHabits,
 }) => {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [selectedChallengeId, setSelectedChallengeId] = useState<string>('ch-gym-30d');
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string>(() => {
+    return getLastSelectedChallengeId() || 'ch-gym-30d';
+  });
   const [members, setMembers] = useState<ChallengeMember[]>([]);
   const [habits, setHabits] = useState<ChallengeHabit[]>([]);
   const [logs, setLogs] = useState<ChallengeLog[]>([]);
@@ -106,13 +111,19 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     // Asegurar que haya un reto seleccionado válido
     if (loadedChallenges.length > 0) {
       if (!loadedChallenges.some((c) => c.id === selectedChallengeId)) {
-        setSelectedChallengeId(loadedChallenges[0].id);
+        const savedId = getLastSelectedChallengeId();
+        const validId = loadedChallenges.find((c) => c.id === savedId)?.id || loadedChallenges[0].id;
+        setSelectedChallengeId(validId);
+        saveLastSelectedChallengeId(validId);
       }
     }
   }, [selectedChallengeId]);
 
   useEffect(() => {
     loadChallengeData();
+    syncCloudChallenges().then(() => {
+      loadChallengeData();
+    });
     const unsubscribe = subscribeToSync((type) => {
       if (type === 'challenges') {
         loadChallengeData();
@@ -286,6 +297,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     }
 
     setSelectedChallengeId(challengeId);
+    saveLastSelectedChallengeId(challengeId);
     loadChallengeData();
   };
 
@@ -313,7 +325,9 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     const updated = getLocalChallenges();
     setChallenges(updated);
     if (updated.length > 0) {
-      setSelectedChallengeId(updated[0].id);
+      const nextId = updated[0].id;
+      setSelectedChallengeId(nextId);
+      saveLastSelectedChallengeId(nextId);
     }
     loadChallengeData();
   };
@@ -356,7 +370,10 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
         challenges={challenges}
         selectedChallengeId={selectedChallengeId}
         members={members}
-        onSelectChallenge={(id) => setSelectedChallengeId(id)}
+        onSelectChallenge={(id) => {
+          setSelectedChallengeId(id);
+          saveLastSelectedChallengeId(id);
+        }}
       />
 
       {/* 2. Selected Challenge Hero Banner & 5 KPI Cards */}
