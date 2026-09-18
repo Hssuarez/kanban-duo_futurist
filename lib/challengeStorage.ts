@@ -14,6 +14,7 @@ import {
 import { getOrInitSupabase } from './supabaseClient';
 import { notifySync } from './storage';
 import { HabitLogStatus } from './habitTypes';
+import { getBogotaToday } from './habitCalculations';
 
 const STORAGE_KEYS = {
   CHALLENGES: 'kanban_duo_challenges_v2',
@@ -564,6 +565,12 @@ export async function toggleChallengeLog(
   userId: string,
   dateKey: string
 ): Promise<{ log: ChallengeLog | null; newStatus: HabitLogStatus | 'removed' }> {
+  // No permitir check-ins en días futuros
+  if (dateKey > getBogotaToday()) {
+    console.warn('Bloqueado: No se permite registrar check-ins en fechas futuras.');
+    return { log: null, newStatus: 'removed' };
+  }
+
   const currentLogs = getLocalChallengeLogs();
   const index = currentLogs.findIndex(
     (l) =>

@@ -215,6 +215,12 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
       return;
     }
 
+    // Bloqueo de días futuros: no se permite marcar hábitos antes de que ocurran
+    if (dateKey > todayKey) {
+      console.warn('Acceso denegado: No es posible marcar check-ins en fechas futuras.');
+      return;
+    }
+
     const res = await toggleChallengeLog(challengeId, challengeHabitId, userId, dateKey);
     loadChallengeData();
 

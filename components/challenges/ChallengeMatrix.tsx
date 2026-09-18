@@ -429,7 +429,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                                 : undefined
                             }
                             isToday={day.isToday}
-                            isFuture={false}
+                            isFuture={day.isFuture}
                             onToggle={(hId, dKey) => {
                               if (isCurrentUser) {
                                 onToggleLog(challenge.id, primaryHabit.id, currentUser.id, dKey);
