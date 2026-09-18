@@ -754,6 +754,32 @@ export function getLocalChallengeActivities(challengeId?: string): ChallengeActi
       localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(list));
     }
 
+    // Sanitización retroactiva: eliminar duplicados de check-in que compartan mismo usuario, reto, mensaje/hábito y fecha
+    let changed = false;
+    const seenCheckInKeys = new Set<string>();
+    const deduplicatedList: ChallengeActivity[] = [];
+
+    for (const act of list) {
+      if (act.actionType === 'check_in') {
+        const datePart = act.dateKey || (act.createdAt ? act.createdAt.slice(0, 10) : '');
+        const habitPart = act.challengeHabitId || act.habitTitle || act.message;
+        const dedupKey = `${act.challengeId}_${act.userId}_${habitPart}_${datePart}`;
+        if (seenCheckInKeys.has(dedupKey)) {
+          changed = true;
+          continue; // Omitir duplicado previo
+        }
+        seenCheckInKeys.add(dedupKey);
+        deduplicatedList.push(act);
+      } else {
+        deduplicatedList.push(act);
+      }
+    }
+
+    if (changed) {
+      list = deduplicatedList;
+      localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(list));
+    }
+
     if (challengeId) {
       return list.filter((a) => a.challengeId === challengeId);
     }
@@ -763,13 +789,103 @@ export function getLocalChallengeActivities(challengeId?: string): ChallengeActi
   }
 }
 
+export function recordChallengeCheckInActivity(
+  challengeId: string,
+  userId: string,
+  message: string,
+  habitTitle?: string,
+  challengeHabitId?: string,
+  dateKey?: string
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getLocalChallengeActivities();
+    const effectiveDateKey = dateKey || getBogotaToday();
+    const deterministicId = `ca-${challengeId}-${userId}-${challengeHabitId || 'h'}-${effectiveDateKey}`;
+
+    // Filtrar cualquier actividad previa de check-in para el mismo hábito y fecha
+    const filtered = current.filter((a) => {
+      if (a.id === deterministicId) return false;
+      if (
+        a.actionType === 'check_in' &&
+        a.challengeId === challengeId &&
+        a.userId === userId &&
+        ((challengeHabitId && a.challengeHabitId === challengeHabitId) || (habitTitle && a.habitTitle === habitTitle)) &&
+        (a.dateKey === effectiveDateKey || (a.createdAt && a.createdAt.slice(0, 10) === effectiveDateKey))
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    const newActivity: ChallengeActivity = {
+      id: deterministicId,
+      challengeId,
+      userId,
+      actionType: 'check_in',
+      message,
+      habitTitle,
+      challengeHabitId,
+      dateKey: effectiveDateKey,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = [newActivity, ...filtered].slice(0, 20);
+    localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
+    notifySync('challenges');
+  } catch (e) {
+    console.error('Error registrando check-in activity:', e);
+  }
+}
+
+export function removeChallengeCheckInActivity(
+  challengeId: string,
+  userId: string,
+  challengeHabitId?: string,
+  dateKey?: string,
+  habitTitle?: string
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getLocalChallengeActivities();
+    const effectiveDateKey = dateKey || getBogotaToday();
+    const deterministicId = `ca-${challengeId}-${userId}-${challengeHabitId || 'h'}-${effectiveDateKey}`;
+
+    const filtered = current.filter((a) => {
+      if (a.id === deterministicId) return false;
+      if (
+        a.actionType === 'check_in' &&
+        a.challengeId === challengeId &&
+        a.userId === userId &&
+        ((challengeHabitId && a.challengeHabitId === challengeHabitId) || (habitTitle && a.habitTitle === habitTitle)) &&
+        (a.dateKey === effectiveDateKey || (a.createdAt && a.createdAt.slice(0, 10) === effectiveDateKey))
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(filtered));
+    notifySync('challenges');
+  } catch (e) {
+    console.error('Error removiendo check-in activity:', e);
+  }
+}
+
 export function addChallengeActivity(
   challengeId: string,
   userId: string,
   message: string,
   actionType: 'check_in' | 'joined' | 'milestone' = 'check_in',
-  habitTitle?: string
+  habitTitle?: string,
+  challengeHabitId?: string,
+  dateKey?: string
 ): void {
+  if (actionType === 'check_in') {
+    recordChallengeCheckInActivity(challengeId, userId, message, habitTitle, challengeHabitId, dateKey);
+    return;
+  }
+
   if (typeof window === 'undefined') return;
   try {
     const current = getLocalChallengeActivities();
@@ -780,6 +896,8 @@ export function addChallengeActivity(
       actionType,
       message,
       habitTitle,
+      challengeHabitId,
+      dateKey,
       createdAt: new Date().toISOString(),
     };
 

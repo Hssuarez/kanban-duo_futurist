@@ -22,6 +22,8 @@ import {
   toggleChallengeLog,
   getLocalChallengeActivities,
   addChallengeActivity,
+  recordChallengeCheckInActivity,
+  removeChallengeCheckInActivity,
   getLocalChallengeGoals,
   toggleChallengeGoal,
   saveChallengeGoal,
@@ -235,14 +237,23 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     const res = await toggleChallengeLog(challengeId, challengeHabitId, userId, dateKey);
     loadChallengeData();
 
-    // Emisión discreta de actividad realtime
+    // Emisión discreta y deduplicada de actividad realtime
+    const habitObj = challengeHabits.find((h) => h.id === challengeHabitId);
     if (res.newStatus === 'completed') {
-      const habitObj = challengeHabits.find((h) => h.id === challengeHabitId);
-      addChallengeActivity(
+      recordChallengeCheckInActivity(
         challengeId,
         userId,
         `${currentUser.name.split(' ')[0]} cumplió su meta diaria (${habitObj?.title || currentChallenge.title})`,
-        'check_in',
+        habitObj?.title,
+        challengeHabitId,
+        dateKey
+      );
+    } else {
+      removeChallengeCheckInActivity(
+        challengeId,
+        userId,
+        challengeHabitId,
+        dateKey,
         habitObj?.title
       );
     }
@@ -478,7 +489,12 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
             />
 
             {/* Progreso del Equipo Semanal */}
-            <ChallengeWeeklyProgressCard challenge={currentChallenge} />
+            <ChallengeWeeklyProgressCard
+              challenge={currentChallenge}
+              members={challengeMembers}
+              logs={challengeLogs}
+              todayKey={todayKey}
+            />
           </div>
         </div>
       )}
@@ -492,7 +508,12 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
             members={challengeMembers}
             logs={challengeLogs}
           />
-          <ChallengeWeeklyProgressCard challenge={currentChallenge} />
+          <ChallengeWeeklyProgressCard
+            challenge={currentChallenge}
+            members={challengeMembers}
+            logs={challengeLogs}
+            todayKey={todayKey}
+          />
         </div>
       )}
 

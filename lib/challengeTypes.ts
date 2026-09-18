@@ -65,6 +65,8 @@ export interface ChallengeActivity {
   actionType: 'check_in' | 'joined' | 'milestone' | 'goal_completed';
   message: string;             // e.g. 'Jesús completó Entrenar'
   habitTitle?: string;
+  challengeHabitId?: string;   // ID del hábito asociado (si es check_in)
+  dateKey?: string;            // Fecha del check-in (YYYY-MM-DD en hora Bogotá)
   createdAt: string;           // ISO UTC
 }
 
