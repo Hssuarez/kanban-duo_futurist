@@ -394,8 +394,8 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                   {/* Day Check-in Cells */}
                   {days.map((day) => {
                     const log = logMap.get(`${member.userId}_${primaryHabit.id}_${day.dateKey}`);
-                    const joinedKey = member.joinedAt ? member.joinedAt.slice(0, 10) : challenge.startDate;
-                    const isBeforeJoin = day.dateKey < joinedKey;
+                    const joinedKey = (member.joinedAt ? member.joinedAt.slice(0, 10) : challenge.startDate) || '';
+                    const isBeforeJoin = joinedKey ? day.dateKey < joinedKey : false;
 
                     return (
                       <td

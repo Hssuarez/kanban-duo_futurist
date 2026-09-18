@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { User } from '@/lib/types';
+import { User, Task } from '@/lib/types';
 import {
   Habit,
   HabitLog,
@@ -47,18 +47,29 @@ import { HabitNotesCard } from './HabitNotesCard';
 import { AdditionalHabitsCard } from './AdditionalHabitsCard';
 import { HabitModal } from './HabitModal';
 import { GoalModal } from './GoalModal';
+import { ChallengeDashboard } from '../challenges/ChallengeDashboard';
 import { ChevronLeft, ChevronRight, Plus, Target, Trophy, Flag, Activity } from 'lucide-react';
 
 interface HabitDashboardProps {
   currentUser: User;
   currentSubView?: HabitCoreSubView;
   onChangeSubView?: (view: HabitCoreSubView) => void;
+  users?: User[];
+  tasks?: Task[];
+  onOpenNewTaskModal?: (challengeId?: string) => void;
+  onToggleTaskStatus?: (task: Task) => void;
+  onOpenTaskDetail?: (task: Task) => void;
 }
 
 export const HabitDashboard: React.FC<HabitDashboardProps> = ({
   currentUser,
   currentSubView = 'habits',
   onChangeSubView,
+  users = [],
+  tasks = [],
+  onOpenNewTaskModal,
+  onToggleTaskStatus,
+  onOpenTaskDetail,
 }) => {
   const [initialYear, initialMonth] = useMemo(() => getBogotaYearMonth(), []);
   const [currentYear, setCurrentYear] = useState(initialYear);
@@ -233,7 +244,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-5 font-sans animate-view-fade pb-10 w-full">
-      {/* 1. Header de HABIT CORE con Sub-navegación y Selector de Mes */}
+      {/* 1. Header unificado de HABIT CORE con Sub-navegación y Selector de Mes */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-[#070c18]/85 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 p-4 sm:p-5 rounded-2xl shadow-sm transition-colors relative overflow-hidden">
         {/* Glow ambient background */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -261,7 +272,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
             <button
               type="button"
               onClick={() => onChangeSubView?.('habits')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 currentSubView === 'habits'
                   ? 'bg-cyan-950/80 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] ring-1 ring-cyan-500/40'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -274,7 +285,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
             <button
               type="button"
               onClick={() => onChangeSubView?.('challenges')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 currentSubView === 'challenges'
                   ? 'bg-cyan-950/80 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] ring-1 ring-cyan-500/40'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -287,7 +298,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
             <button
               type="button"
               onClick={() => onChangeSubView?.('goals')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 currentSubView === 'goals'
                   ? 'bg-cyan-950/80 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] ring-1 ring-cyan-500/40'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -300,7 +311,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
             <button
               type="button"
               onClick={() => onChangeSubView?.('progress')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 currentSubView === 'progress'
                   ? 'bg-cyan-950/80 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] ring-1 ring-cyan-500/40'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -339,7 +350,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
           <button
             type="button"
             onClick={handleGoToday}
-            className="px-3 py-1.5 text-xs font-mono font-medium rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.08] transition-all active:scale-95"
+            className="px-3 py-1.5 text-xs font-mono font-medium rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.08] transition-all active:scale-95 cursor-pointer"
           >
             Hoy
           </button>
@@ -359,7 +370,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
       </div>
 
       {/* ======================================================== */}
-      {/* VISTA PRINCIPAL: MIS HÁBITOS (EXACTA AL MOCKUP)          */}
+      {/* VISTA PRINCIPAL: MIS HÁBITOS (CON TODAS LAS ESTADÍSTICAS)*/}
       {/* ======================================================== */}
       {currentSubView === 'habits' && (
         <div className="space-y-4 sm:space-y-5 animate-view-fade">
@@ -410,6 +421,50 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
               <HabitPeriodSummaryCard summary={periodSummary} />
             </div>
           </div>
+
+          {/* FILA 4: Progreso Semanal del Mes (Restaurado bajo la gráfica diaria) */}
+          <div className="pt-1">
+            <HabitWeeklyChart weeklyData={weeklyData} />
+          </div>
+
+          {/* FILA 5: Objetivos del Mes + Notas + Hábitos Adicionales (Restaurados) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 pt-1">
+            <HabitGoalsCard
+              goals={goals}
+              onToggleGoal={handleToggleGoal}
+              onOpenNewGoal={() => setIsGoalModalOpen(true)}
+              onDeleteGoal={handleDeleteGoal}
+            />
+            <HabitNotesCard
+              initialContent={noteContent}
+              onSave={handleSaveNote}
+            />
+            <AdditionalHabitsCard
+              inactiveHabits={inactiveHabits}
+              onActivateHabit={handleActivateHabit}
+              onOpenNewHabit={() => {
+                setEditingHabit(null);
+                setIsHabitModalOpen(true);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* VISTA DE RETOS COMPARTIDOS (FASE C INTEGRADA)            */}
+      {/* ======================================================== */}
+      {currentSubView === 'challenges' && (
+        <div className="animate-view-fade">
+          <ChallengeDashboard
+            currentUser={currentUser}
+            users={users}
+            tasks={tasks}
+            onOpenNewTaskModal={onOpenNewTaskModal}
+            onToggleTaskStatus={onToggleTaskStatus}
+            onOpenTaskDetail={onOpenTaskDetail}
+            onBackToHabits={() => onChangeSubView?.('habits')}
+          />
         </div>
       )}
 

@@ -390,6 +390,36 @@ export function saveLocalChallengeHabits(habits: ChallengeHabit[]): void {
   }
 }
 
+export async function saveChallengeHabit(habit: ChallengeHabit): Promise<ChallengeHabit> {
+  const current = getLocalChallengeHabits();
+  const index = current.findIndex((h) => h.id === habit.id);
+  let updatedList: ChallengeHabit[];
+  if (index >= 0) {
+    updatedList = [...current];
+    updatedList[index] = habit;
+  } else {
+    updatedList = [...current, habit];
+  }
+  saveLocalChallengeHabits(updatedList);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      await client.from('challenge_habits').upsert({
+        id: habit.id,
+        challenge_id: habit.challengeId,
+        title: habit.title,
+        icon: habit.icon || '🎯',
+        target_value: habit.targetValue || 1,
+        display_order: habit.displayOrder || 1,
+      });
+    } catch (e) {
+      console.warn('Sync saveChallengeHabit Supabase:', e);
+    }
+  }
+  return habit;
+}
+
 // ========================================================
 // CHECK-INS & LOGS OF CHALLENGE
 // ========================================================

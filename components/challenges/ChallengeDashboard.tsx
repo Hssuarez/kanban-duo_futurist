@@ -25,6 +25,7 @@ import {
   getLocalChallengeGoals,
   toggleChallengeGoal,
   saveChallengeGoal,
+  saveChallengeHabit,
 } from '@/lib/challengeStorage';
 import {
   getChallengeDays,
@@ -266,6 +267,15 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
           }
         }
       }
+      // Asegurar que el nuevo reto tenga al menos un hábito para la matriz
+      await saveChallengeHabit({
+        id: `chab-${Date.now()}`,
+        challengeId,
+        title: initialHabitTitle || 'Hábito Principal',
+        icon: '🎯',
+        displayOrder: 1,
+        createdAt: new Date().toISOString(),
+      });
     }
 
     setSelectedChallengeId(challengeId);
@@ -341,6 +351,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
           setCurrentMonth(10);
           setCurrentYear(2026);
         }}
+        onBackToHabits={onBackToHabits}
       />
 
       {/* 3. Main Workspace Grid: Matrix (Protagonist) + Leaderboard & Feed */}

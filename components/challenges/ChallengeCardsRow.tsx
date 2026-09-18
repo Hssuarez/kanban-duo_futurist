@@ -67,7 +67,7 @@ export const ChallengeCardsRow: React.FC<ChallengeCardsRowProps> = ({
                     {ch.title}
                   </h4>
                   <span className="text-[10px] text-zinc-500 font-mono block">
-                    {ch.startDate.slice(5)} – {ch.endDate.slice(5)}
+                    {(ch.startDate || '').slice(5)} – {(ch.endDate || '').slice(5)}
                   </span>
                 </div>
               </div>

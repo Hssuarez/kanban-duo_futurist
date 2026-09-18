@@ -57,7 +57,6 @@ import { Filter, Tag as TagIcon, X, FileBarChart } from 'lucide-react';
 import { HabitCoreSubView } from '@/lib/habitTypes';
 import { AppSidebar } from './navigation/AppSidebar';
 import { HabitDashboard } from './habits/HabitDashboard';
-import { ChallengeDashboard } from './challenges/ChallengeDashboard';
 
 export const KanbanBoard: React.FC = () => {
   const [mounted, setMounted] = useState(false);
@@ -780,40 +779,25 @@ export const KanbanBoard: React.FC = () => {
           </div>
         )}
 
-        {/* HABIT CORE: Mis Hábitos / Objetivos / Progreso */}
-        {(currentView === 'habits' || currentView === 'goals' || currentView === 'progress') && (
+        {/* HABIT CORE: Mis Hábitos / Retos / Objetivos / Progreso */}
+        {(currentView === 'habits' || currentView === 'challenges' || currentView === 'goals' || currentView === 'progress') && (
           <div className="animate-view-fade flex-1 flex flex-col">
             <HabitDashboard
               currentUser={sessionUser}
-              currentSubView={habitSubView}
+              currentSubView={currentView === 'challenges' ? 'challenges' : habitSubView}
               onChangeSubView={(sub) => {
                 setHabitSubView(sub);
                 setCurrentView(sub);
               }}
-            />
-          </div>
-        )}
-
-        {/* HABIT CORE: Retos Colectivos (Phase C Preview) */}
-        {currentView === 'challenges' && (
-          <div className="animate-view-fade flex-1 flex flex-col">
-            <ChallengeDashboard
-              currentUser={sessionUser}
               users={users}
               tasks={tasks}
-              onOpenNewTaskModal={() => {
-                handleOpenAddNew('iniciado');
-              }}
+              onOpenNewTaskModal={() => handleOpenAddNew('iniciado')}
               onToggleTaskStatus={async (task) => {
                 const nextStatus: TaskStatus = task.status === 'finalizado' ? 'iniciado' : 'finalizado';
                 await updateTask(task.id, { status: nextStatus }, sessionUser);
                 refreshData();
               }}
               onOpenTaskDetail={handleOpenEdit}
-              onBackToHabits={() => {
-                setHabitSubView('habits');
-                setCurrentView('habits');
-              }}
             />
           </div>
         )}

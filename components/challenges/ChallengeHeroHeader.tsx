@@ -39,6 +39,7 @@ interface ChallengeHeroHeaderProps {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onGoToday: () => void;
+  onBackToHabits?: () => void;
 }
 
 export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
@@ -56,6 +57,7 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
   onPrevMonth,
   onNextMonth,
   onGoToday,
+  onBackToHabits,
 }) => {
   // SVG circular gauge properties
   const radius = 32;
@@ -122,8 +124,18 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
             </div>
           </div>
 
-          {/* Action Button: Edit Challenge */}
-          <div className="flex items-center gap-2 self-end md:self-start shrink-0">
+          {/* Action Buttons: Volver a Mis Hábitos & Edit Challenge */}
+          <div className="flex flex-wrap items-center gap-2 self-end md:self-start shrink-0">
+            {onBackToHabits && (
+              <button
+                type="button"
+                onClick={onBackToHabits}
+                className="px-3 py-1.5 text-xs font-medium text-cyan-300 hover:text-white bg-cyan-950/70 hover:bg-cyan-900/70 border border-cyan-500/40 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-[0_0_12px_rgba(6,182,212,0.2)]"
+              >
+                <span>← Volver a Mis Hábitos</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onOpenEditChallenge}
@@ -226,7 +238,7 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
                   {u.avatar ? (
                     <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
                   ) : (
-                    u.name.slice(0, 1)
+                    u.name ? u.name.slice(0, 1) : '?'
                   )}
                 </div>
               ))}

@@ -25,13 +25,38 @@ export function getChallengeDays(
   todayKey = getBogotaToday()
 ): ChallengeDayInfo[] {
   const days: ChallengeDayInfo[] = [];
-  const start = new Date(`${challenge.startDate}T12:00:00Z`);
-  const end = new Date(`${challenge.endDate}T12:00:00Z`);
+  const sDate = challenge?.startDate || todayKey;
+  const eDate = challenge?.endDate || sDate;
+
+  const start = new Date(`${sDate}T12:00:00Z`);
+  const end = new Date(`${eDate}T12:00:00Z`);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    const duration = challenge?.durationDays || 30;
+    const [y, m, d] = todayKey.split('-').map(Number);
+    for (let i = 0; i < duration; i++) {
+      const cur = new Date(Date.UTC(y, m - 1, d + i, 12));
+      const curY = cur.getUTCFullYear();
+      const curM = String(cur.getUTCMonth() + 1).padStart(2, '0');
+      const curD = String(cur.getUTCDate()).padStart(2, '0');
+      const dateKey = `${curY}-${curM}-${curD}`;
+      days.push({
+        dayNumber: cur.getUTCDate(),
+        dateKey,
+        dayName: DAY_LETTERS_ES[cur.getUTCDay()],
+        isToday: dateKey === todayKey,
+        isPast: dateKey < todayKey,
+        isFuture: dateKey > todayKey,
+        dayIndexInChallenge: i + 1,
+      });
+    }
+    return days;
+  }
 
   let current = new Date(start);
   let index = 1;
 
-  while (current <= end) {
+  while (current <= end && index <= 90) {
     const y = current.getUTCFullYear();
     const m = String(current.getUTCMonth() + 1).padStart(2, '0');
     const d = String(current.getUTCDate()).padStart(2, '0');

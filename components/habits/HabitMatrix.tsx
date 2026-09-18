@@ -13,9 +13,9 @@ import {
   Grid,
   ChevronRight,
   ChevronDown,
-  Plus,
   Calendar,
   Sparkles,
+  Columns,
   Eye,
   EyeOff,
   Navigation,
@@ -56,7 +56,7 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  // Detección para móviles
+  // Detección automática para móviles
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setViewMode('focused');
@@ -78,6 +78,23 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
       setHabitColStyle('hidden');
       setShowMetrics(false);
     }
+  };
+
+  const handleToggleHabitColumn = () => {
+    if (habitColStyle === 'full') {
+      setHabitColStyle('icon');
+      setViewMode('focused');
+    } else if (habitColStyle === 'icon') {
+      setHabitColStyle('hidden');
+      setViewMode('calendar_only');
+    } else {
+      setHabitColStyle('full');
+      setViewMode('standard');
+    }
+  };
+
+  const handleToggleMetrics = () => {
+    setShowMetrics((prev) => !prev);
   };
 
   const scrollToDay = (dayNum: number) => {
@@ -200,7 +217,139 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
         </div>
       </div>
 
-      {/* 2. Table Container with Horizontal Scroll */}
+      {/* 2. Responsive View Controls Toolbar (Botones solicitados por el usuario) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 bg-zinc-950/40 border-b border-white/[0.04]">
+        {/* Preset View Modes */}
+        <div className="flex items-center gap-1 p-0.5 bg-zinc-950/80 rounded-xl border border-white/[0.08]">
+          <button
+            type="button"
+            onClick={() => handleSelectMode('standard')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+              viewMode === 'standard'
+                ? 'bg-zinc-800 text-white font-semibold shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Completo
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSelectMode('focused')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
+              viewMode === 'focused'
+                ? 'bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 font-semibold shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Sparkles className="w-3 h-3 text-cyan-400" />
+            <span>Enfoque Días (Móvil)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSelectMode('calendar_only')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
+              viewMode === 'calendar_only'
+                ? 'bg-zinc-800 text-white font-semibold shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Calendar className="w-3 h-3" />
+            <span>Solo Calendario</span>
+          </button>
+        </div>
+
+        {/* Quick Individual Toggles: Hábito & Racha / % */}
+        <div className="flex items-center gap-1.5 text-xs font-mono">
+          <button
+            type="button"
+            onClick={handleToggleHabitColumn}
+            className={`px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+              habitColStyle === 'full'
+                ? 'bg-zinc-900 border-white/[0.08] text-zinc-300'
+                : habitColStyle === 'icon'
+                ? 'bg-cyan-950/60 border-cyan-500/40 text-cyan-300 font-semibold'
+                : 'bg-zinc-950 border-white/[0.06] text-zinc-500 line-through'
+            }`}
+            title="Alternar columna de hábitos: Nombre / Solo Icono / Oculto"
+          >
+            <Columns className="w-3 h-3 text-cyan-400" />
+            <span>
+              Hábito:{' '}
+              {habitColStyle === 'full'
+                ? 'Nombre'
+                : habitColStyle === 'icon'
+                ? 'Solo Icono'
+                : 'Oculto'}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleToggleMetrics}
+            className={`px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+              showMetrics
+                ? 'bg-zinc-900 border-white/[0.08] text-amber-300 font-semibold'
+                : 'bg-zinc-950 border-white/[0.06] text-zinc-500 line-through'
+            }`}
+            title="Mostrar u ocultar columnas de Racha y Porcentaje"
+          >
+            {showMetrics ? <Eye className="w-3 h-3 text-amber-400" /> : <EyeOff className="w-3 h-3" />}
+            <span>Racha / %</span>
+          </button>
+        </div>
+
+        {/* Quick Day Jump Shortcuts */}
+        <div className="flex items-center gap-1 text-[10px] font-mono text-zinc-400 overflow-x-auto custom-scrollbar">
+          <span className="text-zinc-500 hidden md:inline">Saltar a:</span>
+          <button
+            type="button"
+            onClick={handleScrollToToday}
+            className="px-2 py-0.5 rounded bg-cyan-950/70 hover:bg-cyan-900/70 border border-cyan-500/30 text-cyan-300 font-bold transition-all flex items-center gap-1 cursor-pointer"
+          >
+            <Navigation className="w-2.5 h-2.5" />
+            <span>Hoy</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToDay(1)}
+            className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06] cursor-pointer"
+          >
+            1-7
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToDay(8)}
+            className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06] cursor-pointer"
+          >
+            8-14
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToDay(15)}
+            className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06] cursor-pointer"
+          >
+            15-21
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToDay(22)}
+            className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06] cursor-pointer"
+          >
+            22-28
+          </button>
+          {days.length > 28 && (
+            <button
+              type="button"
+              onClick={() => scrollToDay(29)}
+              className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06] cursor-pointer"
+            >
+              29-{days.length}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 3. Table Container with Horizontal Scroll */}
       <div
         ref={tableContainerRef}
         className="overflow-x-auto custom-scrollbar flex-1 relative scroll-smooth"
