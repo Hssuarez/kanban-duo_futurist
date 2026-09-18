@@ -623,8 +623,12 @@ export async function initCloudSync() {
           syncCloudSecurityLogs();
           syncCloudUsers();
         })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'challenges' }, () => {
-          import('./challengeStorage').then((m) => m.syncCloudChallenges());
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'challenges' }, (payload) => {
+          if (payload.eventType === 'DELETE' && payload.old && (payload.old as any).id) {
+            import('./challengeStorage').then((m) => m.handleRemoteChallengeDeleted((payload.old as any).id));
+          } else {
+            import('./challengeStorage').then((m) => m.syncCloudChallenges());
+          }
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'challenge_members' }, () => {
           import('./challengeStorage').then((m) => m.syncCloudChallenges());

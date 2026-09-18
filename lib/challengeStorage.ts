@@ -25,7 +25,10 @@ const STORAGE_KEYS = {
   GOALS: 'kanban_duo_challenge_goals_v2',
   DELETED_IDS: 'kanban_duo_deleted_challenge_ids_v1',
   LAST_SELECTED: 'kanban_duo_last_selected_challenge_id_v1',
+  PENDING_UPLOADS: 'kanban_duo_pending_upload_challenges_v1',
 };
+
+export const LEGACY_DELETED_DEMO_IDS = ['ch-lectura-30d', 'ch-hidrata-21d', 'ch-sueno-31d'];
 
 // ========================================================
 // ESTADO DE SINCRONIZACIÓN CLOUD (SUPABASE)
@@ -72,6 +75,7 @@ export function markChallengeAsDeleted(challengeId: string): void {
       deleted.push(challengeId);
       localStorage.setItem(STORAGE_KEYS.DELETED_IDS, JSON.stringify(deleted));
     }
+    removePendingUploadChallengeId(challengeId);
   } catch (e) {
     console.error('Error guardando deleted challenge id:', e);
   }
@@ -84,6 +88,39 @@ export function removeDeletedChallengeId(challengeId: string): void {
     localStorage.setItem(STORAGE_KEYS.DELETED_IDS, JSON.stringify(deleted));
   } catch (e) {
     console.error('Error removiendo deleted challenge id:', e);
+  }
+}
+
+export function getPendingUploadChallengeIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PENDING_UPLOADS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markChallengeAsPendingUpload(challengeId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getPendingUploadChallengeIds();
+    if (!list.includes(challengeId)) {
+      list.push(challengeId);
+      localStorage.setItem(STORAGE_KEYS.PENDING_UPLOADS, JSON.stringify(list));
+    }
+  } catch (e) {
+    console.warn('Error guardando pending upload challenge id:', e);
+  }
+}
+
+export function removePendingUploadChallengeId(challengeId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getPendingUploadChallengeIds().filter((id) => id !== challengeId);
+    localStorage.setItem(STORAGE_KEYS.PENDING_UPLOADS, JSON.stringify(list));
+  } catch (e) {
+    console.warn('Error removiendo pending upload challenge id:', e);
   }
 }
 
@@ -103,6 +140,45 @@ export function saveLastSelectedChallengeId(challengeId: string): void {
   } catch (e) {
     console.error('Error guardando last selected challenge id:', e);
   }
+}
+
+// Eliminación en cascada provocada por un evento remoto en Realtime (otra pestaña o dispositivo)
+export function handleRemoteChallengeDeleted(challengeId: string): void {
+  markChallengeAsDeleted(challengeId);
+
+  const updatedChallenges = getLocalChallenges().filter((c) => c.id !== challengeId);
+  saveLocalChallenges(updatedChallenges);
+
+  const updatedMembers = getLocalChallengeMembers().filter((m) => m.challengeId !== challengeId);
+  saveLocalChallengeMembers(updatedMembers);
+
+  const updatedHabits = getLocalChallengeHabits().filter((h) => h.challengeId !== challengeId);
+  saveLocalChallengeHabits(updatedHabits);
+
+  const updatedLogs = getLocalChallengeLogs().filter((l) => l.challengeId !== challengeId);
+  saveLocalChallengeLogs(updatedLogs);
+
+  const updatedGoals = getLocalChallengeGoals().filter((g) => g.challengeId !== challengeId);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(updatedGoals));
+  }
+
+  const updatedActivities = getLocalChallengeActivities().filter((a) => a.challengeId !== challengeId);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updatedActivities));
+  }
+
+  if (getLastSelectedChallengeId() === challengeId) {
+    if (updatedChallenges.length > 0) {
+      saveLastSelectedChallengeId(updatedChallenges[0].id);
+    } else {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(STORAGE_KEYS.LAST_SELECTED);
+      }
+    }
+  }
+
+  notifySync('challenges');
 }
 
 // ========================================================
@@ -126,54 +202,6 @@ export const DEFAULT_CHALLENGES: Challenge[] = [
     createdAt: '2026-09-01T10:00:00.000Z',
     updatedAt: '2026-09-01T10:00:00.000Z',
   },
-  {
-    id: 'ch-lectura-30d',
-    createdBy: 'user-admin',
-    title: 'Lectura Matriz',
-    description: 'Leer 20 minutos diarios antes de iniciar el trabajo.',
-    icon: '📚',
-    color: '#3b82f6',
-    startDate: '2026-09-01',
-    endDate: '2026-09-30',
-    durationDays: 30,
-    mode: 'collaborative',
-    status: 'active',
-    targetGoal: '1 libro completo',
-    createdAt: '2026-08-25T10:00:00.000Z',
-    updatedAt: '2026-08-25T10:00:00.000Z',
-  },
-  {
-    id: 'ch-hidrata-21d',
-    createdBy: 'user-alex',
-    title: 'Hidratación 21 días',
-    description: 'Tomar al menos 2.5 litros de agua diarios.',
-    icon: '💧',
-    color: '#0284c7',
-    startDate: '2026-09-05',
-    endDate: '2026-09-25',
-    durationDays: 21,
-    mode: 'collaborative',
-    status: 'active',
-    targetGoal: '21 días seguidos',
-    createdAt: '2026-09-01T10:00:00.000Z',
-    updatedAt: '2026-09-01T10:00:00.000Z',
-  },
-  {
-    id: 'ch-sueno-31d',
-    createdBy: 'user-admin',
-    title: 'Rutina de sueño',
-    description: 'Dormir antes de las 10:30 PM durante todo el mes.',
-    icon: '🌙',
-    color: '#8b5cf6',
-    startDate: '2026-08-01',
-    endDate: '2026-08-31',
-    durationDays: 31,
-    mode: 'competitive',
-    status: 'completed',
-    targetGoal: 'Higiene del sueño',
-    createdAt: '2026-07-25T10:00:00.000Z',
-    updatedAt: '2026-08-31T10:00:00.000Z',
-  },
 ];
 
 export const DEFAULT_CHALLENGE_MEMBERS: ChallengeMember[] = [
@@ -183,18 +211,11 @@ export const DEFAULT_CHALLENGE_MEMBERS: ChallengeMember[] = [
   { id: 'cm-3', challengeId: 'ch-gym-30d', userId: 'user-beatriz', role: 'member', joinedAt: '2026-09-01' },
   { id: 'cm-4', challengeId: 'ch-gym-30d', userId: 'user-2', role: 'member', joinedAt: '2026-09-01' },
   { id: 'cm-5', challengeId: 'ch-gym-30d', userId: 'user-3', role: 'member', joinedAt: '2026-09-03' },
-
-  // Miembros de 'ch-lectura-30d'
-  { id: 'cm-6', challengeId: 'ch-lectura-30d', userId: 'user-admin', role: 'owner', joinedAt: '2026-09-01' },
-  { id: 'cm-7', challengeId: 'ch-lectura-30d', userId: 'user-alex', role: 'member', joinedAt: '2026-09-01' },
-  { id: 'cm-8', challengeId: 'ch-lectura-30d', userId: 'user-beatriz', role: 'member', joinedAt: '2026-09-01' },
-  { id: 'cm-9', challengeId: 'ch-lectura-30d', userId: 'user-2', role: 'member', joinedAt: '2026-09-01' },
 ];
 
 export const DEFAULT_CHALLENGE_HABITS: ChallengeHabit[] = [
   { id: 'chab-1', challengeId: 'ch-gym-30d', title: 'Entrenar', icon: '🏋️', targetValue: 1, displayOrder: 1, createdAt: '2026-09-01' },
   { id: 'chab-2', challengeId: 'ch-gym-30d', title: 'Tomar agua', icon: '💧', targetValue: 8, displayOrder: 2, createdAt: '2026-09-01' },
-  { id: 'chab-3', challengeId: 'ch-lectura-30d', title: 'Leer 20 min', icon: '📖', targetValue: 20, displayOrder: 1, createdAt: '2026-09-01' },
 ];
 
 export const DEFAULT_CHALLENGE_GOALS: ChallengeGoal[] = [
@@ -295,7 +316,11 @@ export function getLocalChallenges(): Challenge[] {
           const idSet = new Set(challenges.map((c) => c.id));
           let hasNewLegacy = false;
           legacy.forEach((legCh) => {
-            if (!idSet.has(legCh.id) && !deletedIds.includes(legCh.id)) {
+            if (
+              !idSet.has(legCh.id) &&
+              !deletedIds.includes(legCh.id) &&
+              !LEGACY_DELETED_DEMO_IDS.includes(legCh.id)
+            ) {
               challenges.push(legCh);
               idSet.add(legCh.id);
               hasNewLegacy = true;
@@ -312,13 +337,17 @@ export function getLocalChallenges(): Challenge[] {
 
     // Si no hay datos iniciales en localStorage, cargar los defaults excluyendo los eliminados
     if (!raw && challenges.length === 0) {
-      const initial = DEFAULT_CHALLENGES.filter((c) => !deletedIds.includes(c.id));
+      const initial = DEFAULT_CHALLENGES.filter(
+        (c) => !deletedIds.includes(c.id) && !LEGACY_DELETED_DEMO_IDS.includes(c.id)
+      );
       localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(initial));
       return initial;
     }
 
-    // Filtrar siempre y permanentemente cualquier reto eliminado
-    challenges = challenges.filter((c) => !deletedIds.includes(c.id));
+    // Filtrar siempre y permanentemente cualquier reto eliminado o demo legacy
+    challenges = challenges.filter(
+      (c) => !deletedIds.includes(c.id) && !LEGACY_DELETED_DEMO_IDS.includes(c.id)
+    );
 
     // Auto-migración si existía fecha de octubre para ch-gym-30d
     let migrated = false;
@@ -340,7 +369,9 @@ export function getLocalChallenges(): Challenge[] {
 
     return challenges;
   } catch {
-    return DEFAULT_CHALLENGES.filter((c) => !deletedIds.includes(c.id));
+    return DEFAULT_CHALLENGES.filter(
+      (c) => !deletedIds.includes(c.id) && !LEGACY_DELETED_DEMO_IDS.includes(c.id)
+    );
   }
 }
 
@@ -399,6 +430,7 @@ export async function saveChallenge(challenge: Challenge): Promise<Challenge> {
       });
       if (error) {
         console.error('❌ Error al sincronizar reto con Supabase:', error);
+        markChallengeAsPendingUpload(challenge.id);
         _challengeCloudSyncStatus = {
           isConfigured: true,
           isSynced: false,
@@ -409,6 +441,7 @@ export async function saveChallenge(challenge: Challenge): Promise<Challenge> {
         };
       } else {
         console.log('✅ Reto sincronizado exitosamente con Supabase:', challenge.title);
+        removePendingUploadChallengeId(challenge.id);
         _challengeCloudSyncStatus = {
           isConfigured: true,
           isSynced: true,
@@ -418,6 +451,7 @@ export async function saveChallenge(challenge: Challenge): Promise<Challenge> {
       }
     } catch (e: any) {
       console.warn('Sync saveChallenge Supabase exception:', e);
+      markChallengeAsPendingUpload(challenge.id);
       _challengeCloudSyncStatus = {
         isConfigured: true,
         isSynced: false,
@@ -426,6 +460,8 @@ export async function saveChallenge(challenge: Challenge): Promise<Challenge> {
         lastSyncTime: new Date().toISOString(),
       };
     }
+  } else {
+    markChallengeAsPendingUpload(challenge.id);
   }
 
   return challenge;
@@ -1122,6 +1158,7 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
   }
 
   const deletedIds = getDeletedChallengeIds();
+  const pendingUploadIds = getPendingUploadChallengeIds();
 
   try {
     // 1. Sincronizar retos principales (challenges)
@@ -1153,31 +1190,67 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
     };
 
     if (cloudChallenges) {
-      const currentLocal = getLocalChallenges();
-      const mappedCloud: Challenge[] = cloudChallenges
-        .filter((c: any) => !deletedIds.includes(c.id))
-        .map((c: any) => ({
-          id: c.id,
-          createdBy: c.created_by,
-          title: c.title,
-          description: c.description || '',
-          icon: c.icon || '🏆',
-          color: c.color || '#06b6d4',
-          startDate: c.start_date,
-          endDate: c.end_date,
-          durationDays: c.duration_days || 30,
-          mode: c.mode || 'competitive',
-          status: c.status || 'active',
-          targetGoal: c.target_goal || undefined,
-          createdAt: c.created_at || new Date().toISOString(),
-          updatedAt: c.updated_at || new Date().toISOString(),
-        }));
+      // 1.1. Si Supabase tiene algún reto que fue eliminado en este dispositivo o es un demo legacy eliminado, purgarlo de la base de datos
+      const idsToPurgeFromCloud = Array.from(new Set([...deletedIds, ...LEGACY_DELETED_DEMO_IDS]));
+      for (const delId of idsToPurgeFromCloud) {
+        if (cloudChallenges.some((c: any) => c.id === delId)) {
+          console.log('🗑️ Purgando de Supabase reto eliminado:', delId);
+          try {
+            await client.from('challenge_logs').delete().eq('challenge_id', delId);
+            await client.from('challenge_habits').delete().eq('challenge_id', delId);
+            await client.from('challenge_members').delete().eq('challenge_id', delId);
+            await client.from('challenge_goals').delete().eq('challenge_id', delId);
+            await client.from('challenge_activities').delete().eq('challenge_id', delId);
+            await client.from('challenges').delete().eq('id', delId);
+          } catch (e) {
+            console.warn('Error purgando reto eliminado de Supabase:', e);
+          }
+        }
+      }
 
-      // Fusionar retos: mantener los creados localmente que aún no estén en la nube y subirlos
+      // 1.2. Mapear los retos válidos que existen en Supabase
+      const validCloud = cloudChallenges.filter(
+        (c: any) => !deletedIds.includes(c.id) && !LEGACY_DELETED_DEMO_IDS.includes(c.id)
+      );
+
+      const mappedCloud: Challenge[] = validCloud.map((c: any) => ({
+        id: c.id,
+        createdBy: c.created_by,
+        title: c.title,
+        description: c.description || '',
+        icon: c.icon || '🏆',
+        color: c.color || '#06b6d4',
+        startDate: c.start_date,
+        endDate: c.end_date,
+        durationDays: c.duration_days || 30,
+        mode: c.mode || 'competitive',
+        status: c.status || 'active',
+        targetGoal: c.target_goal || undefined,
+        createdAt: c.created_at || new Date().toISOString(),
+        updatedAt: c.updated_at || new Date().toISOString(),
+      }));
+
       const mergedMap = new Map<string, Challenge>();
       mappedCloud.forEach((c) => mergedMap.set(c.id, c));
+
+      // 1.3. Subir ÚNICAMENTE retos locales que estén pendientes de sincronización (o creados por el usuario que no sean demos)
+      const currentLocal = getLocalChallenges();
+      const isCloudEmpty = mappedCloud.length === 0;
+
       for (const c of currentLocal) {
-        if (!deletedIds.includes(c.id) && !mergedMap.has(c.id)) {
+        if (deletedIds.includes(c.id) || LEGACY_DELETED_DEMO_IDS.includes(c.id)) {
+          continue;
+        }
+
+        const isPending = pendingUploadIds.includes(c.id);
+        const isUserCreated =
+          !c.id.startsWith('ch-gym-') &&
+          !c.id.startsWith('ch-lectura-') &&
+          !c.id.startsWith('ch-hidrata-') &&
+          !c.id.startsWith('ch-sueno-');
+
+        // Solo subir si está pendiente o es un reto creado por el usuario que aún no existe en la nube
+        if (!mergedMap.has(c.id) && (isCloudEmpty || isPending || isUserCreated)) {
           mergedMap.set(c.id, c);
           try {
             const { error: upErr } = await (client.from('challenges') as any).upsert({
@@ -1199,6 +1272,7 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
               console.error('Error subiendo reto local a Supabase:', upErr);
             } else {
               console.log('☁️ Reto local subido exitosamente a Supabase:', c.title);
+              removePendingUploadChallengeId(c.id);
             }
           } catch (e) {
             console.warn('Excepción subiendo reto local:', e);
@@ -1206,16 +1280,32 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
         }
       }
 
-      const finalChallenges = Array.from(mergedMap.values());
+      // Si la nube ya contiene retos autoritativos, los retos locales obsoletos que no estén en la nube
+      // se descartan para reflejar la eliminación remota.
+      const finalChallenges = Array.from(mergedMap.values()).filter(
+        (c) => !deletedIds.includes(c.id) && !LEGACY_DELETED_DEMO_IDS.includes(c.id)
+      );
+
       saveLocalChallenges(finalChallenges);
+
+      // Si el reto activo fue eliminado remotamente, reasignar
+      const activeChallengeIds = new Set(finalChallenges.map((c) => c.id));
+      const currentSelected = getLastSelectedChallengeId();
+      if (currentSelected && !activeChallengeIds.has(currentSelected)) {
+        if (finalChallenges.length > 0) {
+          saveLastSelectedChallengeId(finalChallenges[0].id);
+        } else {
+          localStorage.removeItem(STORAGE_KEYS.LAST_SELECTED);
+        }
+      }
     }
 
     // 2. Sincronizar miembros (challenge_members)
     const { data: cloudMembers, error: mErr } = await client.from('challenge_members').select('*');
     if (!mErr && cloudMembers) {
-      const currentMembers = getLocalChallengeMembers();
+      const activeChallengeIds = new Set(getLocalChallenges().map((c) => c.id));
       const mappedMembers: ChallengeMember[] = cloudMembers
-        .filter((m: any) => !deletedIds.includes(m.challenge_id))
+        .filter((m: any) => activeChallengeIds.has(m.challenge_id))
         .map((m: any) => ({
           id: m.id,
           challengeId: m.challenge_id,
@@ -1226,8 +1316,9 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
 
       const memberMap = new Map<string, ChallengeMember>();
       mappedMembers.forEach((m) => memberMap.set(m.id, m));
+      const currentMembers = getLocalChallengeMembers();
       for (const m of currentMembers) {
-        if (!deletedIds.includes(m.challengeId) && !memberMap.has(m.id)) {
+        if (activeChallengeIds.has(m.challengeId) && !memberMap.has(m.id)) {
           memberMap.set(m.id, m);
           try {
             await (client.from('challenge_members') as any).upsert({
@@ -1242,15 +1333,15 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           }
         }
       }
-      saveLocalChallengeMembers(Array.from(memberMap.values()));
+      saveLocalChallengeMembers(Array.from(memberMap.values()).filter((m) => activeChallengeIds.has(m.challengeId)));
     }
 
     // 3. Sincronizar hábitos (challenge_habits)
     const { data: cloudHabits, error: hErr } = await client.from('challenge_habits').select('*');
     if (!hErr && cloudHabits) {
-      const currentHabits = getLocalChallengeHabits();
+      const activeChallengeIds = new Set(getLocalChallenges().map((c) => c.id));
       const mappedHabits: ChallengeHabit[] = cloudHabits
-        .filter((h: any) => !deletedIds.includes(h.challenge_id))
+        .filter((h: any) => activeChallengeIds.has(h.challenge_id))
         .map((h: any) => ({
           id: h.id,
           challengeId: h.challenge_id,
@@ -1263,8 +1354,9 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
 
       const habitMap = new Map<string, ChallengeHabit>();
       mappedHabits.forEach((h) => habitMap.set(h.id, h));
+      const currentHabits = getLocalChallengeHabits();
       for (const h of currentHabits) {
-        if (!deletedIds.includes(h.challengeId) && !habitMap.has(h.id)) {
+        if (activeChallengeIds.has(h.challengeId) && !habitMap.has(h.id)) {
           habitMap.set(h.id, h);
           try {
             await (client.from('challenge_habits') as any).upsert({
@@ -1281,15 +1373,15 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           }
         }
       }
-      saveLocalChallengeHabits(Array.from(habitMap.values()));
+      saveLocalChallengeHabits(Array.from(habitMap.values()).filter((h) => activeChallengeIds.has(h.challengeId)));
     }
 
     // 4. Sincronizar logs / check-ins (challenge_logs)
     const { data: cloudLogs, error: lErr } = await client.from('challenge_logs').select('*');
     if (!lErr && cloudLogs) {
-      const currentLogs = getLocalChallengeLogs();
+      const activeChallengeIds = new Set(getLocalChallenges().map((c) => c.id));
       const mappedLogs: ChallengeLog[] = cloudLogs
-        .filter((l: any) => !deletedIds.includes(l.challenge_id))
+        .filter((l: any) => activeChallengeIds.has(l.challenge_id))
         .map((l: any) => ({
           id: l.id,
           challengeId: l.challenge_id,
@@ -1305,8 +1397,9 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
 
       const logMap = new Map<string, ChallengeLog>();
       mappedLogs.forEach((l) => logMap.set(l.id, l));
+      const currentLogs = getLocalChallengeLogs();
       for (const l of currentLogs) {
-        if (!deletedIds.includes(l.challengeId) && !logMap.has(l.id)) {
+        if (activeChallengeIds.has(l.challengeId) && !logMap.has(l.id)) {
           logMap.set(l.id, l);
           try {
             await (client.from('challenge_logs') as any).upsert({
@@ -1325,15 +1418,15 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           }
         }
       }
-      saveLocalChallengeLogs(Array.from(logMap.values()));
+      saveLocalChallengeLogs(Array.from(logMap.values()).filter((l) => activeChallengeIds.has(l.challengeId)));
     }
 
     // 5. Sincronizar objetivos de reto (challenge_goals)
     const { data: cloudGoals, error: gErr } = await client.from('challenge_goals').select('*');
     if (!gErr && cloudGoals) {
-      const currentGoals = getLocalChallengeGoals();
+      const activeChallengeIds = new Set(getLocalChallenges().map((c) => c.id));
       const mappedGoals: ChallengeGoal[] = cloudGoals
-        .filter((g: any) => !deletedIds.includes(g.challenge_id))
+        .filter((g: any) => activeChallengeIds.has(g.challenge_id))
         .map((g: any) => ({
           id: g.id,
           challengeId: g.challenge_id,
@@ -1347,8 +1440,9 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
 
       const goalMap = new Map<string, ChallengeGoal>();
       mappedGoals.forEach((g) => goalMap.set(g.id, g));
+      const currentGoals = getLocalChallengeGoals();
       for (const g of currentGoals) {
-        if (!deletedIds.includes(g.challengeId) && !goalMap.has(g.id)) {
+        if (activeChallengeIds.has(g.challengeId) && !goalMap.has(g.id)) {
           goalMap.set(g.id, g);
           try {
             await (client.from('challenge_goals') as any).upsert({
@@ -1366,8 +1460,9 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           }
         }
       }
+      const finalGoals = Array.from(goalMap.values()).filter((g) => activeChallengeIds.has(g.challengeId));
       if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(Array.from(goalMap.values())));
+        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(finalGoals));
       }
     }
 
