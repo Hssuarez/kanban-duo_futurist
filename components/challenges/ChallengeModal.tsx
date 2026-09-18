@@ -43,6 +43,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!isOpen) return;
     if (editingChallenge) {
       setTitle(editingChallenge.title);
       setDescription(editingChallenge.description || '');
@@ -60,7 +61,8 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
       setHabitTitle('Entrenar');
       setSelectedUserIds(users.map((u) => u.id));
     }
-  }, [editingChallenge, isOpen, users]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingChallenge, isOpen]);
 
   if (!isOpen || !mounted) return null;
 
