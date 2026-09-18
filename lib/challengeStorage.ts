@@ -36,8 +36,8 @@ export const DEFAULT_CHALLENGES: Challenge[] = [
     description: 'Entrenar al menos 5 veces por semana y mantener la consistencia.',
     icon: '🏋️',
     color: '#06b6d4',
-    startDate: '2026-10-01',
-    endDate: '2026-10-30',
+    startDate: '2026-09-01',
+    endDate: '2026-09-30',
     durationDays: 30,
     mode: 'competitive',
     status: 'active',
@@ -63,19 +63,19 @@ export const DEFAULT_CHALLENGES: Challenge[] = [
   },
   {
     id: 'ch-hidrata-21d',
-    createdBy: 'user-2',
+    createdBy: 'user-alex',
     title: 'Hidratación 21 días',
     description: 'Tomar al menos 2.5 litros de agua diarios.',
     icon: '💧',
     color: '#0284c7',
-    startDate: '2026-10-05',
-    endDate: '2026-10-25',
+    startDate: '2026-09-05',
+    endDate: '2026-09-25',
     durationDays: 21,
     mode: 'collaborative',
-    status: 'upcoming',
+    status: 'active',
     targetGoal: '21 días seguidos',
-    createdAt: '2026-09-10T10:00:00.000Z',
-    updatedAt: '2026-09-10T10:00:00.000Z',
+    createdAt: '2026-09-01T10:00:00.000Z',
+    updatedAt: '2026-09-01T10:00:00.000Z',
   },
   {
     id: 'ch-sueno-31d',
@@ -96,18 +96,18 @@ export const DEFAULT_CHALLENGES: Challenge[] = [
 ];
 
 export const DEFAULT_CHALLENGE_MEMBERS: ChallengeMember[] = [
-  // Miembros de 'ch-gym-30d'
-  { id: 'cm-1', challengeId: 'ch-gym-30d', userId: 'user-admin', role: 'owner', joinedAt: '2026-10-01' },
-  { id: 'cm-2', challengeId: 'ch-gym-30d', userId: 'user-2', role: 'member', joinedAt: '2026-10-01' },
-  { id: 'cm-3', challengeId: 'ch-gym-30d', userId: 'user-3', role: 'member', joinedAt: '2026-10-01' },
-  { id: 'cm-4', challengeId: 'ch-gym-30d', userId: 'user-4', role: 'member', joinedAt: '2026-10-01' },
-  { id: 'cm-5', challengeId: 'ch-gym-30d', userId: 'user-5', role: 'member', joinedAt: '2026-10-03' }, // Participación tardía
+  // Miembros de 'ch-gym-30d' (incluyendo usuarios reales del sistema)
+  { id: 'cm-1', challengeId: 'ch-gym-30d', userId: 'user-admin', role: 'owner', joinedAt: '2026-09-01' },
+  { id: 'cm-2', challengeId: 'ch-gym-30d', userId: 'user-alex', role: 'member', joinedAt: '2026-09-01' },
+  { id: 'cm-3', challengeId: 'ch-gym-30d', userId: 'user-beatriz', role: 'member', joinedAt: '2026-09-01' },
+  { id: 'cm-4', challengeId: 'ch-gym-30d', userId: 'user-2', role: 'member', joinedAt: '2026-09-01' },
+  { id: 'cm-5', challengeId: 'ch-gym-30d', userId: 'user-3', role: 'member', joinedAt: '2026-09-03' },
 
   // Miembros de 'ch-lectura-30d'
   { id: 'cm-6', challengeId: 'ch-lectura-30d', userId: 'user-admin', role: 'owner', joinedAt: '2026-09-01' },
-  { id: 'cm-7', challengeId: 'ch-lectura-30d', userId: 'user-2', role: 'member', joinedAt: '2026-09-01' },
-  { id: 'cm-8', challengeId: 'ch-lectura-30d', userId: 'user-3', role: 'member', joinedAt: '2026-09-01' },
-  { id: 'cm-9', challengeId: 'ch-lectura-30d', userId: 'user-4', role: 'member', joinedAt: '2026-09-01' },
+  { id: 'cm-7', challengeId: 'ch-lectura-30d', userId: 'user-alex', role: 'member', joinedAt: '2026-09-01' },
+  { id: 'cm-8', challengeId: 'ch-lectura-30d', userId: 'user-beatriz', role: 'member', joinedAt: '2026-09-01' },
+  { id: 'cm-9', challengeId: 'ch-lectura-30d', userId: 'user-2', role: 'member', joinedAt: '2026-09-01' },
 ];
 
 export const DEFAULT_CHALLENGE_HABITS: ChallengeHabit[] = [
@@ -117,42 +117,41 @@ export const DEFAULT_CHALLENGE_HABITS: ChallengeHabit[] = [
 ];
 
 export const DEFAULT_CHALLENGE_GOALS: ChallengeGoal[] = [
-  { id: 'cg-1', challengeId: 'ch-gym-30d', title: 'Completar 20 sesiones de gym', targetValue: 20, currentValue: 18, unit: 'sesiones', isCompleted: false, createdAt: '2026-10-01' },
-  { id: 'cg-2', challengeId: 'ch-gym-30d', title: 'Mantener 7 días consecutivos', targetValue: 7, currentValue: 7, unit: 'días', isCompleted: true, createdAt: '2026-10-01' },
-  { id: 'cg-3', challengeId: 'ch-gym-30d', title: 'Alcanzar 80% de consistencia', targetValue: 80, currentValue: 86, unit: '%', isCompleted: true, createdAt: '2026-10-01' },
-  { id: 'cg-4', challengeId: 'ch-gym-30d', title: 'Completar los 30 días', targetValue: 30, currentValue: 20, unit: 'días', isCompleted: false, createdAt: '2026-10-01' },
+  { id: 'cg-1', challengeId: 'ch-gym-30d', title: 'Completar 20 sesiones de gym', targetValue: 20, currentValue: 18, unit: 'sesiones', isCompleted: false, createdAt: '2026-09-01' },
+  { id: 'cg-2', challengeId: 'ch-gym-30d', title: 'Mantener 7 días consecutivos', targetValue: 7, currentValue: 7, unit: 'días', isCompleted: true, createdAt: '2026-09-01' },
+  { id: 'cg-3', challengeId: 'ch-gym-30d', title: 'Alcanzar 80% de consistencia', targetValue: 80, currentValue: 86, unit: '%', isCompleted: true, createdAt: '2026-09-01' },
+  { id: 'cg-4', challengeId: 'ch-gym-30d', title: 'Completar los 30 días', targetValue: 30, currentValue: 20, unit: 'días', isCompleted: false, createdAt: '2026-09-01' },
 ];
 
 export const DEFAULT_CHALLENGE_ACTIVITIES: ChallengeActivity[] = [
-  { id: 'ca-1', challengeId: 'ch-gym-30d', userId: 'user-2', actionType: 'check_in', message: 'Jesús completó Entrenar', habitTitle: 'Entrenar', createdAt: '2026-10-17T20:24:00.000Z' },
-  { id: 'ca-2', challengeId: 'ch-gym-30d', userId: 'user-3', actionType: 'check_in', message: 'Mariana completó Tomar agua', habitTitle: 'Tomar agua', createdAt: '2026-10-17T19:15:00.000Z' },
-  { id: 'ca-3', challengeId: 'ch-gym-30d', userId: 'user-4', actionType: 'check_in', message: 'Carlos completó Entrenar', habitTitle: 'Entrenar', createdAt: '2026-10-17T18:42:00.000Z' },
-  { id: 'ca-4', challengeId: 'ch-gym-30d', userId: 'user-admin', actionType: 'check_in', message: 'Stephan completó Entrenar', habitTitle: 'Entrenar', createdAt: '2026-10-17T18:10:00.000Z' },
-  { id: 'ca-5', challengeId: 'ch-gym-30d', userId: 'user-5', actionType: 'joined', message: 'Andrés se unió al reto', createdAt: '2026-10-03T10:30:00.000Z' },
+  { id: 'ca-1', challengeId: 'ch-gym-30d', userId: 'user-alex', actionType: 'check_in', message: 'Alex completó Entrenar', habitTitle: 'Entrenar', createdAt: '2026-09-17T20:24:00.000Z' },
+  { id: 'ca-2', challengeId: 'ch-gym-30d', userId: 'user-beatriz', actionType: 'check_in', message: 'Beatriz completó Tomar agua', habitTitle: 'Tomar agua', createdAt: '2026-09-17T19:15:00.000Z' },
+  { id: 'ca-3', challengeId: 'ch-gym-30d', userId: 'user-2', actionType: 'check_in', message: 'Jesús completó Entrenar', habitTitle: 'Entrenar', createdAt: '2026-09-17T18:42:00.000Z' },
+  { id: 'ca-4', challengeId: 'ch-gym-30d', userId: 'user-admin', actionType: 'check_in', message: 'Diana completó Entrenar', habitTitle: 'Entrenar', createdAt: '2026-09-17T18:10:00.000Z' },
+  { id: 'ca-5', challengeId: 'ch-gym-30d', userId: 'user-3', actionType: 'joined', message: 'Mariana se unió al reto', createdAt: '2026-09-03T10:30:00.000Z' },
 ];
 
-// Genera logs realistas para los 5 miembros en ch-gym-30d (días 1 al 17)
+// Genera logs realistas para los miembros en ch-gym-30d (días 1 al 17 de Septiembre)
 export function generateSeedChallengeLogs(): ChallengeLog[] {
   const logs: ChallengeLog[] = [];
-  const members = ['user-admin', 'user-2', 'user-3', 'user-4', 'user-5'];
+  const members = ['user-admin', 'user-alex', 'user-beatriz', 'user-2', 'user-3'];
 
-  // Probabilidades de cumplimiento que producen los porcentajes de la referencia:
-  // Stephan: 92%, Jesús: 88%, Mariana: 84%, Carlos: 76%, Andrés: 70%
+  // Probabilidades de cumplimiento que producen porcentajes realistas
   const memberProbabilities: Record<string, number> = {
     'user-admin': 94,
-    'user-2': 88,
-    'user-3': 84,
-    'user-4': 76,
-    'user-5': 72,
+    'user-alex': 88,
+    'user-beatriz': 84,
+    'user-2': 76,
+    'user-3': 72,
   };
 
   for (let d = 1; d <= 17; d++) {
     const dayStr = String(d).padStart(2, '0');
-    const dateKey = `2026-10-${dayStr}`;
+    const dateKey = `2026-09-${dayStr}`;
 
     members.forEach((userId, mIdx) => {
-      // Andrés se unió el día 3
-      if (userId === 'user-5' && d < 3) return;
+      // Mariana se unió el día 3
+      if (userId === 'user-3' && d < 3) return;
 
       const prob = memberProbabilities[userId] || 80;
       const pseudo = (d * 23 + mIdx * 17) % 100;
@@ -199,11 +198,31 @@ export function getLocalChallenges(): Challenge[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.CHALLENGES);
-    if (!raw) {
+    let challenges: Challenge[] = raw ? JSON.parse(raw) : [];
+    if (!raw || challenges.length === 0) {
       localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(DEFAULT_CHALLENGES));
       return DEFAULT_CHALLENGES;
     }
-    return JSON.parse(raw);
+
+    // Auto-migración si existía fecha de octubre para ch-gym-30d
+    let migrated = false;
+    challenges = challenges.map((c) => {
+      if (c.id === 'ch-gym-30d' && c.startDate === '2026-10-01') {
+        migrated = true;
+        return {
+          ...c,
+          startDate: '2026-09-01',
+          endDate: '2026-09-30',
+        };
+      }
+      return c;
+    });
+
+    if (migrated) {
+      localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(challenges));
+    }
+
+    return challenges;
   } catch {
     return DEFAULT_CHALLENGES;
   }
@@ -263,6 +282,49 @@ export async function saveChallenge(challenge: Challenge): Promise<Challenge> {
   return challenge;
 }
 
+// Eliminar Reto y todas sus entidades relacionadas (Local-First + Supabase)
+export async function deleteChallenge(challengeId: string): Promise<boolean> {
+  // 1. Actualizar LocalStorage
+  const challenges = getLocalChallenges().filter((c) => c.id !== challengeId);
+  saveLocalChallenges(challenges);
+
+  const members = getLocalChallengeMembers().filter((m) => m.challengeId !== challengeId);
+  saveLocalChallengeMembers(members);
+
+  const habits = getLocalChallengeHabits().filter((h) => h.challengeId !== challengeId);
+  saveLocalChallengeHabits(habits);
+
+  const logs = getLocalChallengeLogs().filter((l) => l.challengeId !== challengeId);
+  saveLocalChallengeLogs(logs);
+
+  const goals = getLocalChallengeGoals().filter((g) => g.challengeId !== challengeId);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals));
+  }
+
+  const activities = getLocalChallengeActivities().filter((a) => a.challengeId !== challengeId);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(activities));
+  }
+
+  notifySync('challenges');
+
+  // 2. Sincronización en la Nube Supabase (eliminación en cascada)
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      await client.from('challenge_logs').delete().eq('challenge_id', challengeId);
+      await client.from('challenge_habits').delete().eq('challenge_id', challengeId);
+      await client.from('challenge_members').delete().eq('challenge_id', challengeId);
+      await client.from('challenges').delete().eq('id', challengeId);
+    } catch (e) {
+      console.warn('Sync deleteChallenge Supabase:', e);
+    }
+  }
+
+  return true;
+}
+
 // ========================================================
 // CRUD: MEMBERS
 // ========================================================
@@ -275,6 +337,33 @@ export function getLocalChallengeMembers(challengeId?: string): ChallengeMember[
 
     if (!raw || members.length === 0) {
       members = [...DEFAULT_CHALLENGE_MEMBERS];
+      localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
+    }
+
+    // Auto-migración de joinedAt de octubre a septiembre si existían datos cacheados
+    let migrated = false;
+    members = members.map((m) => {
+      if (m.challengeId === 'ch-gym-30d' && (m.joinedAt || '').startsWith('2026-10-')) {
+        migrated = true;
+        return {
+          ...m,
+          joinedAt: m.joinedAt.replace('2026-10-', '2026-09-'),
+        };
+      }
+      return m;
+    });
+
+    // Asegurar que los miembros del sistema tengan su fila en ch-gym-30d
+    if (!members.some((m) => m.challengeId === 'ch-gym-30d' && m.userId === 'user-alex')) {
+      members.push({ id: 'cm-ch-gym-alex', challengeId: 'ch-gym-30d', userId: 'user-alex', role: 'member', joinedAt: '2026-09-01' });
+      migrated = true;
+    }
+    if (!members.some((m) => m.challengeId === 'ch-gym-30d' && m.userId === 'user-beatriz')) {
+      members.push({ id: 'cm-ch-gym-beatriz', challengeId: 'ch-gym-30d', userId: 'user-beatriz', role: 'member', joinedAt: '2026-09-01' });
+      migrated = true;
+    }
+
+    if (migrated) {
       localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
     }
 
@@ -432,6 +521,20 @@ export function getLocalChallengeLogs(challengeId?: string): ChallengeLog[] {
 
     if (!raw || logs.length === 0) {
       logs = generateSeedChallengeLogs();
+      localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
+    }
+
+    // Auto-migración de logs de octubre a septiembre
+    let migrated = false;
+    logs = logs.map((l) => {
+      if (l.challengeId === 'ch-gym-30d' && l.dateKey.startsWith('2026-10-')) {
+        migrated = true;
+        return { ...l, dateKey: l.dateKey.replace('2026-10-', '2026-09-') };
+      }
+      return l;
+    });
+
+    if (migrated) {
       localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
     }
 

@@ -26,13 +26,14 @@ import {
   toggleChallengeGoal,
   saveChallengeGoal,
   saveChallengeHabit,
+  deleteChallenge,
 } from '@/lib/challengeStorage';
 import {
   getChallengeDays,
   calculateChallengeLeaderboard,
   calculateChallengeSummaryKpis,
 } from '@/lib/challengeCalculations';
-import { getBogotaToday, MONTH_NAMES_ES } from '@/lib/habitCalculations';
+import { getBogotaToday, getBogotaYearMonth, MONTH_NAMES_ES } from '@/lib/habitCalculations';
 import { subscribeToSync } from '@/lib/storage';
 
 import { ChallengeCardsRow } from './ChallengeCardsRow';
@@ -76,8 +77,8 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
 
   // Navigation and UI state
   const [currentSubTab, setCurrentSubTab] = useState<ChallengeSubTab>('matrix');
-  const [currentMonth, setCurrentMonth] = useState<number>(10); // Octubre 2026
-  const [currentYear, setCurrentYear] = useState<number>(2026);
+  const [currentMonth, setCurrentMonth] = useState<number>(() => getBogotaYearMonth()[1]);
+  const [currentYear, setCurrentYear] = useState<number>(() => getBogotaYearMonth()[0]);
 
   // Modals state
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
@@ -300,7 +301,30 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     loadChallengeData();
   };
 
-  const monthName = MONTH_NAMES_ES[currentMonth - 1] || 'Octubre';
+  // Eliminar reto
+  const handleDeleteChallenge = async (challengeId: string) => {
+    await deleteChallenge(challengeId);
+    const updated = getLocalChallenges();
+    setChallenges(updated);
+    if (updated.length > 0) {
+      setSelectedChallengeId(updated[0].id);
+    }
+    loadChallengeData();
+  };
+
+  // Asegurar que el usuario activo sea miembro del reto seleccionado para que tenga su propia fila
+  useEffect(() => {
+    if (currentChallenge?.id && currentUser?.id) {
+      const isMember = challengeMembers.some((m) => m.userId === currentUser.id);
+      if (!isMember) {
+        addChallengeMember(currentChallenge.id, currentUser.id, 'member', currentChallenge.startDate).then(() => {
+          loadChallengeData();
+        });
+      }
+    }
+  }, [currentChallenge?.id, currentUser?.id, challengeMembers, loadChallengeData]);
+
+  const monthName = MONTH_NAMES_ES[currentMonth - 1] || 'Septiembre';
 
   return (
     <div className="space-y-5 font-sans animate-view-fade pb-10 w-full">
@@ -342,14 +366,16 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
           setEditingChallenge(currentChallenge);
           setIsChallengeModalOpen(true);
         }}
+        onDeleteChallenge={handleDeleteChallenge}
         onOpenInviteMembers={() => setIsMembersModalOpen(true)}
         monthName={monthName}
         year={currentYear}
         onPrevMonth={() => setCurrentMonth((prev) => (prev === 1 ? 12 : prev - 1))}
         onNextMonth={() => setCurrentMonth((prev) => (prev === 12 ? 1 : prev + 1))}
         onGoToday={() => {
-          setCurrentMonth(10);
-          setCurrentYear(2026);
+          const [y, m] = getBogotaYearMonth();
+          setCurrentMonth(m);
+          setCurrentYear(y);
         }}
         onBackToHabits={onBackToHabits}
       />
@@ -489,6 +515,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
         isOpen={isChallengeModalOpen}
         onClose={() => setIsChallengeModalOpen(false)}
         onSave={handleSaveChallenge}
+        onDelete={handleDeleteChallenge}
         editingChallenge={editingChallenge}
         users={users}
         currentUser={currentUser}

@@ -253,16 +253,36 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
         <div className="space-y-3 relative z-10">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-950/70 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.35)]">
-              <Target className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+              {currentSubView === 'challenges' ? (
+                <Trophy className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+              ) : currentSubView === 'goals' ? (
+                <Flag className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+              ) : currentSubView === 'progress' ? (
+                <Activity className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+              ) : (
+                <Target className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold text-white font-mono tracking-wider uppercase">
                   Habit Core
                 </h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/30 font-medium">
+                  {currentSubView === 'habits'
+                    ? 'Mis Hábitos'
+                    : currentSubView === 'challenges'
+                    ? 'Retos Colectivos'
+                    : currentSubView === 'goals'
+                    ? 'Objetivos'
+                    : 'Progreso'}
+                </span>
               </div>
               <p className="text-xs text-zinc-400">
-                Construye tu mejor versión, día a día.
+                {currentSubView === 'habits' && 'Construye tu mejor versión día a día.'}
+                {currentSubView === 'challenges' && 'Compite o colabora con tu equipo en retos colectivos.'}
+                {currentSubView === 'goals' && 'Planifica y monitorea tus objetivos del período.'}
+                {currentSubView === 'progress' && 'Analiza tus métricas históricas de constancia y cumplimiento.'}
               </p>
             </div>
           </div>
@@ -323,49 +343,66 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
           </div>
         </div>
 
-        {/* Month Selector Controls & New Habit Button */}
+        {/* Acciones de Cabecera contextuales por Subvista */}
         <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center relative z-10">
-          <div className="flex items-center bg-zinc-950/90 border border-white/[0.08] rounded-xl p-0.5">
+          {(currentSubView === 'habits' || currentSubView === 'progress') && (
+            <div className="flex items-center bg-zinc-950/90 border border-white/[0.08] rounded-xl p-0.5">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                title="Mes anterior"
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="px-3 text-xs font-mono font-semibold text-white min-w-[130px] text-center capitalize">
+                {monthName} {currentYear}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                title="Mes siguiente"
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {(currentSubView === 'habits' || currentSubView === 'progress') && (
             <button
               type="button"
-              onClick={handlePrevMonth}
-              title="Mes anterior"
-              className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+              onClick={handleGoToday}
+              className="px-3 py-1.5 text-xs font-mono font-medium rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.08] transition-all active:scale-95 cursor-pointer"
             >
-              <ChevronLeft className="w-4 h-4" />
+              Hoy
             </button>
-            <span className="px-3 text-xs font-mono font-semibold text-white min-w-[130px] text-center capitalize">
-              {monthName} {currentYear}
-            </span>
+          )}
+
+          {currentSubView === 'habits' && (
             <button
               type="button"
-              onClick={handleNextMonth}
-              title="Mes siguiente"
-              className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+              onClick={() => {
+                setEditingHabit(null);
+                setIsHabitModalOpen(true);
+              }}
+              className="px-3.5 py-2 text-xs font-semibold text-zinc-950 bg-cyan-400 hover:bg-cyan-300 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.35)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0"
             >
-              <ChevronRight className="w-4 h-4" />
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Nuevo hábito</span>
             </button>
-          </div>
+          )}
 
-          <button
-            type="button"
-            onClick={handleGoToday}
-            className="px-3 py-1.5 text-xs font-mono font-medium rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.08] transition-all active:scale-95 cursor-pointer"
-          >
-            Hoy
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setEditingHabit(null);
-              setIsHabitModalOpen(true);
-            }}
-            className="px-3.5 py-2 text-xs font-semibold text-zinc-950 bg-cyan-400 hover:bg-cyan-300 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.35)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Nuevo hábito</span>
-          </button>
+          {currentSubView === 'goals' && (
+            <button
+              type="button"
+              onClick={() => setIsGoalModalOpen(true)}
+              className="px-3.5 py-2 text-xs font-semibold text-zinc-950 bg-cyan-400 hover:bg-cyan-300 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.35)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Nuevo objetivo</span>
+            </button>
+          )}
         </div>
       </div>
 

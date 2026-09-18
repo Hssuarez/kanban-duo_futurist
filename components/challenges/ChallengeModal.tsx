@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { Challenge, ChallengeMode } from '@/lib/challengeTypes';
 import { User } from '@/lib/types';
-import { X, Trophy, Handshake, Calendar, Check, Sparkles } from 'lucide-react';
+import { X, Trophy, Handshake, Calendar, Check, Sparkles, Trash2 } from 'lucide-react';
 import { getBogotaToday } from '@/lib/habitCalculations';
 
 interface ChallengeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (challengeData: Partial<Challenge>, initialHabitTitle?: string, invitedUserIds?: string[]) => void;
+  onDelete?: (challengeId: string) => void;
   editingChallenge?: Challenge | null;
   users: User[];
   currentUser: User;
@@ -21,6 +22,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onDelete,
   editingChallenge,
   users,
   currentUser,
@@ -305,20 +307,44 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
           </div>
 
           {/* Footer Submit Button */}
-          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 text-xs font-semibold text-zinc-950 bg-cyan-400 hover:bg-cyan-300 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] active:scale-95 cursor-pointer"
-            >
-              {editingChallenge ? 'Guardar Cambios' : 'Crear Reto'}
-            </button>
+          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2">
+            {editingChallenge && onDelete ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `¿Estás seguro de que deseas eliminar el reto "${editingChallenge.title}"?`
+                    )
+                  ) {
+                    onDelete(editingChallenge.id);
+                    onClose();
+                  }
+                }}
+                className="px-3.5 py-2 text-xs font-semibold text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                <span>Eliminar Reto</span>
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 text-xs font-semibold text-zinc-950 bg-cyan-400 hover:bg-cyan-300 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] active:scale-95 cursor-pointer"
+              >
+                {editingChallenge ? 'Guardar Cambios' : 'Crear Reto'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

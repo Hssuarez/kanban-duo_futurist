@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Handshake,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 
 interface ChallengeHeroHeaderProps {
@@ -33,6 +34,7 @@ interface ChallengeHeroHeaderProps {
   currentSubTab: ChallengeSubTab;
   onChangeSubTab: (tab: ChallengeSubTab) => void;
   onOpenEditChallenge: () => void;
+  onDeleteChallenge?: (challengeId: string) => void;
   onOpenInviteMembers: () => void;
   monthName: string;
   year: number;
@@ -51,6 +53,7 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
   currentSubTab,
   onChangeSubTab,
   onOpenEditChallenge,
+  onDeleteChallenge,
   onOpenInviteMembers,
   monthName,
   year,
@@ -144,6 +147,26 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
               <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
               <span>Editar reto</span>
             </button>
+
+            {onDeleteChallenge && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `¿Estás seguro de que deseas eliminar el reto "${challenge.title}"? Se borrarán sus datos y check-ins asociados.`
+                    )
+                  ) {
+                    onDeleteChallenge(challenge.id);
+                  }
+                }}
+                className="px-3 py-1.5 text-xs font-medium text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 hover:border-rose-500/60 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                title="Eliminar reto permanentemente"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                <span>Eliminar</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
