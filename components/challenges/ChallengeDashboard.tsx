@@ -33,6 +33,8 @@ import {
   getLastSelectedChallengeId,
   saveLastSelectedChallengeId,
   syncCloudChallenges,
+  getChallengeCloudSyncStatus,
+  ChallengeCloudSyncStatus,
 } from '@/lib/challengeStorage';
 import {
   getChallengeDays,
@@ -53,6 +55,7 @@ import { ChallengeGoalsCard } from './ChallengeGoalsCard';
 import { ChallengeGoalModal } from './ChallengeGoalModal';
 import { ChallengeModal } from './ChallengeModal';
 import { ChallengeMembersModal } from './ChallengeMembersModal';
+import { ChallengeMigrationModal } from './ChallengeMigrationModal';
 import { Plus } from 'lucide-react';
 
 interface ChallengeDashboardProps {
@@ -99,6 +102,8 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<ChallengeGoal | null>(null);
+  const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState<ChallengeCloudSyncStatus>(() => getChallengeCloudSyncStatus());
 
   const todayKey = useMemo(() => getBogotaToday(), []);
 
@@ -117,6 +122,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     setLogs(loadedLogs);
     setActivities(loadedActivities);
     setGoals(loadedGoals);
+    setCloudStatus(getChallengeCloudSyncStatus());
 
     // Asegurar que haya un reto seleccionado válido y priorizar el guardado por el usuario
     if (loadedChallenges.length > 0) {
@@ -135,8 +141,18 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
 
   useEffect(() => {
     loadChallengeData();
-    syncCloudChallenges().then(() => {
+    syncCloudChallenges().then((cloudList) => {
       loadChallengeData();
+      // Si el usuario en este navegador nuevo / incógnito no tenía selección previa guardada,
+      // y la nube trajo retos personalizados (distintos al placeholder default), seleccionar el más reciente.
+      const saved = getLastSelectedChallengeId();
+      if (!saved && cloudList && cloudList.length > 0) {
+        const customChallenge = cloudList.find((c) => c.id !== 'ch-gym-30d') || cloudList[0];
+        if (customChallenge) {
+          setSelectedChallengeId(customChallenge.id);
+          saveLastSelectedChallengeId(customChallenge.id);
+        }
+      }
     });
     const unsubscribe = subscribeToSync((type) => {
       if (type === 'challenges') {
@@ -456,6 +472,8 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
           setCurrentYear(y);
         }}
         onBackToHabits={onBackToHabits}
+        cloudStatus={cloudStatus}
+        onOpenMigrationModal={() => setIsMigrationModalOpen(true)}
       />
 
       {/* 3. Main Workspace Grid: Matrix (Protagonist) + Leaderboard & Feed */}
@@ -609,6 +627,13 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
         onDelete={handleDeleteGoal}
         editingGoal={editingGoal}
         challengeId={currentChallenge.id}
+      />
+
+      {/* Modal de Sincronización y Migración SQL de Supabase */}
+      <ChallengeMigrationModal
+        isOpen={isMigrationModalOpen}
+        onClose={() => setIsMigrationModalOpen(false)}
+        onSyncSuccess={loadChallengeData}
       />
     </div>
   );

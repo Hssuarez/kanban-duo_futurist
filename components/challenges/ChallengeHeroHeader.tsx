@@ -24,7 +24,9 @@ import {
   CheckCircle2,
   Trash2,
   Target,
+  Cloud,
 } from 'lucide-react';
+import { ChallengeCloudSyncStatus } from '@/lib/challengeStorage';
 
 interface ChallengeHeroHeaderProps {
   challenge: Challenge;
@@ -43,6 +45,8 @@ interface ChallengeHeroHeaderProps {
   onNextMonth: () => void;
   onGoToday: () => void;
   onBackToHabits?: () => void;
+  cloudStatus?: ChallengeCloudSyncStatus;
+  onOpenMigrationModal?: () => void;
 }
 
 export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
@@ -62,6 +66,8 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
   onNextMonth,
   onGoToday,
   onBackToHabits,
+  cloudStatus,
+  onOpenMigrationModal,
 }) => {
   // SVG circular gauge properties
   const radius = 32;
@@ -128,8 +134,24 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
             </div>
           </div>
 
-          {/* Action Buttons: Volver a Mis Hábitos & Edit Challenge */}
+          {/* Action Buttons: Volver a Mis Hábitos & Edit Challenge & Cloud Sync */}
           <div className="flex flex-wrap items-center gap-2 self-end md:self-start shrink-0">
+            {cloudStatus && (
+              <button
+                type="button"
+                onClick={onOpenMigrationModal}
+                className={`px-3 py-1.5 text-xs font-mono font-medium rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
+                  cloudStatus.isSynced
+                    ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/60 shadow-[0_0_10px_rgba(52,211,153,0.15)]'
+                    : 'bg-amber-950/50 border-amber-500/50 text-amber-300 hover:bg-amber-900/70 shadow-[0_0_12px_rgba(245,158,11,0.25)] animate-pulse'
+                }`}
+                title={cloudStatus.statusText}
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                <span>{cloudStatus.isSynced ? 'Nube OK' : 'Sincronizar Nube'}</span>
+              </button>
+            )}
+
             {onBackToHabits && (
               <button
                 type="button"

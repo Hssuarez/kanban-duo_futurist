@@ -28,6 +28,29 @@ const STORAGE_KEYS = {
 };
 
 // ========================================================
+// ESTADO DE SINCRONIZACIÓN CLOUD (SUPABASE)
+// ========================================================
+
+export interface ChallengeCloudSyncStatus {
+  isConfigured: boolean;
+  isSynced: boolean;
+  statusText: string;
+  errorMessage?: string;
+  errorCode?: string;
+  lastSyncTime?: string;
+}
+
+let _challengeCloudSyncStatus: ChallengeCloudSyncStatus = {
+  isConfigured: true,
+  isSynced: false,
+  statusText: 'Verificando nube...',
+};
+
+export function getChallengeCloudSyncStatus(): ChallengeCloudSyncStatus {
+  return _challengeCloudSyncStatus;
+}
+
+// ========================================================
 // PERSISTENCIA: LÁPIDAS DE ELIMINACIÓN Y RETO SELECCIONADO
 // ========================================================
 
@@ -359,7 +382,7 @@ export async function saveChallenge(challenge: Challenge): Promise<Challenge> {
   const client = await getOrInitSupabase();
   if (client) {
     try {
-      await client.from('challenges').upsert({
+      const { error } = await client.from('challenges').upsert({
         id: challenge.id,
         created_by: challenge.createdBy,
         title: challenge.title,
@@ -374,8 +397,34 @@ export async function saveChallenge(challenge: Challenge): Promise<Challenge> {
         target_goal: challenge.targetGoal || null,
         updated_at: new Date().toISOString(),
       });
-    } catch (e) {
-      console.warn('Sync saveChallenge Supabase:', e);
+      if (error) {
+        console.error('❌ Error al sincronizar reto con Supabase:', error);
+        _challengeCloudSyncStatus = {
+          isConfigured: true,
+          isSynced: false,
+          statusText: 'Error al sincronizar reto con Supabase',
+          errorMessage: error.message,
+          errorCode: error.code,
+          lastSyncTime: new Date().toISOString(),
+        };
+      } else {
+        console.log('✅ Reto sincronizado exitosamente con Supabase:', challenge.title);
+        _challengeCloudSyncStatus = {
+          isConfigured: true,
+          isSynced: true,
+          statusText: 'Sincronizado con Supabase',
+          lastSyncTime: new Date().toISOString(),
+        };
+      }
+    } catch (e: any) {
+      console.warn('Sync saveChallenge Supabase exception:', e);
+      _challengeCloudSyncStatus = {
+        isConfigured: true,
+        isSynced: false,
+        statusText: 'Excepción al conectar con Supabase',
+        errorMessage: e?.message,
+        lastSyncTime: new Date().toISOString(),
+      };
     }
   }
 
@@ -1063,14 +1112,47 @@ export function deleteChallengeGoal(goalId: string): boolean {
 
 export async function syncCloudChallenges(): Promise<Challenge[]> {
   const client = await getOrInitSupabase();
-  if (!client || typeof window === 'undefined') return getLocalChallenges();
+  if (!client || typeof window === 'undefined') {
+    _challengeCloudSyncStatus = {
+      isConfigured: false,
+      isSynced: false,
+      statusText: 'Supabase no configurado en este entorno',
+    };
+    return getLocalChallenges();
+  }
 
   const deletedIds = getDeletedChallengeIds();
 
   try {
     // 1. Sincronizar retos principales (challenges)
     const { data: cloudChallenges, error: chErr } = await client.from('challenges').select('*');
-    if (!chErr && cloudChallenges) {
+    if (chErr) {
+      console.warn('❌ Error al consultar challenges en Supabase:', chErr);
+      _challengeCloudSyncStatus = {
+        isConfigured: true,
+        isSynced: false,
+        statusText:
+          chErr.code === '42P01'
+            ? 'Falta ejecutar migración SQL en Supabase'
+            : chErr.code === '42501'
+            ? 'Políticas RLS bloqueadas en Supabase'
+            : 'Error consultando retos en Supabase',
+        errorMessage: chErr.message,
+        errorCode: chErr.code,
+        lastSyncTime: new Date().toISOString(),
+      };
+      notifySync('challenges');
+      return getLocalChallenges();
+    }
+
+    _challengeCloudSyncStatus = {
+      isConfigured: true,
+      isSynced: true,
+      statusText: 'Nube conectada y sincronizada',
+      lastSyncTime: new Date().toISOString(),
+    };
+
+    if (cloudChallenges) {
       const currentLocal = getLocalChallenges();
       const mappedCloud: Challenge[] = cloudChallenges
         .filter((c: any) => !deletedIds.includes(c.id))
@@ -1091,30 +1173,38 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           updatedAt: c.updated_at || new Date().toISOString(),
         }));
 
-      // Fusionar retos: mantener los creados localmente que aún no estén en la nube
+      // Fusionar retos: mantener los creados localmente que aún no estén en la nube y subirlos
       const mergedMap = new Map<string, Challenge>();
       mappedCloud.forEach((c) => mergedMap.set(c.id, c));
-      currentLocal.forEach((c) => {
+      for (const c of currentLocal) {
         if (!deletedIds.includes(c.id) && !mergedMap.has(c.id)) {
           mergedMap.set(c.id, c);
-          // Subir el reto local pendiente a Supabase
-          (client.from('challenges') as any).upsert({
-            id: c.id,
-            created_by: c.createdBy,
-            title: c.title,
-            description: c.description || null,
-            icon: c.icon,
-            color: c.color,
-            start_date: c.startDate,
-            end_date: c.endDate,
-            duration_days: c.durationDays,
-            mode: c.mode,
-            status: c.status,
-            target_goal: c.targetGoal || null,
-            updated_at: c.updatedAt,
-          }).catch((e: any) => console.warn('Sync pending challenge:', e));
+          try {
+            const { error: upErr } = await (client.from('challenges') as any).upsert({
+              id: c.id,
+              created_by: c.createdBy,
+              title: c.title,
+              description: c.description || null,
+              icon: c.icon,
+              color: c.color,
+              start_date: c.startDate,
+              end_date: c.endDate,
+              duration_days: c.durationDays,
+              mode: c.mode,
+              status: c.status,
+              target_goal: c.targetGoal || null,
+              updated_at: c.updatedAt,
+            });
+            if (upErr) {
+              console.error('Error subiendo reto local a Supabase:', upErr);
+            } else {
+              console.log('☁️ Reto local subido exitosamente a Supabase:', c.title);
+            }
+          } catch (e) {
+            console.warn('Excepción subiendo reto local:', e);
+          }
         }
-      });
+      }
 
       const finalChallenges = Array.from(mergedMap.values());
       saveLocalChallenges(finalChallenges);
@@ -1136,18 +1226,22 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
 
       const memberMap = new Map<string, ChallengeMember>();
       mappedMembers.forEach((m) => memberMap.set(m.id, m));
-      currentMembers.forEach((m) => {
+      for (const m of currentMembers) {
         if (!deletedIds.includes(m.challengeId) && !memberMap.has(m.id)) {
           memberMap.set(m.id, m);
-          (client.from('challenge_members') as any).upsert({
-            id: m.id,
-            challenge_id: m.challengeId,
-            user_id: m.userId,
-            role: m.role,
-            joined_at: m.joinedAt,
-          }).catch((e: any) => console.warn('Sync pending member:', e));
+          try {
+            await (client.from('challenge_members') as any).upsert({
+              id: m.id,
+              challenge_id: m.challengeId,
+              user_id: m.userId,
+              role: m.role,
+              joined_at: m.joinedAt,
+            });
+          } catch (e) {
+            console.warn('Sync pending member exception:', e);
+          }
         }
-      });
+      }
       saveLocalChallengeMembers(Array.from(memberMap.values()));
     }
 
@@ -1169,20 +1263,24 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
 
       const habitMap = new Map<string, ChallengeHabit>();
       mappedHabits.forEach((h) => habitMap.set(h.id, h));
-      currentHabits.forEach((h) => {
+      for (const h of currentHabits) {
         if (!deletedIds.includes(h.challengeId) && !habitMap.has(h.id)) {
           habitMap.set(h.id, h);
-          (client.from('challenge_habits') as any).upsert({
-            id: h.id,
-            challenge_id: h.challengeId,
-            title: h.title,
-            icon: h.icon,
-            target_value: h.targetValue,
-            display_order: h.displayOrder,
-            created_at: h.createdAt,
-          }).catch((e: any) => console.warn('Sync pending habit:', e));
+          try {
+            await (client.from('challenge_habits') as any).upsert({
+              id: h.id,
+              challenge_id: h.challengeId,
+              title: h.title,
+              icon: h.icon,
+              target_value: h.targetValue,
+              display_order: h.displayOrder,
+              created_at: h.createdAt,
+            });
+          } catch (e) {
+            console.warn('Sync pending habit exception:', e);
+          }
         }
-      });
+      }
       saveLocalChallengeHabits(Array.from(habitMap.values()));
     }
 
@@ -1207,22 +1305,26 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
 
       const logMap = new Map<string, ChallengeLog>();
       mappedLogs.forEach((l) => logMap.set(l.id, l));
-      currentLogs.forEach((l) => {
+      for (const l of currentLogs) {
         if (!deletedIds.includes(l.challengeId) && !logMap.has(l.id)) {
           logMap.set(l.id, l);
-          (client.from('challenge_logs') as any).upsert({
-            id: l.id,
-            challenge_id: l.challengeId,
-            challenge_habit_id: l.challengeHabitId,
-            user_id: l.userId,
-            date_key: l.dateKey,
-            status: l.status,
-            numeric_value: l.numericValue || null,
-            notes: l.notes || null,
-            updated_at: l.updatedAt,
-          }).catch((e: any) => console.warn('Sync pending log:', e));
+          try {
+            await (client.from('challenge_logs') as any).upsert({
+              id: l.id,
+              challenge_id: l.challengeId,
+              challenge_habit_id: l.challengeHabitId,
+              user_id: l.userId,
+              date_key: l.dateKey,
+              status: l.status,
+              numeric_value: l.numericValue || null,
+              notes: l.notes || null,
+              updated_at: l.updatedAt,
+            });
+          } catch (e) {
+            console.warn('Sync pending log exception:', e);
+          }
         }
-      });
+      }
       saveLocalChallengeLogs(Array.from(logMap.values()));
     }
 
@@ -1245,21 +1347,25 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
 
       const goalMap = new Map<string, ChallengeGoal>();
       mappedGoals.forEach((g) => goalMap.set(g.id, g));
-      currentGoals.forEach((g) => {
+      for (const g of currentGoals) {
         if (!deletedIds.includes(g.challengeId) && !goalMap.has(g.id)) {
           goalMap.set(g.id, g);
-          (client.from('challenge_goals') as any).upsert({
-            id: g.id,
-            challenge_id: g.challengeId,
-            title: g.title,
-            target_value: g.targetValue,
-            current_value: g.currentValue,
-            unit: g.unit || null,
-            is_completed: g.isCompleted,
-            created_at: g.createdAt,
-          }).catch((e: any) => console.warn('Sync pending goal:', e));
+          try {
+            await (client.from('challenge_goals') as any).upsert({
+              id: g.id,
+              challenge_id: g.challengeId,
+              title: g.title,
+              target_value: g.targetValue,
+              current_value: g.currentValue,
+              unit: g.unit || null,
+              is_completed: g.isCompleted,
+              created_at: g.createdAt,
+            });
+          } catch (e) {
+            console.warn('Sync pending goal exception:', e);
+          }
         }
-      });
+      }
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(Array.from(goalMap.values())));
       }
@@ -1269,6 +1375,13 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
     return getLocalChallenges();
   } catch (err) {
     console.warn('Fallo de red en syncCloudChallenges:', err);
+    _challengeCloudSyncStatus = {
+      isConfigured: true,
+      isSynced: false,
+      statusText: 'Fallo de red al conectar con Supabase',
+      lastSyncTime: new Date().toISOString(),
+    };
     return getLocalChallenges();
   }
 }
+

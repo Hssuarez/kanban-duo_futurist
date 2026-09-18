@@ -593,6 +593,14 @@ export async function initCloudSync() {
   await syncCloudTasks();
   await syncCloudStatusHistory();
 
+  // Sincronizar retos compartidos (challenges) en el arranque global
+  try {
+    const { syncCloudChallenges } = await import('./challengeStorage');
+    await syncCloudChallenges();
+  } catch (e) {
+    console.warn('Error inicializando retos en initCloudSync:', e);
+  }
+
   // Setup WebSocket listener once
   if (!realtimeSubscribed) {
     realtimeSubscribed = true;
@@ -614,6 +622,21 @@ export async function initCloudSync() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'security_logs' }, () => {
           syncCloudSecurityLogs();
           syncCloudUsers();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'challenges' }, () => {
+          import('./challengeStorage').then((m) => m.syncCloudChallenges());
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'challenge_members' }, () => {
+          import('./challengeStorage').then((m) => m.syncCloudChallenges());
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'challenge_habits' }, () => {
+          import('./challengeStorage').then((m) => m.syncCloudChallenges());
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'challenge_logs' }, () => {
+          import('./challengeStorage').then((m) => m.syncCloudChallenges());
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'challenge_goals' }, () => {
+          import('./challengeStorage').then((m) => m.syncCloudChallenges());
         })
         .subscribe();
     } catch (e) {
