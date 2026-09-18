@@ -14,6 +14,8 @@ import {
   saveNotificationPreferences,
   isDndActive,
   NotificationPreferences,
+  getDynamicNotificationTitle,
+  getTimeOfDayGreeting,
 } from '@/lib/notifications';
 import { playChimeSound } from '@/lib/soundEffects';
 import {
@@ -259,13 +261,31 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           dot: 'bg-emerald-400',
           badgeText: 'Completada',
         };
-      case 'daily_briefing':
+      case 'daily_briefing': {
+        const { period } = getTimeOfDayGreeting('');
+        if (period === 'night') {
+          return {
+            icon: Moon,
+            iconBg: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+            dot: 'bg-indigo-400',
+            badgeText: 'Resumen nocturno',
+          };
+        }
+        if (period === 'afternoon') {
+          return {
+            icon: Sun,
+            iconBg: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+            dot: 'bg-amber-400',
+            badgeText: 'Resumen de la tarde',
+          };
+        }
         return {
           icon: Sun,
           iconBg: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
           dot: 'bg-amber-400',
-          badgeText: 'Resumen',
+          badgeText: 'Resumen matutino',
         };
+      }
       case 'task_created':
       default:
         return {
@@ -468,7 +488,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                                 notif.read ? 'text-zinc-300' : 'text-zinc-100 font-semibold group-hover:text-cyan-300'
                               }`}
                             >
-                              {notif.title}
+                              {getDynamicNotificationTitle(notif)}
                             </span>
                             <span className="text-[10px] font-mono text-zinc-400 shrink-0">
                               {formatRelativeTime(notif.createdAt)}

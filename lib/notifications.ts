@@ -302,6 +302,84 @@ export function evaluateAutomaticNotifications(
   return notifications;
 }
 
+export type TimeOfDayPeriod = 'morning' | 'afternoon' | 'night';
+
+export interface TimeOfDayGreeting {
+  greeting: string;
+  emoji: string;
+  period: TimeOfDayPeriod;
+  fullTitle: string;
+}
+
+/**
+ * Returns a culturally natural Spanish greeting according to the time of day (Bogotá / Local):
+ * - 06:00 - 11:59: ¡Buenos días! ☀️
+ * - 12:00 - 18:59: ¡Buenas tardes! 🌤️
+ * - 19:00 - 05:59: ¡Buenas noches! 🌙
+ */
+export function getTimeOfDayGreeting(name: string = '', date: Date = new Date()): TimeOfDayGreeting {
+  let hour: number;
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Bogota',
+      hour: 'numeric',
+      hour12: false,
+    });
+    hour = parseInt(formatter.format(date), 10);
+    if (isNaN(hour)) {
+      hour = date.getHours();
+    }
+  } catch {
+    hour = date.getHours();
+  }
+
+  const cleanName = (name || '').trim();
+
+  if (hour >= 6 && hour < 12) {
+    const greeting = cleanName ? `¡Buenos días, ${cleanName}!` : '¡Buenos días!';
+    return {
+      greeting,
+      emoji: '☀️',
+      period: 'morning',
+      fullTitle: `☀️ ${greeting}`,
+    };
+  } else if (hour >= 12 && hour < 19) {
+    const greeting = cleanName ? `¡Buenas tardes, ${cleanName}!` : '¡Buenas tardes!';
+    return {
+      greeting,
+      emoji: '🌤️',
+      period: 'afternoon',
+      fullTitle: `🌤️ ${greeting}`,
+    };
+  } else {
+    const greeting = cleanName ? `¡Buenas noches, ${cleanName}!` : '¡Buenas noches!';
+    return {
+      greeting,
+      emoji: '🌙',
+      period: 'night',
+      fullTitle: `🌙 ${greeting}`,
+    };
+  }
+}
+
+/**
+ * Ensures any daily briefing notification title dynamically reflects the current time of day,
+ * preserving the recipient's name seamlessly even for existing notifications.
+ */
+export function getDynamicNotificationTitle(notif: { type: string; title: string }): string {
+  if (
+    notif.type === 'daily_briefing' ||
+    /¡?(?:buenos días|buenas tardes|buenas noches)/i.test(notif.title)
+  ) {
+    // Extract recipient's name if present (e.g. from "☀️ ¡Buenos días, Stephan!")
+    const match = notif.title.match(/¡?(?:buenos días|buenas tardes|buenas noches)[,\s]+([^!.]+)/i);
+    const name = match ? match[1].trim() : '';
+    const { fullTitle } = getTimeOfDayGreeting(name);
+    return fullTitle;
+  }
+  return notif.title;
+}
+
 /**
  * Evaluates and delivers a single Daily Briefing notification per calendar day
  * with a friendly summary of tasks due today and pending items.
@@ -343,9 +421,11 @@ export function evaluateDailyBriefing(
     message += ` (${highPriority} de alta prioridad).`;
   }
 
+  const greetingInfo = getTimeOfDayGreeting(firstName);
+
   addNotification({
     type: 'daily_briefing',
-    title: `☀️ ¡Buenos días, ${firstName}!`,
+    title: greetingInfo.fullTitle,
     message,
     projectId: activeProjectId,
     userId: currentUser.id,

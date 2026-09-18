@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { AppNotification, NotificationType } from '@/lib/notifications';
+import { AppNotification, NotificationType, getDynamicNotificationTitle, getTimeOfDayGreeting } from '@/lib/notifications';
 import { User, Project } from '@/lib/types';
 import {
   Bell,
@@ -11,6 +11,7 @@ import {
   UserCheck,
   PlusCircle,
   Sun,
+  Moon,
   X,
   Sparkles,
 } from 'lucide-react';
@@ -83,8 +84,16 @@ export const NotificationToasts: React.FC<NotificationToastsProps> = ({
         return <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />;
       case 'task_completed':
         return <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />;
-      case 'daily_briefing':
+      case 'daily_briefing': {
+        const { period } = getTimeOfDayGreeting('');
+        if (period === 'night') {
+          return <Moon className="w-4 h-4 text-indigo-300 shrink-0" />;
+        }
+        if (period === 'afternoon') {
+          return <Sun className="w-4 h-4 text-amber-400 shrink-0" />;
+        }
         return <Sun className="w-4 h-4 text-amber-300 shrink-0" />;
+      }
       case 'task_stagnant':
         return <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />;
       default:
@@ -100,8 +109,14 @@ export const NotificationToasts: React.FC<NotificationToastsProps> = ({
       case 'task_stagnant':
         return 'border-rose-500/40 shadow-[0_15px_35px_rgba(0,0,0,0.85),0_0_20px_rgba(244,63,94,0.2)]';
       case 'task_due_soon':
-      case 'daily_briefing':
         return 'border-amber-500/40 shadow-[0_15px_35px_rgba(0,0,0,0.85),0_0_20px_rgba(245,158,11,0.2)]';
+      case 'daily_briefing': {
+        const { period } = getTimeOfDayGreeting('');
+        if (period === 'night') {
+          return 'border-indigo-500/40 shadow-[0_15px_35px_rgba(0,0,0,0.85),0_0_20px_rgba(99,102,241,0.2)]';
+        }
+        return 'border-amber-500/40 shadow-[0_15px_35px_rgba(0,0,0,0.85),0_0_20px_rgba(245,158,11,0.2)]';
+      }
       default:
         return 'border-cyan-500/40 shadow-[0_15px_35px_rgba(0,0,0,0.85),0_0_20px_rgba(6,182,212,0.2)]';
     }
@@ -137,7 +152,7 @@ export const NotificationToasts: React.FC<NotificationToastsProps> = ({
                 </div>
                 <div className="min-w-0 flex-1">
                   <h4 className="text-xs font-bold text-white truncate tracking-wide">
-                    {notif.title}
+                    {getDynamicNotificationTitle(notif)}
                   </h4>
                   <p className="text-[11px] text-zinc-300 line-clamp-2 leading-relaxed mt-0.5 break-words">
                     {notif.message}
