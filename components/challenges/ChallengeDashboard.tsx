@@ -230,7 +230,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
       addChallengeActivity(
         challengeId,
         userId,
-        `${currentUser.name.split(' ')[0]} completó ${habitObj?.title || 'su hábito'}`,
+        `${currentUser.name.split(' ')[0]} cumplió su meta diaria (${habitObj?.title || currentChallenge.title})`,
         'check_in',
         habitObj?.title
       );

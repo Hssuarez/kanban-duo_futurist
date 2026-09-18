@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Challenge, ChallengeMemberCompliance } from '@/lib/challengeTypes';
-import { Trophy, Flame, ChevronDown, Handshake } from 'lucide-react';
+import { Trophy, Flame, ChevronDown, Handshake, Check } from 'lucide-react';
 
 interface ChallengeLeaderboardProps {
   challenge: Challenge;
@@ -14,9 +14,35 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
   leaderboard,
 }) => {
   const isCompetitive = challenge.mode === 'competitive';
+  const [sortBy, setSortBy] = useState<'compliance' | 'streak' | 'completed'>('compliance');
+  const [isSortOpen, setIsSortOpen] = useState(false);
+
+  // Ordenar lista según criterio seleccionado
+  const sortedLeaderboard = useMemo(() => {
+    const list = [...leaderboard];
+    if (sortBy === 'compliance') {
+      list.sort((a, b) => b.percentage - a.percentage || b.currentStreak - a.currentStreak);
+    } else if (sortBy === 'streak') {
+      list.sort((a, b) => b.currentStreak - a.currentStreak || b.percentage - a.percentage);
+    } else if (sortBy === 'completed') {
+      list.sort((a, b) => b.completedDays - a.completedDays || b.percentage - a.percentage);
+    }
+
+    return list.map((item, idx) => ({
+      ...item,
+      rankPosition: idx + 1,
+    }));
+  }, [leaderboard, sortBy]);
+
+  const sortLabel =
+    sortBy === 'compliance'
+      ? 'Por cumplimiento'
+      : sortBy === 'streak'
+      ? 'Por racha'
+      : 'Por check-ins';
 
   return (
-    <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-4 sm:p-5 shadow-sm transition-colors flex flex-col font-sans">
+    <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-4 sm:p-5 shadow-sm transition-colors flex flex-col font-sans relative">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
@@ -30,15 +56,66 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
           </h4>
         </div>
 
-        <div className="flex items-center gap-1 text-[11px] font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded-lg border border-white/[0.06]">
-          <span>Por cumplimiento</span>
-          <ChevronDown className="w-3 h-3 text-zinc-500" />
+        {/* Dropdown de ordenamiento interactivo */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsSortOpen((prev) => !prev)}
+            className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 px-2.5 py-1 rounded-lg border border-white/[0.08] transition-colors cursor-pointer"
+          >
+            <span>{sortLabel}</span>
+            <ChevronDown className="w-3 h-3 text-cyan-400" />
+          </button>
+
+          {isSortOpen && (
+            <div className="absolute right-0 top-full mt-1.5 w-44 bg-zinc-950 border border-white/[0.1] rounded-xl shadow-xl z-30 p-1 font-mono text-xs animate-fade-in">
+              <button
+                type="button"
+                onClick={() => {
+                  setSortBy('compliance');
+                  setIsSortOpen(false);
+                }}
+                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors ${
+                  sortBy === 'compliance' ? 'bg-cyan-950/60 text-cyan-300 font-bold' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                <span>Cumplimiento (%)</span>
+                {sortBy === 'compliance' && <Check className="w-3 h-3 text-cyan-400" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSortBy('streak');
+                  setIsSortOpen(false);
+                }}
+                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors ${
+                  sortBy === 'streak' ? 'bg-cyan-950/60 text-cyan-300 font-bold' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                <span>Racha activa</span>
+                {sortBy === 'streak' && <Check className="w-3 h-3 text-cyan-400" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSortBy('completed');
+                  setIsSortOpen(false);
+                }}
+                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors ${
+                  sortBy === 'completed' ? 'bg-cyan-950/60 text-cyan-300 font-bold' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                <span>Check-ins totales</span>
+                {sortBy === 'completed' && <Check className="w-3 h-3 text-cyan-400" />}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Leaderboard List */}
       <div className="space-y-2.5 flex-1">
-        {leaderboard.map((item) => {
+        {sortedLeaderboard.map((item) => {
           // Medalla o posición
           let badgeColor = 'bg-zinc-800 text-zinc-400 border-white/[0.08]';
           let medalIcon = null;

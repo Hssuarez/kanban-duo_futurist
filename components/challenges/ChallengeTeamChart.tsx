@@ -19,25 +19,53 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
   const [metric, setMetric] = useState<'count' | 'percentage' | 'cumulative'>('count');
   const [hoveredDay, setHoveredDay] = useState<any | null>(null);
 
-  // Calcular cumplimiento por día
+  const totalMembers = Math.max(members.length, 1);
+
+  // Calcular cumplimiento de participantes por día
+  let runningCumulative = 0;
   const dailyCompliance = days.map((day) => {
-    const dayLogs = logs.filter((l) => l.dateKey === day.dateKey && l.status === 'completed');
-    const completedCount = dayLogs.length;
-    const maxPossible = Math.max(members.length * 2, 10);
-    const percentage = maxPossible > 0 ? Math.round((completedCount / maxPossible) * 100) : 0;
+    // Miembros únicos que completaron su check-in en este día
+    const completedUserIds = new Set(
+      logs.filter((l) => l.dateKey === day.dateKey && l.status === 'completed').map((l) => l.userId)
+    );
+    const completedMembersCount = completedUserIds.size;
+    const percentage = totalMembers > 0 ? Math.round((completedMembersCount / totalMembers) * 100) : 0;
+
+    if (!day.isFuture) {
+      runningCumulative += completedMembersCount;
+    }
 
     return {
       dayNumber: day.dayNumber,
       dateKey: day.dateKey,
       dayName: day.dayName,
-      completedCount,
-      maxPossible,
+      completedMembersCount,
+      totalMembers,
       percentage,
+      cumulativeCount: runningCumulative,
       isToday: day.isToday,
       isPast: day.isPast,
       isFuture: day.isFuture,
     };
   });
+
+  // Escala Y según la métrica seleccionada
+  const yLabels =
+    metric === 'percentage'
+      ? ['100%', '75%', '50%', '25%', '0%']
+      : metric === 'cumulative'
+      ? ['100%', '75%', '50%', '25%', '0%']
+      : [
+          String(totalMembers),
+          String(Math.max(1, Math.round(totalMembers * 0.75))),
+          String(Math.max(1, Math.round(totalMembers * 0.5))),
+          String(Math.max(1, Math.round(totalMembers * 0.25))),
+          '0',
+        ];
+
+  // Máximo acumulado posible hasta la fecha para porcentaje acumulado
+  const pastDaysCount = Math.max(1, days.filter((d) => !d.isFuture).length);
+  const maxCumulativePossible = totalMembers * pastDaysCount;
 
   return (
     <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-4 sm:p-5 shadow-sm transition-colors flex flex-col font-sans">
@@ -47,8 +75,8 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
           <BarChart3 className="w-4 h-4 text-cyan-400" />
           <h4 className="text-xs sm:text-sm font-bold text-white uppercase font-mono tracking-wider">
             Progreso Diario del Reto{' '}
-            <span className="text-zinc-500 font-normal">
-              ({metric === 'count' ? 'Suma de hábitos' : metric === 'percentage' ? 'Porcentaje' : 'Acumulado'})
+            <span className="text-zinc-500 font-normal text-[11px] normal-case">
+              ({metric === 'count' ? 'Participantes que cumplieron' : metric === 'percentage' ? 'Tasa de cumplimiento' : 'Cumplimiento acumulado'})
             </span>
           </h4>
         </div>
@@ -64,7 +92,7 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            Suma de hábitos
+            Participantes
           </button>
           <button
             type="button"
@@ -75,7 +103,7 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            Porcentaje (%)
+            Tasa (%)
           </button>
           <button
             type="button"
@@ -86,7 +114,7 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            Serie acumulada
+            Acumulado
           </button>
         </div>
       </div>
@@ -94,14 +122,21 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
       {/* Tooltip display */}
       <div className="h-6 flex items-center mb-2 px-1">
         {hoveredDay ? (
-          <div className="inline-flex items-center gap-2 text-xs font-mono animate-fade-in bg-zinc-900 border border-cyan-500/30 px-2 py-0.5 rounded-lg">
+          <div className="inline-flex items-center gap-2 text-xs font-mono animate-fade-in bg-zinc-900 border border-cyan-500/30 px-2.5 py-1 rounded-lg">
             <span className="text-white font-semibold">{hoveredDay.dateKey}</span>
-            <span className="text-cyan-400 font-bold">{hoveredDay.completedCount} hábitos completados</span>
-            <span className="text-zinc-500 text-[11px]">({hoveredDay.percentage}%)</span>
+            <span className="text-cyan-400 font-bold">
+              {hoveredDay.completedMembersCount} de {totalMembers} participantes cumplieron
+            </span>
+            <span className="text-zinc-400 text-[11px]">({hoveredDay.percentage}%)</span>
+            {metric === 'cumulative' && (
+              <span className="text-emerald-400 text-[11px] border-l border-white/[0.1] pl-2">
+                Acumulado: {hoveredDay.cumulativeCount} check-ins
+              </span>
+            )}
           </div>
         ) : (
           <div className="text-[11px] font-mono text-zinc-500">
-            Pasa el cursor sobre un día para ver los hábitos completados por el equipo.
+            Pasa el cursor sobre un día para ver los participantes que cumplieron el reto.
           </div>
         )}
       </div>
@@ -109,12 +144,10 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
       {/* Plot Canvas: Y-Axis + Bars */}
       <div className="flex gap-2 h-40 pt-2 pb-1 relative">
         {/* Y-Axis scale */}
-        <div className="flex flex-col justify-between items-end pr-1 text-[9px] font-mono text-zinc-500 select-none shrink-0 w-6">
-          <span>8</span>
-          <span>6</span>
-          <span>4</span>
-          <span>2</span>
-          <span>0</span>
+        <div className="flex flex-col justify-between items-end pr-1 text-[9px] font-mono text-zinc-500 select-none shrink-0 w-8">
+          {yLabels.map((lbl, idx) => (
+            <span key={idx}>{lbl}</span>
+          ))}
         </div>
 
         {/* Bars Container with grid lines */}
@@ -130,8 +163,17 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
           <div className="absolute inset-0 flex items-end gap-1 overflow-x-auto custom-scrollbar z-10 px-0.5">
             {dailyCompliance.map((d) => {
               const isHovered = hoveredDay?.dateKey === d.dateKey;
-              const heightPct = Math.min(100, Math.max(0, d.percentage));
-              const visualHeight = d.completedCount > 0 ? Math.max(6, heightPct) : 0;
+
+              let heightPct = 0;
+              if (metric === 'count' || metric === 'percentage') {
+                heightPct = d.percentage;
+              } else if (metric === 'cumulative') {
+                heightPct = maxCumulativePossible > 0 ? Math.round((d.cumulativeCount / maxCumulativePossible) * 100) : 0;
+              }
+
+              const visualHeight = d.completedMembersCount > 0 || (metric === 'cumulative' && d.cumulativeCount > 0)
+                ? Math.max(6, Math.min(100, heightPct))
+                : 0;
 
               return (
                 <div
@@ -165,7 +207,7 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
 
       {/* X-Axis labels */}
       <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
-        <div className="w-6 shrink-0" />
+        <div className="w-8 shrink-0" />
         <div className="flex-1 flex items-center gap-1 overflow-x-auto custom-scrollbar text-[9px] font-mono text-zinc-500">
           {dailyCompliance.map((d) => (
             <div

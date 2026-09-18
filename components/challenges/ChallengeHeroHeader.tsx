@@ -23,6 +23,7 @@ import {
   Handshake,
   CheckCircle2,
   Trash2,
+  Target,
 } from 'lucide-react';
 
 interface ChallengeHeroHeaderProps {
@@ -305,45 +306,35 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
           </div>
         </div>
 
-        {/* KPI 5: Hábitos del Reto */}
+        {/* KPI 5: Compromiso / Meta Diaria del Reto */}
         <div className="col-span-2 md:col-span-1 bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-3.5 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-teal-950/40 border border-teal-500/30 flex items-center justify-center text-teal-400 shrink-0">
-            <Layers className="w-5 h-5" />
+            <Target className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
-              Hábitos del Reto
+              Compromiso Diario
             </span>
-            <div className="text-xs sm:text-sm font-bold font-mono text-white">
-              {habits.length} {habits.length === 1 ? 'hábito' : 'hábitos'}
+            <div className="text-xs sm:text-sm font-bold font-mono text-white truncate" title={challenge.targetGoal || habits[0]?.title || 'Meta Diaria'}>
+              {challenge.targetGoal || habits[0]?.title || 'Meta Diaria'}
             </div>
-            <div className="flex flex-wrap items-center gap-1 pt-0.5">
-              {habits.slice(0, 2).map((h) => (
-                <span
-                  key={h.id}
-                  className="text-[9px] font-mono text-cyan-300 flex items-center gap-0.5 bg-zinc-900/90 px-1.5 py-0.5 rounded border border-white/[0.06]"
-                >
-                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
-                  <span className="truncate max-w-[65px]">{h.title}</span>
-                </span>
-              ))}
-            </div>
+            <span className="text-[9px] font-mono text-zinc-500 block truncate">
+              Actividad del reto
+            </span>
           </div>
         </div>
       </div>
 
       {/* 3. Sub-tabs Navigation Bar & Date Control */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.06] pb-2">
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs (Strict Challenge Domain) */}
         <div className="flex items-center gap-1 p-0.5 bg-zinc-950/90 rounded-xl border border-white/[0.08] overflow-x-auto custom-scrollbar">
           {(
             [
               { id: 'matrix', label: 'Matriz' },
               { id: 'progress', label: 'Progreso' },
-              { id: 'habits', label: 'Hábitos' },
               { id: 'goals', label: 'Objetivos' },
               { id: 'tasks', label: 'Tareas' },
-              { id: 'notes', label: 'Notas' },
             ] as const
           ).map((tab) => (
             <button

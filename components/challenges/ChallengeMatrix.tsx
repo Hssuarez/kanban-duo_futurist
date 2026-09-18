@@ -113,7 +113,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
   const primaryHabit = habits[0] || {
     id: 'chab-1',
     challengeId: challenge.id,
-    title: 'Hábito Principal',
+    title: 'Compromiso Principal',
     icon: '🏋️',
     displayOrder: 1,
     createdAt: '',

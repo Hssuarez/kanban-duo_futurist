@@ -187,6 +187,65 @@ export function calculateMemberCompliance(
   };
 }
 
+export const MOCK_TEAM_MEMBERS: Record<string, Partial<User>> = {
+  'user-2': {
+    id: 'user-2',
+    name: 'Jesús Morales',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    role: 'member',
+  },
+  'user-3': {
+    id: 'user-3',
+    name: 'Mariana Gómez',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    role: 'member',
+  },
+  'user-4': {
+    id: 'user-4',
+    name: 'Carlos Mendoza',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    role: 'member',
+  },
+  'user-5': {
+    id: 'user-5',
+    name: 'Andrés Silva',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    role: 'member',
+  },
+};
+
+export function getResolvedMemberUser(userId: string, users: User[]): User {
+  const existing = users.find((u) => u.id === userId);
+  if (existing) return existing;
+
+  const mock = MOCK_TEAM_MEMBERS[userId];
+  if (mock) {
+    return {
+      id: userId,
+      name: mock.name || 'Compañero',
+      email: `${userId}@kanbanduo.com`,
+      avatar: mock.avatar || '',
+      color: '#06b6d4',
+      role: 'member',
+      passwordHash: '',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  return {
+    id: userId,
+    name: 'Compañero',
+    email: `${userId}@kanbanduo.com`,
+    avatar: '',
+    color: '#06b6d4',
+    role: 'member',
+    passwordHash: '',
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 // Genera el Leaderboard con resolución determinística de empates
 export function calculateChallengeLeaderboard(
   challenge: Challenge,
@@ -197,18 +256,7 @@ export function calculateChallengeLeaderboard(
   todayKey = getBogotaToday()
 ): ChallengeMemberCompliance[] {
   const complianceList: ChallengeMemberCompliance[] = members.map((member) => {
-    const user: User =
-      users.find((u) => u.id === member.userId) || {
-        id: member.userId,
-        name: 'Participante',
-        email: `${member.userId}@kanbanduo.com`,
-        avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80`,
-        color: '#06b6d4',
-        role: 'member',
-        passwordHash: '',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      };
+    const user: User = getResolvedMemberUser(member.userId, users);
     return calculateMemberCompliance(member, user, challenge, logs, challengeHabits, todayKey);
   });
 

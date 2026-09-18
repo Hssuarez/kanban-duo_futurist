@@ -259,17 +259,17 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
             />
           </div>
 
-          {/* Primary Habit Title (if new) */}
+          {/* Primary Activity / Commitment Title (if new) */}
           {!editingChallenge && (
             <div className="space-y-1.5">
               <label className="text-xs font-mono font-medium text-zinc-300 block">
-                Hábito Principal a Monitorear
+                Compromiso / Actividad Diaria del Reto *
               </label>
               <input
                 type="text"
                 value={habitTitle}
                 onChange={(e) => setHabitTitle(e.target.value)}
-                placeholder="Ej. Entrenar en el Gym"
+                placeholder="Ej. Entrenar en el Gym, 10k pasos, Lectura técnica..."
                 required
                 className="w-full bg-zinc-900/90 border border-white/[0.08] focus:border-cyan-400 text-white rounded-xl px-3 py-2 text-xs focus:outline-none"
               />
