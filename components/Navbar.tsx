@@ -346,15 +346,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={onOpenCommandPalette}
               title="Comandos y búsqueda rápida (Ctrl+K)"
-              className="lg:hidden h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 hover:bg-zinc-800 border border-white/[0.08] rounded-xl transition-all active:scale-95 cursor-pointer"
+              className="lg:hidden p-1.5 text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 hover:bg-zinc-900 border border-white/[0.08] rounded-lg transition-colors active:scale-95"
             >
-              <Search className="w-3.5 h-3.5" />
+              <Search className="w-4 h-4" />
             </button>
 
             {/* Active Pomodoro HUD Countdown Widget */}
             {(pomodoro.isRunning || (pomodoro.taskId && pomodoro.remainingSeconds < pomodoro.totalSeconds)) && (
               <div
-                className="h-8 flex items-center gap-1.5 px-2 sm:px-2.5 rounded-xl bg-[#090f1f] border border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.2)] text-xs font-mono animate-modal-enter shrink-0"
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl bg-[#090f1f] border border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.2)] text-xs font-mono animate-modal-enter"
                 title={`Sesión de enfoque: ${pomodoro.taskTitle || 'Tarea'}`}
               >
                 <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400 animate-pulse shrink-0" />
@@ -371,7 +371,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       type="button"
                       onClick={pausePomodoro}
                       title="Pausar enfoque"
-                      className="p-1 hover:text-white text-zinc-400 hover:bg-zinc-800 rounded transition-colors cursor-pointer"
+                      className="p-1 hover:text-white text-zinc-400 hover:bg-zinc-800 rounded transition-colors"
                     >
                       <Pause className="w-2.5 h-2.5" />
                     </button>
@@ -380,7 +380,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       type="button"
                       onClick={resumePomodoro}
                       title="Reanudar enfoque"
-                      className="p-1 hover:text-white text-amber-400 hover:bg-zinc-800 rounded transition-colors cursor-pointer"
+                      className="p-1 hover:text-white text-amber-400 hover:bg-zinc-800 rounded transition-colors"
                     >
                       <Play className="w-2.5 h-2.5 fill-amber-400" />
                     </button>
@@ -389,7 +389,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     onClick={stopPomodoro}
                     title="Detener sesión"
-                    className="p-1 hover:text-rose-400 text-zinc-400 hover:bg-zinc-800 rounded transition-colors cursor-pointer"
+                    className="p-1 hover:text-rose-400 text-zinc-400 hover:bg-zinc-800 rounded transition-colors"
                   >
                     <Square className="w-2.5 h-2.5" />
                   </button>
@@ -397,192 +397,171 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {/* Unified HUD Action Cluster Toolbar */}
-            <div className="flex items-center p-1 bg-zinc-900/90 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-sm gap-1 sm:gap-1.5 shrink-0">
-              {/* Project Report Button */}
-              {onOpenProjectReport && (
-                <button
-                  type="button"
-                  onClick={onOpenProjectReport}
-                  title="Generar y Exportar Reporte Ejecutivo de Proyecto (PDF, CSV, Markdown)"
-                  className="h-8 w-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-cyan-300 hover:bg-zinc-800/80 transition-all active:scale-95 cursor-pointer"
-                >
-                  <FileBarChart className="w-3.5 h-3.5" />
-                </button>
-              )}
-
-              {/* Notification Bell Center */}
-              <NotificationCenter
-                currentUser={currentUser}
-                activeProject={activeProject}
-                tasks={tasks}
-                onOpenTaskDetail={onOpenTaskDetail}
-              />
-
-              {/* Admin Panel Button */}
-              {currentUser.role === 'admin' && (
-                <button
-                  type="button"
-                  onClick={onOpenAdminPanel}
-                  title="Abrir Panel de Administración"
-                  className="h-8 px-2 sm:px-2.5 flex items-center gap-1.5 rounded-lg text-xs font-medium text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/25 hover:border-purple-500/40 shadow-[0_0_8px_rgba(168,85,247,0.15)] transition-all active:scale-95 cursor-pointer"
-                >
-                  <Shield className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                  <span className="hidden sm:inline font-mono text-[11px] font-semibold tracking-wide">Admin</span>
-                </button>
-              )}
-
-              {/* Subtle Divider */}
-              <div className="w-px h-4 bg-white/[0.08] mx-0.5 shrink-0" />
-
-              {/* New Task Button */}
+            {/* Project Report Button */}
+            {onOpenProjectReport && (
               <button
                 type="button"
-                onClick={onOpenNewTaskModal}
-                title="Nueva Tarea"
-                className="h-8 px-2.5 sm:px-3.5 flex items-center gap-1.5 rounded-lg text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-400 hover:from-cyan-300 hover:to-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.3)] hover:shadow-[0_0_18px_rgba(6,182,212,0.5)] active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                onClick={onOpenProjectReport}
+                title="Generar y Exportar Reporte Ejecutivo de Proyecto (PDF, CSV, Markdown)"
+                className="p-2 text-zinc-400 hover:text-cyan-300 bg-zinc-900/80 hover:bg-zinc-800 border border-white/[0.08] hover:border-cyan-500/30 rounded-xl transition-all active:scale-95 cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5 text-slate-950 stroke-[2.5] shrink-0" />
-                <span className="hidden sm:inline font-bold">Nueva tarea</span>
+                <FileBarChart className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Notification Bell Center */}
+            <NotificationCenter
+              currentUser={currentUser}
+              activeProject={activeProject}
+              tasks={tasks}
+              onOpenTaskDetail={onOpenTaskDetail}
+            />
+
+            {/* Admin Panel Button */}
+            {currentUser.role === 'admin' && (
+              <button
+                onClick={onOpenAdminPanel}
+                title="Abrir Panel de Administración"
+                className="inline-flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.08] px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98]"
+              >
+                <Shield className="w-3.5 h-3.5 text-purple-400" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+            )}
+
+            {/* New Task Button */}
+            <button
+              onClick={onOpenNewTaskModal}
+              title="Nueva Tarea"
+              className="inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs shadow-[0_0_14px_rgba(6,182,212,0.28)] hover:shadow-[0_0_22px_rgba(6,182,212,0.48)] active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
+              <span className="hidden sm:inline">Nueva tarea</span>
+            </button>
+
+            {/* Current User Dropdown */}
+            <div className={`relative ${showUserDropdown ? 'z-50' : 'z-30'}`} ref={userMenuRef}>
+              <button
+                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1.5 bg-zinc-900/70 hover:bg-zinc-900 border border-white/[0.08] rounded-lg text-xs font-medium text-zinc-200 transition-all active:scale-[0.98]"
+              >
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
+                  className="w-5 h-5 rounded-full object-cover ring-1 ring-white/10 shrink-0"
+                />
+                <span className="hidden sm:inline font-medium text-zinc-200">
+                  {currentUser.name.split(' ')[0]}
+                </span>
+                <ChevronDown className="w-3 h-3 text-zinc-400 shrink-0" />
               </button>
 
-              {/* Subtle Divider */}
-              <div className="w-px h-4 bg-white/[0.08] mx-0.5 shrink-0" />
+              {/* Mobile Dimmer Backdrop for User Menu */}
+              {showUserDropdown && (
+                <div
+                  className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 sm:hidden animate-fade-in"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowUserDropdown(false);
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    setShowUserDropdown(false);
+                  }}
+                />
+              )}
 
-              {/* Current User Dropdown */}
-              <div className={`relative ${showUserDropdown ? 'z-50' : 'z-30'}`} ref={userMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className={`h-8 pl-1 sm:pl-1.5 pr-2 sm:pr-2.5 flex items-center gap-2 rounded-lg text-xs font-medium transition-all active:scale-95 cursor-pointer ${
-                    showUserDropdown
-                      ? 'bg-zinc-800/90 text-white shadow-sm ring-1 ring-cyan-500/30'
-                      : 'text-zinc-300 hover:text-white hover:bg-zinc-800/70'
-                  }`}
-                  title={`Usuario: ${currentUser.name} (${currentUser.role === 'admin' ? 'Administrador' : 'Miembro'})`}
+              {/* User Dropdown */}
+              {showUserDropdown && (
+                <div
+                  style={{
+                    transformOrigin: 'top right',
+                    backgroundColor: 'rgba(8, 12, 20, 0.98)',
+                  }}
+                  className="absolute right-0 mt-2 w-60 backdrop-blur-2xl border border-cyan-500/25 rounded-xl shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.1)] py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs ring-1 ring-cyan-500/20"
+                  onClick={() => setShowUserDropdown(false)}
+                  role="menu"
                 >
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    className="w-5.5 h-5.5 rounded-full object-cover ring-1 ring-cyan-500/30 shrink-0"
-                  />
-                  <span className="hidden sm:inline font-medium text-zinc-200 truncate max-w-[90px]">
-                    {currentUser.name.split(' ')[0]}
-                  </span>
-                  <ChevronDown
-                    className={`w-3 h-3 text-zinc-400 transition-transform duration-200 shrink-0 ${
-                      showUserDropdown ? 'rotate-180 text-cyan-400' : ''
-                    }`}
-                  />
-                </button>
-
-                {/* Mobile Dimmer Backdrop for User Menu */}
-                {showUserDropdown && (
-                  <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 sm:hidden animate-fade-in"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowUserDropdown(false);
-                    }}
-                    onTouchStart={(e) => {
-                      e.stopPropagation();
-                      setShowUserDropdown(false);
-                    }}
-                  />
-                )}
-
-                {/* User Dropdown */}
-                {showUserDropdown && (
-                  <div
-                    style={{
-                      transformOrigin: 'top right',
-                      backgroundColor: 'rgba(8, 12, 20, 0.98)',
-                    }}
-                    className="absolute right-0 mt-2 w-60 backdrop-blur-2xl border border-cyan-500/25 rounded-xl shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.1)] py-1.5 z-50 animate-modal-enter text-zinc-200 text-xs ring-1 ring-cyan-500/20"
-                    onClick={() => setShowUserDropdown(false)}
-                    role="menu"
-                  >
-                    <div className="px-3 py-2 border-b border-white/[0.06]">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] text-zinc-400 font-medium">
-                          Cuenta activa
-                        </span>
-                        {currentUser.role === 'admin' && (
-                          <span className="text-[10px] bg-purple-500/10 text-purple-300 font-medium px-1.5 py-0.2 rounded border border-purple-500/20">
-                            Admin
-                          </span>
-                        )}
-                      </div>
-                      <p className="font-medium text-zinc-100 truncate">{currentUser.name}</p>
-                      <p className="text-[11px] text-zinc-400 truncate">{currentUser.email}</p>
-                    </div>
-
-                    <div className="py-1">
-                      <button
-                        onClick={onOpenProfileModal}
-                        className="w-full text-left px-3 py-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800/60 font-medium flex items-center gap-2 transition-colors"
-                      >
-                        <Settings className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>Mi perfil</span>
-                      </button>
-
+                  <div className="px-3 py-2 border-b border-white/[0.06]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-zinc-400 font-medium">
+                        Cuenta activa
+                      </span>
                       {currentUser.role === 'admin' && (
-                        <button
-                          onClick={onOpenAdminPanel}
-                          className="w-full text-left px-3 py-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800/60 font-medium flex items-center gap-2 transition-colors"
-                        >
-                          <Shield className="w-3.5 h-3.5 text-purple-400" />
-                          <span>Panel de administración</span>
-                        </button>
+                        <span className="text-[10px] bg-purple-500/10 text-purple-300 font-medium px-1.5 py-0.2 rounded border border-purple-500/20">
+                          Admin
+                        </span>
                       )}
                     </div>
+                    <p className="font-medium text-zinc-100 truncate">{currentUser.name}</p>
+                    <p className="text-[11px] text-zinc-400 truncate">{currentUser.email}</p>
+                  </div>
 
-                    {/* HUD Theme Selector */}
-                    <div className="px-3 py-2 border-t border-white/[0.06] bg-zinc-950/40">
-                      <span className="text-[10px] text-zinc-400 font-medium block mb-1.5 flex items-center gap-1">
-                        <Palette className="w-3 h-3 text-cyan-400" />
-                        Tema Visual HUD
-                      </span>
-                      <div className="grid grid-cols-4 gap-1">
-                        {HUD_THEMES.map((th) => (
-                          <button
-                            key={th.id}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setHudTheme(th.id);
-                            }}
-                            className={`p-1.5 rounded-lg border flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                              activeTheme === th.id
-                                ? 'bg-zinc-800 border-white/40 ring-1 ring-white/30'
-                                : 'bg-zinc-950/60 border-white/[0.06] hover:bg-zinc-900'
-                            }`}
-                            title={`${th.name} (${th.tagline})`}
-                          >
-                            <span
-                              className="w-3 h-3 rounded-full shadow-sm"
-                              style={{ backgroundColor: th.primaryColor }}
-                            />
-                            <span className="text-[9px] font-mono text-zinc-400">
-                              {th.id}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                  <div className="py-1">
+                    <button
+                      onClick={onOpenProfileModal}
+                      className="w-full text-left px-3 py-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800/60 font-medium flex items-center gap-2 transition-colors"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>Mi perfil</span>
+                    </button>
 
-                    <div className="border-t border-white/[0.06] pt-1 mt-1">
+                    {currentUser.role === 'admin' && (
                       <button
-                        onClick={onLogout}
-                        className="w-full text-left px-3 py-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 font-medium flex items-center gap-2 transition-colors"
+                        onClick={onOpenAdminPanel}
+                        className="w-full text-left px-3 py-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800/60 font-medium flex items-center gap-2 transition-colors"
                       >
-                        <LogOut className="w-3.5 h-3.5 text-rose-400" />
-                        <span>Cerrar sesión</span>
+                        <Shield className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Panel de administración</span>
                       </button>
+                    )}
+                  </div>
+
+                  {/* HUD Theme Selector */}
+                  <div className="px-3 py-2 border-t border-white/[0.06] bg-zinc-950/40">
+                    <span className="text-[10px] text-zinc-400 font-medium block mb-1.5 flex items-center gap-1">
+                      <Palette className="w-3 h-3 text-cyan-400" />
+                      Tema Visual HUD
+                    </span>
+                    <div className="grid grid-cols-4 gap-1">
+                      {HUD_THEMES.map((th) => (
+                        <button
+                          key={th.id}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setHudTheme(th.id);
+                          }}
+                          className={`p-1.5 rounded-lg border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                            activeTheme === th.id
+                              ? 'bg-zinc-800 border-white/40 ring-1 ring-white/30'
+                              : 'bg-zinc-950/60 border-white/[0.06] hover:bg-zinc-900'
+                          }`}
+                          title={`${th.name} (${th.tagline})`}
+                        >
+                          <span
+                            className="w-3 h-3 rounded-full shadow-sm"
+                            style={{ backgroundColor: th.primaryColor }}
+                          />
+                          <span className="text-[9px] font-mono text-zinc-400">
+                            {th.id}
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                )}
-              </div>
+
+                  <div className="border-t border-white/[0.06] pt-1 mt-1">
+                    <button
+                      onClick={onLogout}
+                      className="w-full text-left px-3 py-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 font-medium flex items-center gap-2 transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Cerrar sesión</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
