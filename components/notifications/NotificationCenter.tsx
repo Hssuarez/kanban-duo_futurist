@@ -52,6 +52,7 @@ interface NotificationCenterProps {
   activeProject: Project;
   tasks: Task[];
   onOpenTaskDetail?: (taskId: string) => void;
+  triggerClassName?: string;
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
@@ -59,6 +60,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   activeProject,
   tasks,
   onOpenTaskDetail,
+  triggerClassName,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [panelView, setPanelView] = useState<'list' | 'settings'>('list');
@@ -307,18 +309,21 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           if (!isOpen) setPanelView('list');
         }}
         title={dndActive ? 'Notificaciones (Modo Concentración activo)' : 'Centro de notificaciones'}
-        className={`relative p-2 rounded-xl border transition-all active:scale-[0.96] flex items-center justify-center ${
-          isOpen
-            ? 'bg-zinc-800 text-white border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
-            : 'bg-zinc-900/80 hover:bg-zinc-800 border-white/[0.08] hover:border-cyan-500/30 text-zinc-300 hover:text-white shadow-sm'
-        }`}
+        className={
+          triggerClassName ||
+          `relative h-8 w-8 rounded-lg transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
+            isOpen
+              ? 'bg-zinc-800 text-cyan-400 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
+              : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80'
+          }`
+        }
       >
-        <Bell className="w-4 h-4" />
+        <Bell className="w-3.5 h-3.5" />
 
         {/* DND Moon Indicator Badge */}
         {dndActive && (
           <span
-            className="absolute -bottom-1 -left-1 w-3.5 h-3.5 bg-purple-950 border border-purple-400/60 rounded-full flex items-center justify-center text-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.5)]"
+            className="absolute -bottom-0.5 -left-0.5 w-3.5 h-3.5 bg-purple-950 border border-purple-400/60 rounded-full flex items-center justify-center text-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.5)]"
             title="Modo Concentración activo"
           >
             <Moon className="w-2 h-2 fill-purple-300" />
@@ -327,7 +332,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
         {/* Unread Counter Badge */}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-cyan-500 text-zinc-950 font-mono font-bold text-[10px] rounded-full flex items-center justify-center ring-2 ring-zinc-950 shadow-[0_0_10px_rgba(6,182,212,0.7)] animate-pulse">
+          <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-cyan-400 text-zinc-950 font-mono font-bold text-[9px] rounded-full flex items-center justify-center ring-2 ring-[#070c18] shadow-[0_0_8px_rgba(6,182,212,0.6)] animate-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
