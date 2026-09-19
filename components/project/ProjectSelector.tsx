@@ -91,7 +91,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
             {/* Project Title */}
             <div
               className={`flex items-center gap-1.5 text-left min-w-0 ${
-                isMobile ? 'flex-1' : 'max-w-[130px] sm:max-w-[190px] md:max-w-[220px]'
+                isMobile ? 'flex-1' : 'max-w-[100px] sm:max-w-[120px] md:max-w-[130px] lg:max-w-[140px]'
               }`}
             >
               <span className="font-medium text-zinc-100 truncate text-xs block">
@@ -101,26 +101,6 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Member Avatars Stack on larger screens */}
-            {!isMobile && (
-              <div className="hidden lg:flex items-center -space-x-1.5 ml-1">
-                {projectMembers.slice(0, 3).map((m) => (
-                  <img
-                    key={m.id}
-                    src={m.avatar}
-                    alt={m.name}
-                    title={m.name}
-                    className="w-4 h-4 rounded-full object-cover ring-1 ring-zinc-950"
-                  />
-                ))}
-                {projectMembers.length > 3 && (
-                  <span className="w-4 h-4 rounded-full bg-zinc-800 text-[8px] text-zinc-300 flex items-center justify-center font-medium ring-1 ring-zinc-950">
-                    +{projectMembers.length - 3}
-                  </span>
-                )}
-              </div>
-            )}
-
             {/* Badge count */}
             <span className="inline-flex items-center gap-1 text-[10px] bg-zinc-800 text-zinc-300 border border-zinc-700/60 px-1.5 py-0.5 rounded font-medium">
               <Users className="w-2.5 h-2.5 text-zinc-400" />
@@ -140,7 +120,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
           <button
             onClick={() => onOpenEditProject(activeProject)}
             title="Configurar proyecto y miembros"
-            className="p-1.5 bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-all shadow-sm shrink-0 active:scale-[0.98]"
+            className="hidden xl:flex items-center justify-center h-8 w-8 bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-all shadow-sm shrink-0 active:scale-[0.98]"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
@@ -150,10 +130,9 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         <button
           onClick={onOpenCreateProject}
           title="Crear un nuevo tablero de proyecto"
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-lg text-zinc-300 hover:text-white text-xs font-medium transition-all shadow-sm active:scale-[0.98] shrink-0"
+          className="hidden xl:flex items-center justify-center h-8 w-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-lg text-zinc-300 hover:text-white transition-all shadow-sm active:scale-[0.98] shrink-0"
         >
-          <Plus className="w-3.5 h-3.5 text-zinc-400" />
-          <span className="text-[11px] inline">Proyecto</span>
+          <Plus className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
         </button>
       </div>
 

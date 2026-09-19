@@ -251,7 +251,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onToggleSidebar}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors mr-0.5"
+                className="lg:hidden p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors mr-0.5"
                 title="Abrir menú lateral (Workspace / Habit Core)"
               >
                 <Menu className="w-5 h-5" />
@@ -267,14 +267,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-bold text-white text-sm sm:text-base tracking-tight font-mono">
+                <h1 className="hidden sm:block font-bold text-white text-sm sm:text-base tracking-tight font-mono">
                   Kanban<span className="text-cyan-400 font-semibold drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">Duo</span>
                 </h1>
               </div>
             </div>
 
             {/* Global Domain Switcher: Workspace vs Habit Core */}
-            <div className="hidden sm:flex items-center p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 ml-1">
+            <div className="hidden xl:flex items-center p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 ml-1">
               <button
                 type="button"
                 onClick={() => setCurrentView('board')}
@@ -308,7 +308,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Project Selector Switcher (Desktop only, only for Workspace) */}
           {(currentView === 'board' || currentView === 'calendar' || currentView === 'dashboard') && (
-            <div className="hidden md:block shrink-0 relative z-30">
+            <div className="hidden lg:block shrink-0 relative z-30">
               <ProjectSelector
                 projects={projects}
                 activeProject={activeProject}
@@ -321,34 +321,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           )}
 
-          {/* Search Bar / Command Palette Trigger (center, desktop only) */}
-          <div className="flex-1 max-w-xs hidden lg:block">
-            <button
-              type="button"
-              onClick={onOpenCommandPalette}
-              className="w-full flex items-center justify-between pl-3 pr-2.5 py-1.5 text-xs bg-zinc-900/80 hover:bg-zinc-900 border border-white/[0.08] hover:border-cyan-500/30 text-zinc-400 hover:text-zinc-200 rounded-lg transition-all group cursor-pointer text-left shadow-sm"
-              title="Buscar tareas, proyectos o ejecutar acciones rápidas (Ctrl+K)"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <Search className="w-3.5 h-3.5 text-zinc-500 group-hover:text-cyan-400 transition-colors shrink-0" />
-                <span className="truncate">{searchQuery ? `Filtro: "${searchQuery}"` : 'Buscar o pulsar Ctrl+K...'}</span>
-              </div>
-              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono text-zinc-500 group-hover:text-cyan-300 bg-zinc-800/90 rounded border border-white/[0.08] shrink-0">
-                <span className="text-[9px]">⌘</span>K
-              </kbd>
-            </button>
-          </div>
-
           {/* Right Action Controls */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Quick Command Button for mobile / tablet */}
+            {/* Quick Command & Search Button (Ctrl+K) */}
             <button
               type="button"
               onClick={onOpenCommandPalette}
               title="Comandos y búsqueda rápida (Ctrl+K)"
-              className="lg:hidden p-1.5 text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 hover:bg-zinc-900 border border-white/[0.08] rounded-lg transition-colors active:scale-95"
+              className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 hover:bg-zinc-800 border border-white/[0.08] rounded-xl transition-all active:scale-95 cursor-pointer shrink-0"
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-3.5 h-3.5" />
             </button>
 
             {/* Active Pomodoro HUD Countdown Widget */}
@@ -403,58 +385,73 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={onOpenProjectReport}
                 title="Generar y Exportar Reporte Ejecutivo de Proyecto (PDF, CSV, Markdown)"
-                className="p-2 text-zinc-400 hover:text-cyan-300 bg-zinc-900/80 hover:bg-zinc-800 border border-white/[0.08] hover:border-cyan-500/30 rounded-xl transition-all active:scale-95 cursor-pointer"
+                className="h-8 w-8 flex items-center justify-center rounded-xl text-zinc-400 hover:text-cyan-300 bg-zinc-900/80 hover:bg-zinc-800 border border-white/[0.08] hover:border-cyan-500/30 transition-all active:scale-95 cursor-pointer shrink-0"
               >
-                <FileBarChart className="w-4 h-4" />
+                <FileBarChart className="w-3.5 h-3.5" />
               </button>
             )}
 
-            {/* Notification Bell Center */}
-            <NotificationCenter
-              currentUser={currentUser}
-              activeProject={activeProject}
-              tasks={tasks}
-              onOpenTaskDetail={onOpenTaskDetail}
-            />
+            {/* Unified HUD Action Dock: Campana, Admin, Nueva tarea, Stephan */}
+            <div className="flex items-center p-1 bg-zinc-900/90 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-sm gap-1 sm:gap-1.5 shrink-0">
+              {/* Notification Bell Center */}
+              <NotificationCenter
+                currentUser={currentUser}
+                activeProject={activeProject}
+                tasks={tasks}
+                onOpenTaskDetail={onOpenTaskDetail}
+              />
 
-            {/* Admin Panel Button */}
-            {currentUser.role === 'admin' && (
+              {/* Admin Panel Button */}
+              {currentUser.role === 'admin' && (
+                <button
+                  type="button"
+                  onClick={onOpenAdminPanel}
+                  title="Abrir Panel de Administración"
+                  className="h-8 inline-flex items-center gap-1.5 px-2 sm:px-2.5 rounded-lg text-xs font-medium text-purple-300 hover:text-white bg-purple-950/30 hover:bg-purple-900/50 border border-purple-500/25 transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  <Shield className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  <span className="hidden xl:inline">Admin</span>
+                </button>
+              )}
+
+              {/* Subtle vertical divider */}
+              <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
+
+              {/* New Task Button */}
               <button
-                onClick={onOpenAdminPanel}
-                title="Abrir Panel de Administración"
-                className="inline-flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.08] px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98]"
+                type="button"
+                onClick={onOpenNewTaskModal}
+                title="Nueva Tarea"
+                className="h-8 inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 text-slate-950 font-bold px-2.5 sm:px-3 rounded-lg text-xs shadow-[0_0_14px_rgba(6,182,212,0.28)] hover:shadow-[0_0_20px_rgba(6,182,212,0.45)] active:scale-[0.98] transition-all cursor-pointer shrink-0"
               >
-                <Shield className="w-3.5 h-3.5 text-purple-400" />
-                <span className="hidden sm:inline">Admin</span>
+                <Plus className="w-3.5 h-3.5 text-slate-950 stroke-[2.5] shrink-0" />
+                <span className="hidden sm:inline">Nueva tarea</span>
               </button>
-            )}
 
-            {/* New Task Button */}
-            <button
-              onClick={onOpenNewTaskModal}
-              title="Nueva Tarea"
-              className="inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-500 hover:from-cyan-300 hover:to-cyan-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs shadow-[0_0_14px_rgba(6,182,212,0.28)] hover:shadow-[0_0_22px_rgba(6,182,212,0.48)] active:scale-[0.98] transition-all cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
-              <span className="hidden sm:inline">Nueva tarea</span>
-            </button>
+              {/* Subtle vertical divider */}
+              <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
 
-            {/* Current User Dropdown */}
-            <div className={`relative ${showUserDropdown ? 'z-50' : 'z-30'}`} ref={userMenuRef}>
-              <button
-                onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1.5 bg-zinc-900/70 hover:bg-zinc-900 border border-white/[0.08] rounded-lg text-xs font-medium text-zinc-200 transition-all active:scale-[0.98]"
-              >
-                <img
-                  src={currentUser.avatar}
-                  alt={currentUser.name}
-                  className="w-5 h-5 rounded-full object-cover ring-1 ring-white/10 shrink-0"
-                />
-                <span className="hidden sm:inline font-medium text-zinc-200">
-                  {currentUser.name.split(' ')[0]}
-                </span>
-                <ChevronDown className="w-3 h-3 text-zinc-400 shrink-0" />
-              </button>
+              {/* Current User Dropdown */}
+              <div className={`relative ${showUserDropdown ? 'z-50' : 'z-30'}`} ref={userMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  title={`Usuario: ${currentUser.name}`}
+                  className="h-8 flex items-center gap-1.5 sm:gap-2 px-1 sm:px-2 rounded-lg text-xs font-medium text-zinc-200 hover:bg-zinc-800/80 hover:text-white transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 ring-1 ring-cyan-500/30 flex items-center justify-center bg-zinc-800">
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      className="w-full h-full object-cover shrink-0"
+                      style={{ width: 24, height: 24 }}
+                    />
+                  </div>
+                  <span className="hidden md:inline font-medium text-zinc-200 max-w-[80px] md:max-w-[100px] truncate">
+                    {currentUser.name.split(' ')[0]}
+                  </span>
+                  <ChevronDown className={`w-3 h-3 text-zinc-400 shrink-0 transition-transform duration-150 hidden sm:block ${showUserDropdown ? 'rotate-180' : ''}`} />
+                </button>
 
               {/* Mobile Dimmer Backdrop for User Menu */}
               {showUserDropdown && (
@@ -563,13 +560,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
             </div>
+            </div>
           </div>
         </div>
 
         {isWorkspace && (
           <>
-            {/* Mobile Project Selector Bar (Visible only on mobile < md) */}
-            <div className="block md:hidden border-t border-white/[0.06] py-2 relative z-20">
+            {/* Mobile/Tablet Project Selector Bar (Visible only on < lg) */}
+            <div className="block lg:hidden border-t border-white/[0.06] py-2 relative z-20">
               <ProjectSelector
                 projects={projects}
                 activeProject={activeProject}

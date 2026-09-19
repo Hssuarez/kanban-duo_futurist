@@ -307,13 +307,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           if (!isOpen) setPanelView('list');
         }}
         title={dndActive ? 'Notificaciones (Modo Concentración activo)' : 'Centro de notificaciones'}
-        className={`relative p-2 rounded-xl border transition-all active:scale-[0.96] flex items-center justify-center ${
+        className={`relative h-8 w-8 rounded-lg transition-all active:scale-[0.96] flex items-center justify-center cursor-pointer ${
           isOpen
-            ? 'bg-zinc-800 text-white border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
-            : 'bg-zinc-900/80 hover:bg-zinc-800 border-white/[0.08] hover:border-cyan-500/30 text-zinc-300 hover:text-white shadow-sm'
+            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
+            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80'
         }`}
       >
-        <Bell className="w-4 h-4" />
+        <Bell className="w-3.5 h-3.5" />
 
         {/* DND Moon Indicator Badge */}
         {dndActive && (

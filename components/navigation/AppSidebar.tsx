@@ -60,8 +60,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
       {/* Sidebar Off-canvas Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#070c18]/95 backdrop-blur-2xl border-r border-white/[0.08] shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col justify-between transition-transform duration-300 ease-out font-sans ${
-          isOpenMobile ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#070c18]/95 backdrop-blur-2xl border-r border-white/[0.08] shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col justify-between transition-all duration-300 ease-out font-sans ${
+          isOpenMobile ? 'translate-x-0 opacity-100 visible' : '-translate-x-full opacity-0 invisible pointer-events-none'
         }`}
       >
         {/* Top: Brand Logo & Close Button */}
