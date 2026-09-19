@@ -243,8 +243,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="w-full bg-[#070c18]/90 backdrop-blur-xl border-b border-white/[0.08] shadow-sm font-sans relative z-40">
-      <div className="w-full max-w-[1720px] mx-auto px-2 sm:px-4 lg:px-6">
-        <div className={`flex items-center justify-between h-14 sm:h-16 gap-1.5 sm:gap-3 relative ${showUserDropdown ? 'z-50' : 'z-40'}`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className={`flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4 relative ${showUserDropdown ? 'z-50' : 'z-40'}`}>
           {/* Brand Logo & Sidebar Toggle */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {onToggleSidebar && (
@@ -274,43 +274,41 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* Global Domain Switcher: Workspace vs Habit Core */}
-            <div className="hidden md:flex items-center p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 ml-1">
+            <div className="hidden sm:flex items-center p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 ml-1">
               <button
                 type="button"
                 onClick={() => setCurrentView('board')}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   currentView === 'board' || currentView === 'calendar' || currentView === 'dashboard'
                     ? 'bg-zinc-800 text-white font-semibold shadow-sm ring-1 ring-white/10'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
-                title="Workspace"
               >
                 <Kanban className="w-3 h-3" />
-                <span className="hidden xl:inline">Workspace</span>
+                <span>Workspace</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setCurrentView('habits')}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   currentView === 'habits' || currentView === 'challenges' || currentView === 'goals' || currentView === 'progress'
                     ? 'bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
-                title="Habit Core"
               >
                 <Target className="w-3 h-3 text-cyan-400" />
-                <span className="hidden xl:inline">Habit Core</span>
-                <span className="hidden 2xl:inline text-[9px] font-mono px-1 rounded bg-cyan-950 text-cyan-300 font-bold">
+                <span>Habit Core</span>
+                <span className="text-[9px] font-mono px-1 rounded bg-cyan-950 text-cyan-300 font-bold">
                   NEW
                 </span>
               </button>
             </div>
           </div>
 
-          {/* Project Selector Switcher (Desktop only, only for Workspace on wide screens) */}
+          {/* Project Selector Switcher (Desktop only, only for Workspace) */}
           {(currentView === 'board' || currentView === 'calendar' || currentView === 'dashboard') && (
-            <div className="hidden xl:block shrink-0 relative z-30">
+            <div className="hidden md:block shrink-0 relative z-30">
               <ProjectSelector
                 projects={projects}
                 activeProject={activeProject}
@@ -323,8 +321,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           )}
 
-          {/* Search Bar / Command Palette Trigger (center, wide desktop only) */}
-          <div className="flex-1 max-w-[150px] 2xl:max-w-xs hidden xl:block">
+          {/* Search Bar / Command Palette Trigger (center, desktop only) */}
+          <div className="flex-1 max-w-xs hidden lg:block">
             <button
               type="button"
               onClick={onOpenCommandPalette}
@@ -343,12 +341,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Quick Command Button for mobile / tablet (< xl) */}
+            {/* Quick Command Button for mobile / tablet */}
             <button
               type="button"
               onClick={onOpenCommandPalette}
               title="Comandos y búsqueda rápida (Ctrl+K)"
-              className="xl:hidden h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 hover:bg-zinc-800 border border-white/[0.08] rounded-xl transition-all active:scale-95 cursor-pointer"
+              className="lg:hidden h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 hover:bg-zinc-800 border border-white/[0.08] rounded-xl transition-all active:scale-95 cursor-pointer"
             >
               <Search className="w-3.5 h-3.5" />
             </button>
@@ -399,20 +397,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {/* Project Report Button (wide desktop only) */}
-            {onOpenProjectReport && (
-              <button
-                type="button"
-                onClick={onOpenProjectReport}
-                title="Generar y Exportar Reporte Ejecutivo de Proyecto (PDF, CSV, Markdown)"
-                className="hidden xl:flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-cyan-300 bg-zinc-900/80 hover:bg-zinc-800 border border-white/[0.08] hover:border-cyan-500/30 transition-all active:scale-95 cursor-pointer"
-              >
-                <FileBarChart className="w-3.5 h-3.5" />
-              </button>
-            )}
-
             {/* Unified HUD Action Cluster Toolbar */}
-            <div className="flex items-center p-0.5 sm:p-1 bg-zinc-900/90 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-sm gap-1 sm:gap-1.5 shrink-0">
+            <div className="flex items-center p-1 bg-zinc-900/90 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-sm gap-1 sm:gap-1.5 shrink-0">
+              {/* Project Report Button */}
+              {onOpenProjectReport && (
+                <button
+                  type="button"
+                  onClick={onOpenProjectReport}
+                  title="Generar y Exportar Reporte Ejecutivo de Proyecto (PDF, CSV, Markdown)"
+                  className="h-8 w-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-cyan-300 hover:bg-zinc-800/80 transition-all active:scale-95 cursor-pointer"
+                >
+                  <FileBarChart className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               {/* Notification Bell Center */}
               <NotificationCenter
                 currentUser={currentUser}
@@ -430,7 +428,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="h-8 px-2 sm:px-2.5 flex items-center gap-1.5 rounded-lg text-xs font-medium text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/25 hover:border-purple-500/40 shadow-[0_0_8px_rgba(168,85,247,0.15)] transition-all active:scale-95 cursor-pointer"
                 >
                   <Shield className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                  <span className="hidden lg:inline font-mono text-[11px] font-semibold tracking-wide">Admin</span>
+                  <span className="hidden sm:inline font-mono text-[11px] font-semibold tracking-wide">Admin</span>
                 </button>
               )}
 
@@ -442,7 +440,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={onOpenNewTaskModal}
                 title="Nueva Tarea"
-                className="h-8 px-2 sm:px-3 flex items-center gap-1.5 rounded-lg text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-400 hover:from-cyan-300 hover:to-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.3)] hover:shadow-[0_0_18px_rgba(6,182,212,0.5)] active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                className="h-8 px-2.5 sm:px-3.5 flex items-center gap-1.5 rounded-lg text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-400 hover:from-cyan-300 hover:to-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.3)] hover:shadow-[0_0_18px_rgba(6,182,212,0.5)] active:scale-95 transition-all cursor-pointer whitespace-nowrap"
               >
                 <Plus className="w-3.5 h-3.5 text-slate-950 stroke-[2.5] shrink-0" />
                 <span className="hidden sm:inline font-bold">Nueva tarea</span>
@@ -456,26 +454,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className={`h-8 p-1 sm:pl-1.5 sm:pr-2.5 flex items-center gap-1.5 sm:gap-2 rounded-lg text-xs font-medium transition-all active:scale-95 cursor-pointer ${
+                  className={`h-8 pl-1 sm:pl-1.5 pr-2 sm:pr-2.5 flex items-center gap-2 rounded-lg text-xs font-medium transition-all active:scale-95 cursor-pointer ${
                     showUserDropdown
                       ? 'bg-zinc-800/90 text-white shadow-sm ring-1 ring-cyan-500/30'
                       : 'text-zinc-300 hover:text-white hover:bg-zinc-800/70'
                   }`}
                   title={`Usuario: ${currentUser.name} (${currentUser.role === 'admin' ? 'Administrador' : 'Miembro'})`}
                 >
-                  <div className="w-6 h-6 rounded-full overflow-hidden ring-1 ring-cyan-500/30 shrink-0 flex items-center justify-center bg-zinc-800">
-                    <img
-                      src={currentUser.avatar}
-                      alt={currentUser.name}
-                      className="w-full h-full object-cover shrink-0"
-                      style={{ width: 24, height: 24 }}
-                    />
-                  </div>
-                  <span className="hidden sm:inline font-medium text-zinc-200 truncate max-w-[85px]">
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
+                    className="w-5.5 h-5.5 rounded-full object-cover ring-1 ring-cyan-500/30 shrink-0"
+                  />
+                  <span className="hidden sm:inline font-medium text-zinc-200 truncate max-w-[90px]">
                     {currentUser.name.split(' ')[0]}
                   </span>
                   <ChevronDown
-                    className={`hidden sm:block w-3 h-3 text-zinc-400 transition-transform duration-200 shrink-0 ${
+                    className={`w-3 h-3 text-zinc-400 transition-transform duration-200 shrink-0 ${
                       showUserDropdown ? 'rotate-180 text-cyan-400' : ''
                     }`}
                   />
@@ -594,8 +589,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {isWorkspace && (
           <>
-            {/* Mobile & Tablet Project Selector Bar (Visible on screens < xl) */}
-            <div className="block xl:hidden border-t border-white/[0.06] py-2 relative z-20">
+            {/* Mobile Project Selector Bar (Visible only on mobile < md) */}
+            <div className="block md:hidden border-t border-white/[0.06] py-2 relative z-20">
               <ProjectSelector
                 projects={projects}
                 activeProject={activeProject}

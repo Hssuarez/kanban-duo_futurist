@@ -91,7 +91,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
             {/* Project Title */}
             <div
               className={`flex items-center gap-1.5 text-left min-w-0 ${
-                isMobile ? 'flex-1' : 'max-w-[120px] xl:max-w-[130px] 2xl:max-w-[200px]'
+                isMobile ? 'flex-1' : 'max-w-[130px] sm:max-w-[190px] md:max-w-[220px]'
               }`}
             >
               <span className="font-medium text-zinc-100 truncate text-xs block">
