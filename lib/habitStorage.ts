@@ -36,23 +36,6 @@ export const DEFAULT_INITIAL_HABITS: Habit[] = [
     updatedAt: '2026-09-01T10:00:00.000Z',
   },
   {
-    id: 'habit-2',
-    userId: 'user-admin',
-    title: 'No Fap',
-    description: 'Enfoque mental, disciplina y claridad',
-    icon: '🚫',
-    color: '#ec4899',
-    category: 'mente',
-    targetType: 'boolean',
-    targetValue: 1,
-    frequency: 'daily',
-    isActive: true,
-    isArchived: false,
-    displayOrder: 2,
-    createdAt: '2026-09-01T10:00:00.000Z',
-    updatedAt: '2026-09-01T10:00:00.000Z',
-  },
-  {
     id: 'habit-3',
     userId: 'user-admin',
     title: 'Tomar agua',
@@ -66,7 +49,7 @@ export const DEFAULT_INITIAL_HABITS: Habit[] = [
     frequency: 'daily',
     isActive: true,
     isArchived: false,
-    displayOrder: 3,
+    displayOrder: 2,
     createdAt: '2026-09-01T10:00:00.000Z',
     updatedAt: '2026-09-01T10:00:00.000Z',
   },
@@ -83,7 +66,7 @@ export const DEFAULT_INITIAL_HABITS: Habit[] = [
     frequency: 'daily',
     isActive: true,
     isArchived: false,
-    displayOrder: 4,
+    displayOrder: 3,
     createdAt: '2026-09-01T10:00:00.000Z',
     updatedAt: '2026-09-01T10:00:00.000Z',
   },
@@ -100,7 +83,7 @@ export const DEFAULT_INITIAL_HABITS: Habit[] = [
     frequency: 'daily',
     isActive: true,
     isArchived: false,
-    displayOrder: 5,
+    displayOrder: 4,
     createdAt: '2026-09-01T10:00:00.000Z',
     updatedAt: '2026-09-01T10:00:00.000Z',
   },
@@ -117,7 +100,7 @@ export const DEFAULT_INITIAL_HABITS: Habit[] = [
     frequency: 'weekdays',
     isActive: true,
     isArchived: false,
-    displayOrder: 6,
+    displayOrder: 5,
     createdAt: '2026-09-01T10:00:00.000Z',
     updatedAt: '2026-09-01T10:00:00.000Z',
   },
@@ -135,7 +118,7 @@ export const DEFAULT_INITIAL_HABITS: Habit[] = [
     frequency: 'daily',
     isActive: true,
     isArchived: false,
-    displayOrder: 7,
+    displayOrder: 6,
     createdAt: '2026-09-01T10:00:00.000Z',
     updatedAt: '2026-09-01T10:00:00.000Z',
   },
@@ -152,7 +135,7 @@ export const DEFAULT_INITIAL_HABITS: Habit[] = [
     frequency: 'daily',
     isActive: true,
     isArchived: false,
-    displayOrder: 8,
+    displayOrder: 7,
     createdAt: '2026-09-01T10:00:00.000Z',
     updatedAt: '2026-09-01T10:00:00.000Z',
   },
@@ -268,8 +251,8 @@ export function generateSeedLogsForUser(userId: string): HabitLog[] {
   const seedLogs: HabitLog[] = [];
   const activeIds =
     userId === 'user-admin'
-      ? ['habit-1', 'habit-2', 'habit-3', 'habit-4', 'habit-5', 'habit-6', 'habit-7', 'habit-8']
-      : Array.from({ length: 8 }, (_, i) => `habit-${userId}-${i + 1}`);
+      ? ['habit-1', 'habit-3', 'habit-4', 'habit-5', 'habit-6', 'habit-7', 'habit-8']
+      : Array.from({ length: 7 }, (_, i) => `habit-${userId}-${i + 1}`);
 
   // Generamos un patrón realista de cumplimiento para los días 1 al 17 de Septiembre 2026
   for (let d = 1; d <= 17; d++) {
@@ -279,7 +262,7 @@ export function generateSeedLogsForUser(userId: string): HabitLog[] {
     activeIds.forEach((hId, index) => {
       // Determinamos si el día se cumplió con alta probabilidad (70%-95%)
       const pseudoRandom = ((d * 37 + index * 19) % 100);
-      const isCompleted = pseudoRandom < (index === 0 ? 86 : index === 4 ? 96 : 80);
+      const isCompleted = pseudoRandom < (index === 0 ? 86 : index === 3 ? 96 : 80);
 
       if (isCompleted) {
         seedLogs.push({
@@ -326,7 +309,7 @@ export const DEFAULT_INITIAL_GOALS: Goal[] = [
   {
     id: 'goal-2',
     userId: 'user-admin',
-    title: 'No ver más contenido FAP 🚫',
+    title: 'Mantener constancia diaria ✨',
     monthKey: '2026-09',
     targetType: 'boolean',
     targetValue: 1,
@@ -531,9 +514,15 @@ export async function deleteHabit(habitId: string): Promise<boolean> {
   const filtered = current.filter((h) => h.id !== habitId);
   saveLocalHabits(filtered);
 
+  // Limpiar también los logs asociados a este hábito
+  const allLogs = getLocalHabitLogs();
+  const remainingLogs = allLogs.filter((l) => l.habitId !== habitId);
+  saveLocalHabitLogs(remainingLogs);
+
   const client = await getOrInitSupabase();
   if (client) {
     try {
+      await client.from('habit_logs').delete().eq('habit_id', habitId);
       await client.from('habits').delete().eq('id', habitId);
     } catch (e) {
       console.warn('Sync deleteHabit Supabase:', e);
