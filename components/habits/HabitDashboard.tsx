@@ -17,6 +17,7 @@ import {
   getLocalHabitLogs,
   toggleHabitLog,
   setHabitLogStatus,
+  clearMonthHabitLogs,
   getLocalGoals,
   saveGoal,
   toggleGoal,
@@ -145,6 +146,11 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
 
   const handleSetCellStatus = async (habitId: string, dateKey: string, status: HabitLogStatus) => {
     await setHabitLogStatus(habitId, currentUser.id, dateKey, status);
+    loadHabitData();
+  };
+
+  const handleResetMonthChecks = async () => {
+    await clearMonthHabitLogs(currentUser.id, currentYear, currentMonth);
     loadHabitData();
   };
 
@@ -434,6 +440,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
                   setEditingHabit(h);
                   setIsHabitModalOpen(true);
                 }}
+                onResetMonthChecks={handleResetMonthChecks}
               />
             </div>
 

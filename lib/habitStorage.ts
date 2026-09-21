@@ -547,24 +547,52 @@ export async function deleteHabit(habitId: string): Promise<boolean> {
 // CHECK-INS / HABIT LOGS STORAGE
 // ========================================================
 
+const SEEDED_USERS_KEY = 'kanban_duo_habits_seeded_users_v1';
+
+function getSeededUsers(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(SEEDED_USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markUserSeeded(userId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const users = getSeededUsers();
+    if (!users.includes(userId)) {
+      users.push(userId);
+      localStorage.setItem(SEEDED_USERS_KEY, JSON.stringify(users));
+    }
+  } catch {}
+}
+
 export function getLocalHabitLogs(userId?: string): HabitLog[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(HABIT_STORAGE_KEYS.LOGS);
     let parsed: HabitLog[] = raw ? JSON.parse(raw) : [];
+    const seededUsers = getSeededUsers();
 
-    if (!raw || parsed.length === 0) {
-      const seed = generateSeedLogsForUser(userId || 'user-admin');
+    if (!raw) {
+      const defaultUserId = userId || 'user-admin';
+      const seed = generateSeedLogsForUser(defaultUserId);
       localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify(seed));
+      markUserSeeded(defaultUserId);
       return seed;
     }
 
     if (userId) {
       const userLogs = parsed.filter((l) => l.userId === userId);
-      if (userLogs.length === 0) {
+      // Solo generar semillas si el usuario NUNCA ha sido inicializado antes
+      if (!seededUsers.includes(userId) && userLogs.length === 0) {
         const userSeed = generateSeedLogsForUser(userId);
         const combined = [...parsed, ...userSeed];
         localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify(combined));
+        markUserSeeded(userId);
         return userSeed;
       }
       return userLogs;
@@ -722,6 +750,43 @@ export async function setHabitLogStatus(
   }
 
   return updatedLog;
+}
+
+// Limpiar / resetear todos los checks de un mes específico para un usuario
+export async function clearMonthHabitLogs(
+  userId: string,
+  year: number,
+  month: number
+): Promise<number> {
+  markUserSeeded(userId);
+  const monthPrefix = `${year}-${String(month).padStart(2, '0')}-`;
+  const currentLogs = getLocalHabitLogs();
+
+  // Conservar registros de otros usuarios o de otros meses
+  const remainingLogs = currentLogs.filter(
+    (l) => !(l.userId === userId && l.dateKey.startsWith(monthPrefix))
+  );
+  const removedCount = currentLogs.length - remainingLogs.length;
+
+  saveLocalHabitLogs(remainingLogs);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      const startDate = `${monthPrefix}01`;
+      const endDate = `${monthPrefix}31`;
+      await client
+        .from('habit_logs')
+        .delete()
+        .eq('user_id', userId)
+        .gte('date_key', startDate)
+        .lte('date_key', endDate);
+    } catch (e) {
+      console.warn('Sync asíncrono clearMonthHabitLogs Supabase:', e);
+    }
+  }
+
+  return removedCount;
 }
 
 // ========================================================

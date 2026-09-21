@@ -19,6 +19,9 @@ import {
   Eye,
   EyeOff,
   Navigation,
+  RotateCcw,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 
 interface HabitMatrixProps {
@@ -32,6 +35,7 @@ interface HabitMatrixProps {
   onSetCellStatus?: (habitId: string, dateKey: string, status: HabitLogStatus) => void;
   onOpenNewHabit: () => void;
   onEditHabit: (habit: Habit) => void;
+  onResetMonthChecks?: () => void;
 }
 
 type MatrixViewMode = 'standard' | 'focused' | 'calendar_only';
@@ -48,11 +52,14 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
   onSetCellStatus,
   onOpenNewHabit,
   onEditHabit,
+  onResetMonthChecks,
 }) => {
   const [viewMode, setViewMode] = useState<MatrixViewMode>('standard');
   const [habitColStyle, setHabitColStyle] = useState<HabitColStyle>('full');
   const [showMetrics, setShowMetrics] = useState<boolean>(true);
   const [showViewDropdown, setShowViewDropdown] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -121,6 +128,27 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
     }
   };
 
+  // Cerrar modal de confirmación con tecla Escape
+  useEffect(() => {
+    if (!showResetModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowResetModal(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showResetModal]);
+
+  const handleConfirmReset = async () => {
+    if (!onResetMonthChecks) return;
+    setIsResetting(true);
+    try {
+      await onResetMonthChecks();
+    } finally {
+      setIsResetting(false);
+      setShowResetModal(false);
+    }
+  };
+
   const activeHabits = habits.filter((h) => h.isActive && !h.isArchived);
 
   // Mapa rápido de logs
@@ -136,17 +164,28 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
       {/* 1. Matrix Header matching exact mockup */}
       <div className="flex items-center justify-between p-4 sm:p-4.5 border-b border-white/[0.06]">
         {/* Título de la Matriz */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-lg bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+          <div className="w-6 h-6 rounded-lg bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
             <Grid className="w-3.5 h-3.5" />
           </div>
-          <h3 className="text-xs sm:text-sm font-bold text-white tracking-wider uppercase font-mono">
+          <h3 className="text-xs sm:text-sm font-bold text-white tracking-wider uppercase font-mono truncate">
             Matriz de Hábitos — {monthName} {year}
           </h3>
         </div>
 
-        {/* Right Controls: Arrow and Vista: Mensual */}
-        <div className="flex items-center gap-2 relative">
+        {/* Right Controls: Reset Button, Arrow and Vista: Mensual */}
+        <div className="flex items-center gap-1.5 sm:gap-2 relative shrink-0">
+          {/* Botón de Limpiar / Resetear Checks del Mes */}
+          <button
+            type="button"
+            onClick={() => setShowResetModal(true)}
+            title={`Reiniciar checks de ${monthName} ${year}`}
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-zinc-900/80 hover:bg-rose-950/40 text-zinc-400 hover:text-rose-300 border border-white/[0.08] hover:border-rose-500/35 text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 group shadow-xs"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-zinc-400 group-hover:text-rose-400 transition-transform group-hover:-rotate-45" />
+            <span className="hidden lg:inline">Limpiar mes</span>
+          </button>
+
           <button
             type="button"
             onClick={handleScrollToToday}
@@ -551,6 +590,87 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* 4. Modal de Confirmación para Reiniciar Checks del Mes */}
+      {showResetModal && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => !isResetting && setShowResetModal(false)}
+        >
+          <div
+            className="bg-[#0b1329] border border-rose-500/30 rounded-2xl shadow-[0_0_50px_rgba(244,63,94,0.25)] max-w-md w-full p-5 sm:p-6 space-y-4 animate-modal-enter font-sans relative"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header with Icon */}
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1 min-w-0 flex-1">
+                <h4
+                  id="reset-modal-title"
+                  className="text-base font-bold text-white font-mono tracking-tight"
+                >
+                  ¿Reiniciar checks de {monthName} {year}?
+                </h4>
+                <p className="text-xs text-zinc-300 leading-relaxed">
+                  Esta acción desmarcará todos los hábitos completados únicamente para el mes de{' '}
+                  <span className="text-rose-300 font-semibold">{monthName} {year}</span> de tu usuario.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isResetting && setShowResetModal(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors"
+                title="Cerrar"
+                disabled={isResetting}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Warning Details Card */}
+            <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-white/[0.08] space-y-2 text-xs">
+              <div className="flex items-center gap-2 text-emerald-400 font-medium">
+                <span className="text-sm">✓</span>
+                <span>Tus hábitos creados se conservan al 100%.</span>
+              </div>
+              <div className="flex items-center gap-2 text-emerald-400 font-medium">
+                <span className="text-sm">✓</span>
+                <span>El historial de otros meses permanecerá intacto.</span>
+              </div>
+              <div className="flex items-center gap-2 text-rose-400 font-medium">
+                <span className="text-sm">⚠</span>
+                <span>Los checks de {monthName} volverán a cero.</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/[0.06]">
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                disabled={isResetting}
+                className="px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-white/[0.08] transition-all cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReset}
+                disabled={isResetting}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.35)] hover:shadow-[0_0_20px_rgba(244,63,94,0.5)] transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
+                <span>{isResetting ? 'Limpiando...' : 'Sí, limpiar checks'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
