@@ -601,6 +601,14 @@ export async function initCloudSync() {
     console.warn('Error inicializando retos en initCloudSync:', e);
   }
 
+  // Sincronizar hábitos personales y registros en el arranque global
+  try {
+    const { syncCloudHabits } = await import('./habitStorage');
+    await syncCloudHabits();
+  } catch (e) {
+    console.warn('Error inicializando hábitos en initCloudSync:', e);
+  }
+
   // Setup WebSocket listener once
   if (!realtimeSubscribed) {
     realtimeSubscribed = true;
@@ -641,6 +649,15 @@ export async function initCloudSync() {
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'challenge_goals' }, () => {
           import('./challengeStorage').then((m) => m.syncCloudChallenges());
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'habits' }, () => {
+          import('./habitStorage').then((m) => m.syncCloudHabits());
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'habit_logs' }, () => {
+          import('./habitStorage').then((m) => m.syncCloudHabits());
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'goals' }, () => {
+          import('./habitStorage').then((m) => m.syncCloudHabits());
         })
         .subscribe();
     } catch (e) {

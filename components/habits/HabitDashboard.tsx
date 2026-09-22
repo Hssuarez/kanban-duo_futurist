@@ -18,6 +18,7 @@ import {
   toggleHabitLog,
   setHabitLogStatus,
   clearMonthHabitLogs,
+  syncCloudHabits,
   getLocalGoals,
   saveGoal,
   toggleGoal,
@@ -105,13 +106,21 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
 
   useEffect(() => {
     loadHabitData();
+
+    // Sincronización en segundo plano con Supabase si está disponible
+    syncCloudHabits(currentUser.id).then((synced) => {
+      if (synced) {
+        loadHabitData();
+      }
+    });
+
     const unsubscribe = subscribeToSync((type) => {
       if (type === 'habits') {
         loadHabitData();
       }
     });
     return () => unsubscribe();
-  }, [loadHabitData]);
+  }, [loadHabitData, currentUser.id]);
 
   // Navegación de meses
   const handlePrevMonth = () => {
@@ -430,6 +439,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
                 year={currentYear}
                 month={currentMonth}
                 todayKey={todayKey}
+                currentUser={currentUser}
                 onToggleCell={handleToggleCell}
                 onSetCellStatus={handleSetCellStatus}
                 onOpenNewHabit={() => {
@@ -441,6 +451,7 @@ export const HabitDashboard: React.FC<HabitDashboardProps> = ({
                   setIsHabitModalOpen(true);
                 }}
                 onResetMonthChecks={handleResetMonthChecks}
+                onDataReload={loadHabitData}
               />
             </div>
 

@@ -22,7 +22,26 @@ import {
   RotateCcw,
   AlertTriangle,
   X,
+  ShieldCheck,
+  Clock,
+  FileDown,
+  FileUp,
+  Download,
+  Upload,
+  Database,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
+import {
+  HabitDataSnapshot,
+  getHabitsBackups,
+  createHabitsBackupSnapshot,
+  restoreHabitsBackup,
+  exportHabitsDataJSON,
+  importHabitsDataJSON,
+  syncCloudHabits,
+} from '@/lib/habitStorage';
 
 interface HabitMatrixProps {
   habits: Habit[];
@@ -31,11 +50,13 @@ interface HabitMatrixProps {
   year: number;
   month: number;
   todayKey: string;
+  currentUser?: { id: string; name?: string };
   onToggleCell: (habitId: string, dateKey: string) => void;
   onSetCellStatus?: (habitId: string, dateKey: string, status: HabitLogStatus) => void;
   onOpenNewHabit: () => void;
   onEditHabit: (habit: Habit) => void;
   onResetMonthChecks?: () => void;
+  onDataReload?: () => void;
 }
 
 type MatrixViewMode = 'standard' | 'focused' | 'calendar_only';
@@ -48,11 +69,13 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
   year,
   month,
   todayKey,
+  currentUser,
   onToggleCell,
   onSetCellStatus,
   onOpenNewHabit,
   onEditHabit,
   onResetMonthChecks,
+  onDataReload,
 }) => {
   const [viewMode, setViewMode] = useState<MatrixViewMode>('standard');
   const [habitColStyle, setHabitColStyle] = useState<HabitColStyle>('full');
@@ -60,6 +83,14 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
   const [showViewDropdown, setShowViewDropdown] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+
+  // Estados del modal de datos, respaldos y exportación
+  const [showDataModal, setShowDataModal] = useState(false);
+  const [dataTab, setDataTab] = useState<'backups' | 'export_import' | 'cloud'>('backups');
+  const [backupsList, setBackupsList] = useState<HabitDataSnapshot[]>([]);
+  const [statusFeedback, setStatusFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isOperating, setIsOperating] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -128,15 +159,18 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
     }
   };
 
-  // Cerrar modal de confirmación con tecla Escape
+  // Cerrar modales con tecla Escape
   useEffect(() => {
-    if (!showResetModal) return;
+    if (!showResetModal && !showDataModal) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowResetModal(false);
+      if (e.key === 'Escape') {
+        setShowResetModal(false);
+        setShowDataModal(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showResetModal]);
+  }, [showResetModal, showDataModal]);
 
   const handleConfirmReset = async () => {
     if (!onResetMonthChecks) return;
@@ -175,6 +209,21 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
 
         {/* Right Controls: Reset Button, Arrow and Vista: Mensual */}
         <div className="flex items-center gap-1.5 sm:gap-2 relative shrink-0">
+          {/* Botón de Gestión de Datos, Respaldos y Exportación */}
+          <button
+            type="button"
+            onClick={() => {
+              setBackupsList(getHabitsBackups());
+              setStatusFeedback(null);
+              setShowDataModal(true);
+            }}
+            title="Copias de seguridad, exportar e importar datos"
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-zinc-900/80 hover:bg-cyan-950/40 text-zinc-400 hover:text-cyan-300 border border-white/[0.08] hover:border-cyan-500/35 text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 group shadow-xs"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-zinc-400 group-hover:text-cyan-400 transition-transform group-hover:scale-110" />
+            <span className="hidden md:inline">Respaldos</span>
+          </button>
+
           {/* Botón de Limpiar / Resetear Checks del Mes */}
           <button
             type="button"
@@ -666,6 +715,318 @@ export const HabitMatrix: React.FC<HabitMatrixProps> = ({
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
                 <span>{isResetting ? 'Limpiando...' : 'Sí, limpiar checks'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Respaldos, Exportación y Protección de Datos */}
+      {showDataModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div
+            className="w-full max-w-xl bg-zinc-900 border border-white/[0.1] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 animate-scale-in text-zinc-100 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-cyan-950/70 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
+                    Protección y Respaldos de Hábitos
+                  </h4>
+                  <p className="text-xs text-zinc-400">
+                    Copia de seguridad automática, exportación JSON y sincronización segura.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDataModal(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-zinc-950/80 rounded-xl border border-white/[0.08] shrink-0">
+              <button
+                type="button"
+                onClick={() => setDataTab('backups')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  dataTab === 'backups'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Copias ({backupsList.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDataTab('export_import')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  dataTab === 'export_import'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>Exportar / Importar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDataTab('cloud')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  dataTab === 'cloud'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>Nube</span>
+              </button>
+            </div>
+
+            {/* Feedback Alert */}
+            {statusFeedback && (
+              <div
+                className={`p-3 rounded-xl border text-xs flex items-center gap-2 shrink-0 ${
+                  statusFeedback.type === 'success'
+                    ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+                    : 'bg-rose-950/40 border-rose-500/30 text-rose-300'
+                }`}
+              >
+                {statusFeedback.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                )}
+                <span>{statusFeedback.message}</span>
+              </div>
+            )}
+
+            {/* Content Container (Scrollable) */}
+            <div className="overflow-y-auto flex-1 pr-1 space-y-3 custom-scrollbar">
+              {dataTab === 'backups' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between bg-zinc-950/60 p-3 rounded-xl border border-white/[0.06]">
+                    <div>
+                      <span className="text-xs font-medium text-white block">Crear instantánea manual</span>
+                      <span className="text-[11px] text-zinc-400">Guarda el estado exacto de tus checks ahora mismo.</span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isOperating}
+                      onClick={() => {
+                        const snap = createHabitsBackupSnapshot('Instantánea manual');
+                        if (snap) {
+                          setBackupsList(getHabitsBackups());
+                          setStatusFeedback({ type: 'success', message: 'Copia de seguridad creada con éxito.' });
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-medium transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                    >
+                      Crear copia
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider block">
+                      Copias de seguridad disponibles:
+                    </span>
+                    {backupsList.length === 0 ? (
+                      <div className="p-6 text-center rounded-xl bg-zinc-950/40 border border-white/[0.06] text-xs text-zinc-500">
+                        No hay copias de seguridad registradas aún.
+                      </div>
+                    ) : (
+                      backupsList.map((backup, idx) => (
+                        <div
+                          key={backup.id}
+                          className="p-3 rounded-xl bg-zinc-950/70 border border-white/[0.08] hover:border-cyan-500/30 transition-all flex items-center justify-between gap-3"
+                        >
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono font-medium text-zinc-200">
+                                {new Date(backup.timestamp).toLocaleString('es-CO', {
+                                  dateStyle: 'short',
+                                  timeStyle: 'short',
+                                })}
+                              </span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-cyan-400 font-mono border border-cyan-500/20">
+                                {backup.reason}
+                              </span>
+                              {idx === 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 font-mono border border-emerald-500/30">
+                                  Reciente
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-zinc-400 font-mono">
+                              {backup.logsCount} checks • {backup.habitsCount} hábitos • {backup.goalsCount} metas
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={isOperating}
+                            onClick={async () => {
+                              setIsOperating(true);
+                              try {
+                                const res = await restoreHabitsBackup(backup.id);
+                                if (res.success) {
+                                  onDataReload?.();
+                                  setBackupsList(getHabitsBackups());
+                                  setStatusFeedback({ type: 'success', message: res.message });
+                                } else {
+                                  setStatusFeedback({ type: 'error', message: res.message });
+                                }
+                              } finally {
+                                setIsOperating(false);
+                              }
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-medium transition-all active:scale-95 cursor-pointer disabled:opacity-50 shrink-0"
+                          >
+                            Restaurar
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {dataTab === 'export_import' && (
+                <div className="space-y-3">
+                  {/* Export Card */}
+                  <div className="p-4 rounded-xl bg-zinc-950/70 border border-white/[0.08] space-y-2.5">
+                    <div className="flex items-center gap-2 text-cyan-400 font-mono text-xs font-semibold uppercase tracking-wider">
+                      <FileDown className="w-4 h-4" />
+                      <span>Exportar Archivo (.JSON)</span>
+                    </div>
+                    <p className="text-xs text-zinc-400">
+                      Descarga un archivo seguro con tus hábitos, configuraciones y todos tus checks marcados. Úsalo para migrar entre puertos (3000, 3033), navegadores o guardar un respaldo en tu computadora.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const json = exportHabitsDataJSON(currentUser?.id);
+                        const blob = new Blob([json], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `kanban_duo_habitos_${new Date().toISOString().split('T')[0]}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        setStatusFeedback({ type: 'success', message: 'Archivo de respaldo JSON descargado exitosamente.' });
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-medium transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Descargar Copia de Seguridad JSON</span>
+                    </button>
+                  </div>
+
+                  {/* Import Card */}
+                  <div className="p-4 rounded-xl bg-zinc-950/70 border border-white/[0.08] space-y-2.5">
+                    <div className="flex items-center gap-2 text-emerald-400 font-mono text-xs font-semibold uppercase tracking-wider">
+                      <FileUp className="w-4 h-4" />
+                      <span>Importar Archivo (.JSON)</span>
+                    </div>
+                    <p className="text-xs text-zinc-400">
+                      Restaura hábitos y checks desde un archivo previamente descargado. Se crea automáticamente una copia de seguridad antes de aplicar la importación.
+                    </p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".json,application/json"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setIsOperating(true);
+                        try {
+                          const text = await file.text();
+                          const res = await importHabitsDataJSON(text);
+                          if (res.success) {
+                            onDataReload?.();
+                            setBackupsList(getHabitsBackups());
+                            setStatusFeedback({ type: 'success', message: res.message });
+                          } else {
+                            setStatusFeedback({ type: 'error', message: res.message });
+                          }
+                        } catch (err: any) {
+                          setStatusFeedback({ type: 'error', message: `Error leyendo archivo: ${err.message}` });
+                        } finally {
+                          setIsOperating(false);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={isOperating}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full py-2 px-3 rounded-xl bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-medium transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-50"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>{isOperating ? 'Procesando...' : 'Seleccionar Archivo JSON para Restaurar'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {dataTab === 'cloud' && (
+                <div className="p-4 rounded-xl bg-zinc-950/70 border border-white/[0.08] space-y-3">
+                  <div className="flex items-center gap-2 text-cyan-400 font-mono text-xs font-semibold uppercase tracking-wider">
+                    <Database className="w-4 h-4" />
+                    <span>Sincronización Cloud (Supabase)</span>
+                  </div>
+                  <p className="text-xs text-zinc-400">
+                    Sincroniza y descarga automáticamente los registros guardados en la base de datos de Supabase. Si has modificado checks en otro dispositivo o despliegue con la misma base de datos, se descargarán e integrarán aquí.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={isOperating}
+                    onClick={async () => {
+                      setIsOperating(true);
+                      try {
+                        const ok = await syncCloudHabits(currentUser?.id);
+                        if (ok) {
+                          onDataReload?.();
+                          setBackupsList(getHabitsBackups());
+                          setStatusFeedback({ type: 'success', message: 'Sincronización con Supabase completada correctamente.' });
+                        } else {
+                          setStatusFeedback({
+                            type: 'error',
+                            message: 'Supabase no está configurado en este entorno o no devolvió nuevos registros. Estás operando en modo local seguro.',
+                          });
+                        }
+                      } finally {
+                        setIsOperating(false);
+                      }
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/[0.1] text-zinc-200 text-xs font-mono font-medium transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isOperating ? 'animate-spin text-cyan-400' : ''}`} />
+                    <span>{isOperating ? 'Sincronizando...' : 'Sincronizar ahora con la nube'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="pt-3 border-t border-white/[0.08] flex justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowDataModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-mono text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 transition-all cursor-pointer"
+              >
+                Cerrar
               </button>
             </div>
           </div>

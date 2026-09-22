@@ -7,13 +7,15 @@ import { Habit, HabitLog, Goal, HabitNote, HabitLogStatus } from './habitTypes';
 import { getOrInitSupabase } from './supabaseClient';
 import { notifySync } from './storage';
 
-const HABIT_STORAGE_KEYS = {
+export const HABIT_STORAGE_KEYS = {
   HABITS: 'kanban_duo_habits_v1',
   LOGS: 'kanban_duo_habit_logs_v1',
   CHALLENGES: 'kanban_duo_challenges_v1',
   CHALLENGE_MEMBERS: 'kanban_duo_challenge_members_v1',
   GOALS: 'kanban_duo_goals_v1',
   NOTES: 'kanban_duo_habit_notes_v1',
+  INITIALIZED: 'kanban_duo_habits_initialized_v1',
+  BACKUPS: 'kanban_duo_habits_backups_v1',
 };
 
 // Hábitos iniciales por defecto inspirados en el diseño HUD
@@ -376,6 +378,95 @@ export const DEFAULT_NOTE_CONTENT = `Subir al siguiente nivel 💪
 - Revisar progreso cada semana`;
 
 // ========================================================
+// PERSISTENCIA, RESPALDOS Y ZERO DATA LOSS
+// ========================================================
+
+export interface HabitDataSnapshot {
+  id: string;
+  timestamp: string;
+  reason: string;
+  habitsCount: number;
+  logsCount: number;
+  goalsCount: number;
+  habits: Habit[];
+  logs: HabitLog[];
+  goals: Goal[];
+  notes?: Record<string, string>;
+}
+
+export function isHabitsInitialized(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    return localStorage.getItem(HABIT_STORAGE_KEYS.INITIALIZED) === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export function markHabitsInitialized(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(HABIT_STORAGE_KEYS.INITIALIZED, 'true');
+  } catch {}
+}
+
+export function getHabitsBackups(): HabitDataSnapshot[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(HABIT_STORAGE_KEYS.BACKUPS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function createHabitsBackupSnapshot(reason: string = 'Automático'): HabitDataSnapshot | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const rawHabits = localStorage.getItem(HABIT_STORAGE_KEYS.HABITS);
+    const habits: Habit[] = rawHabits ? JSON.parse(rawHabits) : [];
+    const rawLogs = localStorage.getItem(HABIT_STORAGE_KEYS.LOGS);
+    const logs: HabitLog[] = rawLogs ? JSON.parse(rawLogs) : [];
+    const rawGoals = localStorage.getItem(HABIT_STORAGE_KEYS.GOALS);
+    const goals: Goal[] = rawGoals ? JSON.parse(rawGoals) : [];
+
+    // Recolectar notas
+    const notes: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(HABIT_STORAGE_KEYS.NOTES)) {
+        notes[key] = localStorage.getItem(key) || '';
+      }
+    }
+
+    if (habits.length === 0 && logs.length === 0 && goals.length === 0) {
+      return null;
+    }
+
+    const snapshot: HabitDataSnapshot = {
+      id: `snap-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      reason,
+      habitsCount: habits.length,
+      logsCount: logs.length,
+      goalsCount: goals.length,
+      habits,
+      logs,
+      goals,
+      notes,
+    };
+
+    const existing = getHabitsBackups();
+    const updated = [snapshot, ...existing.slice(0, 9)];
+    localStorage.setItem(HABIT_STORAGE_KEYS.BACKUPS, JSON.stringify(updated));
+    return snapshot;
+  } catch (e) {
+    console.error('Error creando snapshot de hábitos:', e);
+    return null;
+  }
+}
+
+// ========================================================
 // HÁBITOS CRUD & STORAGE
 // ========================================================
 
@@ -384,16 +475,23 @@ export function getLocalHabits(userId?: string): Habit[] {
   try {
     const raw = localStorage.getItem(HABIT_STORAGE_KEYS.HABITS);
     let parsed: Habit[] = raw ? JSON.parse(raw) : [];
+    const isInit = isHabitsInitialized();
+    const backups = getHabitsBackups();
 
-    if (!raw || parsed.length === 0) {
+    if (!raw) {
+      // Si la app ya fue inicializada o tiene respaldos previos, respetar estado
+      if (isInit || backups.length > 0) {
+        return [];
+      }
       parsed = [...DEFAULT_INITIAL_HABITS];
       localStorage.setItem(HABIT_STORAGE_KEYS.HABITS, JSON.stringify(parsed));
+      markHabitsInitialized();
     }
 
     if (userId) {
       const userHabits = parsed.filter((h) => h.userId === userId);
-      // Si este usuario específico no tiene ningún hábito registrado aún:
-      if (userHabits.length === 0) {
+      // Solo generar plantilla si nunca fue inicializado y no hay hábitos
+      if (userHabits.length === 0 && !isInit && backups.length === 0) {
         const userTemplate = DEFAULT_INITIAL_HABITS.map((h, idx) => ({
           ...h,
           id: `habit-${userId}-${idx + 1}`,
@@ -403,6 +501,7 @@ export function getLocalHabits(userId?: string): Habit[] {
         }));
         const combined = [...parsed, ...userTemplate];
         localStorage.setItem(HABIT_STORAGE_KEYS.HABITS, JSON.stringify(combined));
+        markHabitsInitialized();
         return userTemplate;
       }
       return userHabits;
@@ -417,6 +516,7 @@ export function saveLocalHabits(habits: Habit[]): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(HABIT_STORAGE_KEYS.HABITS, JSON.stringify(habits));
+    markHabitsInitialized();
     notifySync('habits');
   } catch (e) {
     console.error('Error guardando hábitos en LocalStorage:', e);
@@ -510,6 +610,7 @@ export async function updateHabit(habitId: string, updates: Partial<Habit>): Pro
 }
 
 export async function deleteHabit(habitId: string): Promise<boolean> {
+  createHabitsBackupSnapshot(`Pre-eliminación hábito ${habitId}`);
   const current = getLocalHabits();
   const filtered = current.filter((h) => h.id !== habitId);
   saveLocalHabits(filtered);
@@ -565,23 +666,39 @@ export function getLocalHabitLogs(userId?: string): HabitLog[] {
     const raw = localStorage.getItem(HABIT_STORAGE_KEYS.LOGS);
     let parsed: HabitLog[] = raw ? JSON.parse(raw) : [];
     const seededUsers = getSeededUsers();
+    const isInit = isHabitsInitialized();
+    const backups = getHabitsBackups();
 
     if (!raw) {
+      // Si la app ya ha sido inicializada previamente o si existen copias de respaldo,
+      // NUNCA sobreescribir con datos demo. Mantener array vacío para proteger el estado del usuario.
+      if (isInit || backups.length > 0) {
+        localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify([]));
+        return [];
+      }
+
+      // Solo en la primerísima ejecución pura se genera la semilla de inicio
       const defaultUserId = userId || 'user-admin';
       const seed = generateSeedLogsForUser(defaultUserId);
       localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify(seed));
       markUserSeeded(defaultUserId);
+      markHabitsInitialized();
+      createHabitsBackupSnapshot('Semilla inicial demo');
       return seed;
     }
 
     if (userId) {
       const userLogs = parsed.filter((l) => l.userId === userId);
-      // Solo generar semillas si el usuario NUNCA ha sido inicializado antes
-      if (!seededUsers.includes(userId) && userLogs.length === 0) {
+      // Solo generar semillas si:
+      // 1. El usuario NUNCA ha sido inicializado antes
+      // 2. No tiene ningún log registrado
+      // 3. Y la aplicación nunca ha sido inicializada previamente
+      if (!seededUsers.includes(userId) && userLogs.length === 0 && !isInit && backups.length === 0) {
         const userSeed = generateSeedLogsForUser(userId);
         const combined = [...parsed, ...userSeed];
         localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify(combined));
         markUserSeeded(userId);
+        markHabitsInitialized();
         return userSeed;
       }
       return userLogs;
@@ -596,6 +713,7 @@ export function saveLocalHabitLogs(logs: HabitLog[]): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify(logs));
+    markHabitsInitialized();
     notifySync('habits');
   } catch (e) {
     console.error('Error guardando habit logs:', e);
@@ -747,8 +865,11 @@ export async function clearMonthHabitLogs(
   year: number,
   month: number
 ): Promise<number> {
-  markUserSeeded(userId);
   const monthPrefix = `${year}-${String(month).padStart(2, '0')}-`;
+  createHabitsBackupSnapshot(`Pre-limpieza checks mes ${monthPrefix}`);
+
+  markUserSeeded(userId);
+  markHabitsInitialized();
   const currentLogs = getLocalHabitLogs();
 
   // Conservar registros de otros usuarios o de otros meses
@@ -776,6 +897,395 @@ export async function clearMonthHabitLogs(
   }
 
   return removedCount;
+}
+
+// ========================================================
+// RESTAURACIÓN, EXPORTACIÓN / IMPORTACIÓN Y CLOUD SYNC
+// ========================================================
+
+export async function restoreHabitsBackup(
+  backupId?: string
+): Promise<{ success: boolean; message: string; restored?: HabitDataSnapshot }> {
+  if (typeof window === 'undefined') {
+    return { success: false, message: 'Entorno no disponible' };
+  }
+  try {
+    const backups = getHabitsBackups();
+    if (backups.length === 0) {
+      return { success: false, message: 'No existen copias de seguridad disponibles' };
+    }
+
+    const target = backupId ? backups.find((b) => b.id === backupId) : backups[0];
+    if (!target) {
+      return { success: false, message: 'Copia de seguridad no encontrada' };
+    }
+
+    // Tomar snapshot de seguridad del estado actual antes de restaurar
+    createHabitsBackupSnapshot('Estado previo a restauración de ' + target.id);
+
+    // Restaurar datos
+    saveLocalHabits(target.habits);
+    saveLocalHabitLogs(target.logs);
+    saveLocalGoals(target.goals);
+
+    if (target.notes) {
+      Object.entries(target.notes).forEach(([k, v]) => {
+        localStorage.setItem(k, v);
+      });
+    }
+
+    markHabitsInitialized();
+    notifySync('habits');
+
+    // Sincronizar con Supabase si está disponible
+    const client = await getOrInitSupabase();
+    if (client) {
+      try {
+        if (target.habits && target.habits.length > 0) {
+          const habitRows = target.habits.map((h) => ({
+            id: h.id,
+            user_id: h.userId,
+            challenge_id: h.challengeId || null,
+            title: h.title,
+            description: h.description || null,
+            icon: h.icon,
+            color: h.color,
+            category: h.category,
+            target_type: h.targetType,
+            target_value: h.targetValue,
+            target_unit: h.targetUnit || null,
+            frequency: h.frequency,
+            frequency_days: h.frequencyDays || [1, 2, 3, 4, 5, 6, 7],
+            is_active: h.isActive,
+            is_archived: h.isArchived,
+            display_order: h.displayOrder,
+            updated_at: h.updatedAt,
+          }));
+          await client.from('habits').upsert(habitRows);
+        }
+
+        if (target.logs && target.logs.length > 0) {
+          const logRows = target.logs.map((l) => ({
+            id: l.id,
+            habit_id: l.habitId,
+            user_id: l.userId,
+            date_key: l.dateKey,
+            status: l.status,
+            numeric_value: l.numericValue || null,
+            notes: l.notes || null,
+            created_at: l.createdAt,
+            updated_at: l.updatedAt,
+          }));
+          await client.from('habit_logs').upsert(logRows);
+        }
+      } catch (e) {
+        console.warn('Sync restoreHabitsBackup to Supabase:', e);
+      }
+    }
+
+    return {
+      success: true,
+      message: `Copia restaurada con éxito (${target.logs.length} checks, ${target.habits.length} hábitos).`,
+      restored: target,
+    };
+  } catch (e: any) {
+    console.error('Error restaurando copia de seguridad:', e);
+    return { success: false, message: e.message || 'Error al restaurar copia de seguridad' };
+  }
+}
+
+export function exportHabitsDataJSON(userId?: string): string {
+  const habits = getLocalHabits(userId);
+  const logs = getLocalHabitLogs(userId);
+  const goals = getLocalGoals(userId);
+
+  const notes: Record<string, string> = {};
+  if (typeof window !== 'undefined') {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(HABIT_STORAGE_KEYS.NOTES)) {
+        if (!userId || key.includes(`_${userId}_`)) {
+          notes[key] = localStorage.getItem(key) || '';
+        }
+      }
+    }
+  }
+
+  const exportPayload = {
+    schemaVersion: 'kanban_duo_habits_v1',
+    exportDate: new Date().toISOString(),
+    userId: userId || 'all',
+    habits,
+    logs,
+    goals,
+    notes,
+  };
+
+  return JSON.stringify(exportPayload, null, 2);
+}
+
+export async function importHabitsDataJSON(
+  jsonStr: string
+): Promise<{ success: boolean; message: string; count?: number }> {
+  try {
+    const data = JSON.parse(jsonStr);
+    if (!data || (!Array.isArray(data.habits) && !Array.isArray(data.logs))) {
+      return {
+        success: false,
+        message: 'El archivo JSON no contiene una estructura válida de hábitos o logs.',
+      };
+    }
+
+    markHabitsInitialized();
+    createHabitsBackupSnapshot('Pre-importación de archivo JSON');
+    let restoredCount = 0;
+
+    if (Array.isArray(data.habits) && data.habits.length > 0) {
+      const rawHabits = typeof window !== 'undefined' ? localStorage.getItem(HABIT_STORAGE_KEYS.HABITS) : null;
+      const currentHabits: Habit[] = rawHabits ? JSON.parse(rawHabits) : [];
+      const habitMap = new Map(currentHabits.map((h) => [h.id, h]));
+      data.habits.forEach((h: Habit) => {
+        if (h.id && h.title) {
+          habitMap.set(h.id, h);
+        }
+      });
+      saveLocalHabits(Array.from(habitMap.values()));
+    }
+
+    if (Array.isArray(data.logs) && data.logs.length > 0) {
+      const rawLogs = typeof window !== 'undefined' ? localStorage.getItem(HABIT_STORAGE_KEYS.LOGS) : null;
+      const currentLogs: HabitLog[] = rawLogs ? JSON.parse(rawLogs) : [];
+      const logKey = (l: HabitLog) => `${l.userId}_${l.habitId}_${l.dateKey}`;
+      const logMap = new Map(currentLogs.map((l) => [logKey(l), l]));
+      data.logs.forEach((l: HabitLog) => {
+        if (l.habitId && l.userId && l.dateKey) {
+          logMap.set(logKey(l), l);
+          restoredCount++;
+        }
+      });
+      saveLocalHabitLogs(Array.from(logMap.values()));
+    }
+
+    if (Array.isArray(data.goals) && data.goals.length > 0) {
+      const rawGoals = typeof window !== 'undefined' ? localStorage.getItem(HABIT_STORAGE_KEYS.GOALS) : null;
+      const currentGoals: Goal[] = rawGoals ? JSON.parse(rawGoals) : [];
+      const goalMap = new Map(currentGoals.map((g) => [g.id, g]));
+      data.goals.forEach((g: Goal) => {
+        if (g.id && g.title) {
+          goalMap.set(g.id, g);
+        }
+      });
+      saveLocalGoals(Array.from(goalMap.values()));
+    }
+
+    if (data.notes && typeof data.notes === 'object') {
+      Object.entries(data.notes).forEach(([k, v]) => {
+        if (typeof v === 'string') {
+          localStorage.setItem(k, v);
+        }
+      });
+    }
+
+    notifySync('habits');
+
+    // Sincronizar a Supabase
+    await syncCloudHabits();
+
+    return {
+      success: true,
+      message: `Importación completada: ${restoredCount} checks procesados y guardados.`,
+      count: restoredCount,
+    };
+  } catch (e: any) {
+    return { success: false, message: `Error importando JSON: ${e.message}` };
+  }
+}
+
+export async function syncCloudHabits(userId?: string): Promise<boolean> {
+  const client = await getOrInitSupabase();
+  if (!client || typeof window === 'undefined') return false;
+
+  try {
+    // 1. Hábitos
+    let habitsQuery = client.from('habits').select('*');
+    if (userId) {
+      habitsQuery = habitsQuery.or(`user_id.eq.${userId},user_id.eq.user-admin`);
+    }
+    const { data: cloudHabits, error: hErr } = await habitsQuery;
+
+    // 2. Logs
+    let logsQuery = client.from('habit_logs').select('*');
+    if (userId) {
+      logsQuery = logsQuery.eq('user_id', userId);
+    }
+    const { data: cloudLogs, error: lErr } = await logsQuery;
+
+    // 3. Goals
+    let goalsQuery = client.from('goals').select('*');
+    if (userId) {
+      goalsQuery = goalsQuery.eq('user_id', userId);
+    }
+    const { data: cloudGoals, error: gErr } = await goalsQuery;
+
+    // 4. Notes
+    let notesQuery = client.from('habit_notes').select('*');
+    if (userId) {
+      notesQuery = notesQuery.eq('user_id', userId);
+    }
+    const { data: cloudNotes, error: nErr } = await notesQuery;
+
+    let hasChanges = false;
+
+    // Fusionar Hábitos
+    if (!hErr && cloudHabits && cloudHabits.length > 0) {
+      const localHabits = getLocalHabits();
+      const habitMap = new Map(localHabits.map((h) => [h.id, h]));
+
+      cloudHabits.forEach((r: any) => {
+        const mappedHabit: Habit = {
+          id: r.id,
+          userId: r.user_id,
+          challengeId: r.challenge_id || undefined,
+          title: r.title,
+          description: r.description || undefined,
+          icon: r.icon || '🎯',
+          color: r.color || '#06b6d4',
+          category: r.category || 'general',
+          targetType: r.target_type || 'boolean',
+          targetValue: Number(r.target_value) || 1,
+          targetUnit: r.target_unit || undefined,
+          frequency: r.frequency || 'daily',
+          frequencyDays: r.frequency_days || undefined,
+          isActive: r.is_active !== false,
+          isArchived: Boolean(r.is_archived),
+          displayOrder: r.display_order ?? 0,
+          createdAt: r.created_at || new Date().toISOString(),
+          updatedAt: r.updated_at || new Date().toISOString(),
+        };
+
+        const existing = habitMap.get(mappedHabit.id);
+        if (!existing) {
+          habitMap.set(mappedHabit.id, mappedHabit);
+          hasChanges = true;
+        } else {
+          const remoteTime = new Date(mappedHabit.updatedAt).getTime();
+          const localTime = new Date(existing.updatedAt).getTime();
+          if (remoteTime > localTime) {
+            habitMap.set(mappedHabit.id, mappedHabit);
+            hasChanges = true;
+          }
+        }
+      });
+
+      if (hasChanges) {
+        saveLocalHabits(Array.from(habitMap.values()));
+      }
+    }
+
+    // Fusionar Logs
+    if (!lErr && cloudLogs && cloudLogs.length > 0) {
+      const raw = localStorage.getItem(HABIT_STORAGE_KEYS.LOGS);
+      const localLogs: HabitLog[] = raw ? JSON.parse(raw) : [];
+      const logKey = (l: { userId: string; habitId: string; dateKey: string }) =>
+        `${l.userId}_${l.habitId}_${l.dateKey}`;
+      const logMap = new Map(localLogs.map((l) => [logKey(l), l]));
+
+      let logsChanged = false;
+      cloudLogs.forEach((r: any) => {
+        const mappedLog: HabitLog = {
+          id: r.id,
+          habitId: r.habit_id,
+          userId: r.user_id,
+          dateKey: r.date_key,
+          status: r.status,
+          numericValue: r.numeric_value ? Number(r.numeric_value) : undefined,
+          notes: r.notes || undefined,
+          createdAt: r.created_at || new Date().toISOString(),
+          updatedAt: r.updated_at || new Date().toISOString(),
+        };
+
+        const k = logKey(mappedLog);
+        const existing = logMap.get(k);
+        if (!existing) {
+          logMap.set(k, mappedLog);
+          logsChanged = true;
+        } else {
+          const remoteTime = new Date(mappedLog.updatedAt).getTime();
+          const localTime = new Date(existing.updatedAt).getTime();
+          if (remoteTime >= localTime) {
+            logMap.set(k, mappedLog);
+            logsChanged = true;
+          }
+        }
+      });
+
+      if (logsChanged || !raw) {
+        saveLocalHabitLogs(Array.from(logMap.values()));
+        hasChanges = true;
+      }
+      markHabitsInitialized();
+    }
+
+    // Fusionar Goals
+    if (!gErr && cloudGoals && cloudGoals.length > 0) {
+      const localGoals = getLocalGoals();
+      const goalMap = new Map(localGoals.map((g) => [g.id, g]));
+      let goalsChanged = false;
+
+      cloudGoals.forEach((r: any) => {
+        const mappedGoal: Goal = {
+          id: r.id,
+          userId: r.user_id,
+          challengeId: r.challenge_id || undefined,
+          habitId: r.habit_id || undefined,
+          title: r.title,
+          description: r.description || undefined,
+          monthKey: r.month_key || undefined,
+          targetType: r.target_type || 'boolean',
+          targetValue: Number(r.target_value) || 1,
+          currentValue: Number(r.current_value) || 0,
+          isCompleted: Boolean(r.is_completed),
+          dueDate: r.due_date || undefined,
+          createdAt: r.created_at || new Date().toISOString(),
+          updatedAt: r.updated_at || new Date().toISOString(),
+        };
+
+        const existing = goalMap.get(mappedGoal.id);
+        if (!existing || new Date(mappedGoal.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+          goalMap.set(mappedGoal.id, mappedGoal);
+          goalsChanged = true;
+        }
+      });
+
+      if (goalsChanged) {
+        saveLocalGoals(Array.from(goalMap.values()));
+        hasChanges = true;
+      }
+    }
+
+    // Fusionar Notes
+    if (!nErr && cloudNotes && cloudNotes.length > 0) {
+      cloudNotes.forEach((r: any) => {
+        if (r.user_id && r.period_key) {
+          const key = `${HABIT_STORAGE_KEYS.NOTES}_${r.user_id}_${r.period_key}`;
+          const currentLocal = localStorage.getItem(key);
+          if (currentLocal === null && r.content) {
+            localStorage.setItem(key, r.content);
+            hasChanges = true;
+          }
+        }
+      });
+    }
+
+    if (hasChanges) {
+      notifySync('habits');
+    }
+
+    return true;
+  } catch (e) {
+    console.warn('Error en syncCloudHabits:', e);
+    return false;
+  }
 }
 
 // ========================================================
@@ -826,6 +1336,7 @@ export function saveLocalGoals(goals: Goal[]): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(HABIT_STORAGE_KEYS.GOALS, JSON.stringify(goals));
+    markHabitsInitialized();
     notifySync('habits');
   } catch (e) {
     console.error('Error guardando goals:', e);
