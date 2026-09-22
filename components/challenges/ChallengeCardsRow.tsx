@@ -11,6 +11,16 @@ interface ChallengeCardsRowProps {
   onSelectChallenge: (challengeId: string) => void;
 }
 
+const formatDateRange = (start?: string, end?: string) => {
+  if (!start || !end) return '';
+  const startYear = start.slice(0, 4);
+  const endYear = end.slice(0, 4);
+  if (startYear === endYear) {
+    return `${start.slice(5)} – ${end.slice(5)}`;
+  }
+  return `${start} – ${end}`;
+};
+
 export const ChallengeCardsRow: React.FC<ChallengeCardsRowProps> = ({
   challenges,
   selectedChallengeId,
@@ -67,7 +77,7 @@ export const ChallengeCardsRow: React.FC<ChallengeCardsRowProps> = ({
                     {ch.title}
                   </h4>
                   <span className="text-[10px] text-zinc-500 font-mono block">
-                    {(ch.startDate || '').slice(5)} – {(ch.endDate || '').slice(5)}
+                    {formatDateRange(ch.startDate, ch.endDate)}
                   </span>
                 </div>
               </div>

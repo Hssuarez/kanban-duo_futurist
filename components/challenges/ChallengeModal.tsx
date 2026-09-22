@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Challenge, ChallengeMode } from '@/lib/challengeTypes';
 import { User } from '@/lib/types';
-import { X, Trophy, Handshake, Calendar, Check, Sparkles, Trash2 } from 'lucide-react';
+import { X, Trophy, Handshake, Calendar, Check, Sparkles, Trash2, AlertTriangle } from 'lucide-react';
 import { getBogotaToday } from '@/lib/habitCalculations';
 
 interface ChallengeModalProps {
@@ -18,6 +18,26 @@ interface ChallengeModalProps {
 }
 
 const EMOJI_OPTIONS = ['🏋️', '📚', '💧', '🏃', '🧘', '🎸', '🌙', '💻', '🧠', '🎯', '🥑', '⚡'];
+
+// Cálculo seguro de días entre dos fechas inclusive (en UTC para evitar desajustes horarios)
+const calculateDaysBetween = (startStr: string, endStr: string): number => {
+  if (!startStr || !endStr) return 0;
+  const start = new Date(`${startStr}T12:00:00Z`);
+  const end = new Date(`${endStr}T12:00:00Z`);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  return Math.max(1, diffDays);
+};
+
+// Proyección de fecha de finalización a partir de fecha de inicio y días
+const calculateEndDate = (startStr: string, days: number): string => {
+  if (!startStr) return '';
+  const d = new Date(`${startStr}T12:00:00Z`);
+  if (isNaN(d.getTime())) return '';
+  d.setUTCDate(d.getUTCDate() + Math.max(1, days) - 1);
+  return d.toISOString().slice(0, 10);
+};
 
 export const ChallengeModal: React.FC<ChallengeModalProps> = ({
   isOpen,
@@ -35,6 +55,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
   const [mode, setMode] = useState<ChallengeMode>('competitive');
   const [durationDays, setDurationDays] = useState(30);
   const [startDate, setStartDate] = useState(getBogotaToday());
+  const [endDate, setEndDate] = useState(() => calculateEndDate(getBogotaToday(), 30));
   const [habitTitle, setHabitTitle] = useState('Entrenar');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
@@ -49,15 +70,24 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
       setDescription(editingChallenge.description || '');
       setIcon(editingChallenge.icon || '🏆');
       setMode(editingChallenge.mode || 'competitive');
-      setDurationDays(editingChallenge.durationDays || 30);
-      setStartDate(editingChallenge.startDate || getBogotaToday());
+      const sDate = editingChallenge.startDate || getBogotaToday();
+      const eDate =
+        editingChallenge.endDate ||
+        calculateEndDate(sDate, editingChallenge.durationDays || 30);
+      setStartDate(sDate);
+      setEndDate(eDate);
+      const computedDuration =
+        editingChallenge.durationDays || calculateDaysBetween(sDate, eDate);
+      setDurationDays(computedDuration > 0 ? computedDuration : 30);
     } else {
+      const today = getBogotaToday();
       setTitle('');
       setDescription('');
       setIcon('🏆');
       setMode('competitive');
+      setStartDate(today);
+      setEndDate(calculateEndDate(today, 30));
       setDurationDays(30);
-      setStartDate(getBogotaToday());
       setHabitTitle('Entrenar');
       setSelectedUserIds(users.map((u) => u.id));
     }
@@ -66,15 +96,40 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
 
   if (!isOpen || !mounted) return null;
 
-  // Calcular fecha de fin según duración
-  const calculateEndDate = (start: string, days: number) => {
-    const d = new Date(`${start}T12:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + days - 1);
-    return d.toISOString().slice(0, 10);
+  // Validación de fechas
+  const isDateRangeInvalid = !startDate || !endDate || endDate < startDate;
+  const isCustomDuration = ![7, 14, 21, 30].includes(durationDays);
+
+  const handleStartDateChange = (newStart: string) => {
+    setStartDate(newStart);
+    if (!newStart) return;
+    // Si la fecha fin queda anterior a la nueva fecha de inicio, la proyectamos con la duración actual
+    if (!endDate || endDate < newStart) {
+      setEndDate(calculateEndDate(newStart, durationDays || 30));
+    } else {
+      const newDays = calculateDaysBetween(newStart, endDate);
+      if (newDays > 0) {
+        setDurationDays(newDays);
+      }
+    }
+  };
+
+  const handleEndDateChange = (newEnd: string) => {
+    setEndDate(newEnd);
+    if (!newEnd || !startDate) return;
+    if (newEnd >= startDate) {
+      const newDays = calculateDaysBetween(startDate, newEnd);
+      if (newDays > 0) {
+        setDurationDays(newDays);
+      }
+    }
   };
 
   const handleSelectDuration = (days: number) => {
     setDurationDays(days);
+    if (startDate) {
+      setEndDate(calculateEndDate(startDate, days));
+    }
   };
 
   const toggleUserSelection = (userId: string) => {
@@ -85,9 +140,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
-
-    const endDate = calculateEndDate(startDate, durationDays);
+    if (!title.trim() || isDateRangeInvalid) return;
 
     onSave(
       {
@@ -96,7 +149,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
         description: description.trim(),
         icon,
         mode,
-        durationDays,
+        durationDays: Math.max(1, durationDays),
         startDate,
         endDate,
         status: 'active',
@@ -231,40 +284,97 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
             </div>
           </div>
 
-          {/* Duration Preset Buttons */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono font-medium text-zinc-300 block">
-              Duración del Reto
-            </label>
-            <div className="grid grid-cols-4 gap-1.5">
+          {/* Duración y Fechas Personalizables */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-mono font-medium text-zinc-300">
+                Duración y Fechas del Reto *
+              </label>
+              <span className="text-[11px] font-mono text-cyan-400 font-semibold">
+                {isDateRangeInvalid
+                  ? '⚠️ Rango inválido'
+                  : `${durationDays} ${durationDays === 1 ? 'día' : 'días'} de reto`}
+              </span>
+            </div>
+
+            {/* Atajos Rápidos de Duración */}
+            <div className="flex flex-wrap gap-1.5">
               {[7, 14, 21, 30].map((days) => (
                 <button
                   key={days}
                   type="button"
                   onClick={() => handleSelectDuration(days)}
-                  className={`py-2 text-xs font-mono font-bold rounded-xl border transition-all ${
+                  className={`flex-1 min-w-[60px] py-1.5 text-xs font-mono font-bold rounded-xl border transition-all ${
                     durationDays === days
                       ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
                       : 'bg-zinc-900/60 border-white/[0.06] text-zinc-400 hover:bg-zinc-900'
                   }`}
                 >
-                  {days} días
+                  {days}d
                 </button>
               ))}
+              {isCustomDuration && (
+                <button
+                  type="button"
+                  className="px-3 py-1.5 text-xs font-mono font-bold rounded-xl border bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.2)] flex items-center gap-1 shrink-0"
+                >
+                  <Sparkles className="w-3 h-3 text-cyan-400" />
+                  <span>Personalizado ({durationDays}d)</span>
+                </button>
+              )}
             </div>
-          </div>
 
-          {/* Date Picker */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono font-medium text-zinc-300 block">
-              Fecha de Inicio
-            </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-zinc-900/90 border border-white/[0.08] focus:border-cyan-400 text-white rounded-xl px-3 py-2 text-xs font-mono focus:outline-none"
-            />
+            {/* Selectores de Fechas en 2 Columnas Responsive */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <label className="text-[11px] font-mono text-zinc-400 block">
+                  Fecha de Inicio *
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
+                  required
+                  className="w-full bg-zinc-900/90 border border-white/[0.08] focus:border-cyan-400 text-white rounded-xl px-3 py-2 text-xs font-mono focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-mono text-zinc-400 block">
+                  Fecha de Finalización *
+                </label>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate}
+                  onChange={(e) => handleEndDateChange(e.target.value)}
+                  required
+                  className={`w-full bg-zinc-900/90 border text-white rounded-xl px-3 py-2 text-xs font-mono focus:outline-none transition-colors ${
+                    isDateRangeInvalid
+                      ? 'border-rose-500/70 text-rose-300 focus:border-rose-500'
+                      : 'border-white/[0.08] focus:border-cyan-400'
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Alerta de Validación o Resumen del Rango */}
+            {isDateRangeInvalid ? (
+              <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>La fecha de finalización debe ser igual o posterior a la fecha de inicio.</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/50 border border-white/[0.04] text-[11px] font-mono text-zinc-400">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Período:</span>
+                </div>
+                <span className="text-zinc-300 font-medium">
+                  {startDate} al {endDate}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Primary Activity / Commitment Title (if new) */}
@@ -348,7 +458,12 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 text-xs font-semibold text-zinc-950 bg-cyan-400 hover:bg-cyan-300 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] active:scale-95 cursor-pointer"
+                disabled={isDateRangeInvalid || !title.trim()}
+                className={`px-5 py-2 text-xs font-semibold rounded-xl transition-all ${
+                  isDateRangeInvalid || !title.trim()
+                    ? 'opacity-40 cursor-not-allowed bg-zinc-800 text-zinc-500 border border-white/[0.06]'
+                    : 'text-zinc-950 bg-cyan-400 hover:bg-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] active:scale-95 cursor-pointer'
+                }`}
               >
                 {editingChallenge ? 'Guardar Cambios' : 'Crear Reto'}
               </button>

@@ -102,7 +102,7 @@ export function getChallengeDays(
   let current = new Date(start);
   let index = 1;
 
-  while (current <= end && index <= 90) {
+  while (current <= end && index <= 730) {
     const y = current.getUTCFullYear();
     const m = String(current.getUTCMonth() + 1).padStart(2, '0');
     const d = String(current.getUTCDate()).padStart(2, '0');
