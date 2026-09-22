@@ -49,7 +49,7 @@ import {
 
 interface NotificationCenterProps {
   currentUser: User;
-  activeProject: Project;
+  activeProject: Project | null;
   tasks: Task[];
   onOpenTaskDetail?: (taskId: string) => void;
 }
@@ -71,7 +71,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   // Refresh notifications list and evaluate automatic due/overdue items
   const reloadNotifications = () => {
-    evaluateAutomaticNotifications(tasks, currentUser, activeProject?.id || 'proj-default');
+    if (activeProject && tasks.length > 0) {
+      evaluateAutomaticNotifications(tasks, currentUser, activeProject.id);
+    }
     setNotifications(getNotifications());
     setPreferences(getNotificationPreferences());
     setDndActive(isDndActive());
@@ -113,7 +115,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const userNotifications = useMemo(() => {
     return notifications.filter((n) => {
       const isForUser = n.userId === currentUser.id || n.userId === 'all';
-      const isForProj = !n.projectId || n.projectId === activeProject?.id;
+      const isForProj = !n.projectId || (activeProject && n.projectId === activeProject.id);
       return isForUser && isForProj;
     });
   }, [notifications, currentUser.id, activeProject?.id]);

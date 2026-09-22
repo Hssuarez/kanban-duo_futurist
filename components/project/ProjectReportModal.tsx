@@ -19,7 +19,7 @@ import { formatDueDateBadge, isTaskOverdue } from '@/lib/dateUtils';
 interface ProjectReportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  project: Project;
+  project: Project | null;
   tasks: Task[];
   users: User[];
 }
@@ -43,6 +43,9 @@ export const ProjectReportModal: React.FC<ProjectReportModalProps> = ({
   }, [isOpen, onClose]);
 
   const stats = useMemo(() => {
+    if (!project) {
+      return { total: 0, completed: 0, inProgress: 0, pending: 0, overdue: 0, highPriority: 0, completionRate: 0, memberStats: [] };
+    }
     const total = tasks.length;
     const completed = tasks.filter((t) => t.status === 'finalizado').length;
     const inProgress = tasks.filter((t) => t.status === 'trabajando').length;
@@ -75,10 +78,11 @@ export const ProjectReportModal: React.FC<ProjectReportModalProps> = ({
     };
   }, [tasks, users]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !project) return null;
 
   // Handle CSV Download
   const handleDownloadCsv = () => {
+    if (!project) return;
     const headers = ['ID', 'Titulo', 'Estado', 'Prioridad', 'Asignado', 'Vencimiento', 'Subtareas', 'Etiquetas'];
     const rows = tasks.map((t) => {
       const assignee = users.find((u) => u.id === t.assignedTo)?.name || 'Sin asignar';
@@ -113,6 +117,7 @@ export const ProjectReportModal: React.FC<ProjectReportModalProps> = ({
 
   // Handle Copy Markdown
   const handleCopyMarkdown = () => {
+    if (!project) return;
     let md = `# 📊 Reporte Ejecutivo: ${project.name}\n\n`;
     md += `*Generado el ${new Date().toLocaleDateString('es-CO')} · KanbanDuo*\n\n`;
     md += `### Métricas Clave\n`;

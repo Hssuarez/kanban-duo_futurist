@@ -22,7 +22,7 @@ interface CommandPaletteProps {
   onClose: () => void;
   tasks: Task[];
   projects: Project[];
-  activeProject: Project;
+  activeProject: Project | null;
   onSelectProject: (projectId: string) => void;
   onChangeView: (view: AppView) => void;
   onOpenNewTask: () => void;
@@ -74,7 +74,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         id: 'action-new-task',
         category: 'Acciones',
         title: 'Crear nueva tarea',
-        subtitle: `En ${activeProject.name}`,
+        subtitle: activeProject ? `En ${activeProject.name}` : 'Crear en nuevo proyecto',
         icon: Plus,
         run: () => {
           onClose();
@@ -126,7 +126,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         },
       },
     ];
-  }, [activeProject.name, onClose, onOpenNewTask, onChangeView, onOpenProfile]);
+  }, [activeProject?.name, onClose, onOpenNewTask, onChangeView, onOpenProfile]);
 
   // Filtered lists
   const filteredActions = useMemo(() => {
@@ -360,7 +360,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             <span>↵ seleccionar</span>
             <span>esc cerrar</span>
           </div>
-          <span className="text-zinc-400 text-[10px]">{activeProject.name}</span>
+          <span className="text-zinc-400 text-[10px]">
+            {activeProject ? activeProject.name : 'Sin proyecto'}
+          </span>
         </div>
       </div>
     </div>

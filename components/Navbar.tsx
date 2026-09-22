@@ -42,7 +42,7 @@ interface NavbarProps {
   currentUser: User;
   users: User[];
   projects: Project[];
-  activeProject: Project;
+  activeProject: Project | null;
   onSelectProject: (projectId: string) => void;
   onOpenCreateProject: () => void;
   onOpenEditProject: (project: Project) => void;

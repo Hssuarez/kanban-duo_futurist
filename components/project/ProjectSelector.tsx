@@ -13,7 +13,7 @@ import {
 
 interface ProjectSelectorProps {
   projects: Project[];
-  activeProject: Project;
+  activeProject: Project | null;
   onSelectProject: (projectId: string) => void;
   onOpenCreateProject: () => void;
   onOpenEditProject: (project: Project) => void;
@@ -57,13 +57,18 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  const canEditActive =
-    currentUser.role === 'admin' || activeProject.createdBy === currentUser.id;
+  const canEditActive = Boolean(
+    activeProject &&
+      (currentUser.role === 'admin' || activeProject.createdBy === currentUser.id)
+  );
 
   // Resolve member user objects
-  const projectMembers = users.filter((u) =>
-    activeProject.memberIds?.includes(u.id) || u.id === activeProject.createdBy
-  );
+  const projectMembers = activeProject
+    ? users.filter(
+        (u) =>
+          activeProject.memberIds?.includes(u.id) || u.id === activeProject.createdBy
+      )
+    : [];
 
   return (
     <div className={`relative font-sans ${isMobile ? 'w-full' : ''}`} ref={dropdownRef}>
@@ -81,11 +86,17 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {/* Color Indicator */}
             <div
-              className="w-2.5 h-2.5 rounded-full shrink-0 transition-transform group-hover:scale-110"
-              style={{
-                backgroundColor: activeProject.color || '#06b6d4',
-                boxShadow: `0 0 8px ${activeProject.color || '#06b6d4'}80`,
-              }}
+              className={`w-2.5 h-2.5 rounded-full shrink-0 transition-transform group-hover:scale-110 ${
+                !activeProject ? 'bg-zinc-500 animate-pulse' : ''
+              }`}
+              style={
+                activeProject
+                  ? {
+                      backgroundColor: activeProject.color || '#06b6d4',
+                      boxShadow: `0 0 8px ${activeProject.color || '#06b6d4'}80`,
+                    }
+                  : undefined
+              }
             />
 
             {/* Project Title */}
@@ -95,7 +106,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
               }`}
             >
               <span className="font-medium text-zinc-100 truncate text-xs block">
-                {activeProject.name}
+                {activeProject ? activeProject.name : 'Sin proyectos'}
               </span>
             </div>
           </div>
@@ -116,7 +127,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         </button>
 
         {/* Quick Settings Button for Project Creator or Admin */}
-        {canEditActive && (
+        {canEditActive && activeProject && (
           <button
             onClick={() => onOpenEditProject(activeProject)}
             title="Configurar proyecto y miembros"
@@ -174,9 +185,25 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
 
           {/* List of projects */}
           <div className="max-h-64 overflow-y-auto py-1 space-y-1 custom-scrollbar">
-            {projects.map((proj) => {
-              const isActive = proj.id === activeProject.id;
-              const isCreator = proj.createdBy === currentUser.id;
+            {projects.length === 0 ? (
+              <div className="py-6 px-4 text-center">
+                <p className="text-xs text-zinc-400 mb-3">No tienes proyectos asignados todavía.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onOpenCreateProject();
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-medium hover:bg-cyan-500/30 transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Crear mi primer proyecto</span>
+                </button>
+              </div>
+            ) : (
+              projects.map((proj) => {
+                const isActive = activeProject ? proj.id === activeProject.id : false;
+                const isCreator = proj.createdBy === currentUser.id;
               const memberCount =
                 (proj.memberIds?.length || 0) +
                 (proj.memberIds?.includes(proj.createdBy) ? 0 : 1);
@@ -281,7 +308,8 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
                   </div>
                 </div>
               );
-            })}
+            })
+          )}
           </div>
 
           {/* Action Footer: Create new project */}

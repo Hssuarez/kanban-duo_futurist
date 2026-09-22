@@ -47,6 +47,7 @@ import { TaskCalendar } from './calendar/TaskCalendar';
 import { TaskDashboard } from './dashboard/TaskDashboard';
 import { ProjectModal } from './project/ProjectModal';
 import { ProjectReportModal } from './project/ProjectReportModal';
+import { NoProjectsView } from './project/NoProjectsView';
 import { AmbientNetworkBackground } from './ui/AmbientNetworkBackground';
 import { CommandPalette } from './command/CommandPalette';
 import { NotificationToasts } from './notifications/NotificationToasts';
@@ -179,21 +180,21 @@ export const KanbanBoard: React.FC = () => {
     );
   }, [projects, sessionUser]);
 
-  // Proyecto activo actual con múltiples capas de respaldo
+  // Proyecto activo actual restringido estrictamente a proyectos accesibles (null si no pertenece a ninguno)
   const activeProject = useMemo(() => {
     const found = accessibleProjects.find((p) => p.id === activeProjectId);
-    return found || accessibleProjects[0] || projects[0] || DEFAULT_PROJECTS[0];
-  }, [accessibleProjects, activeProjectId, projects]);
+    return found || accessibleProjects[0] || null;
+  }, [accessibleProjects, activeProjectId]);
 
-  // Tareas pertenecientes al proyecto activo
+  // Tareas pertenecientes al proyecto activo (vacío si no hay proyecto activo)
   const projectTasks = useMemo(() => {
-    const projId = activeProject?.id || 'proj-default';
-    return tasks.filter((t) => (t.projectId || 'proj-default') === projId);
-  }, [tasks, activeProject?.id]);
+    if (!activeProject) return [];
+    return tasks.filter((t) => (t.projectId || 'proj-default') === activeProject.id);
+  }, [tasks, activeProject]);
 
   // Miembros del proyecto activo (estrictamente filtrados por pertenencia al proyecto)
   const projectMembers = useMemo(() => {
-    if (!activeProject) return users;
+    if (!activeProject) return sessionUser ? [sessionUser] : users;
     const memberIdSet = new Set<string>(
       Array.isArray(activeProject.memberIds) ? activeProject.memberIds : []
     );
@@ -433,6 +434,10 @@ export const KanbanBoard: React.FC = () => {
   };
 
   const handleOpenAddNew = (status: TaskStatus = 'iniciado') => {
+    if (!activeProject) {
+      handleOpenCreateProject();
+      return;
+    }
     setEditingTask(null);
     setTargetColumnStatus(status);
     setIsTaskModalOpen(true);
@@ -606,14 +611,21 @@ export const KanbanBoard: React.FC = () => {
       {/* Main Container */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 flex flex-col relative z-10">
         {currentView === 'board' && (
-          <div className="animate-view-fade flex-1 flex flex-col">
-            {/* Peer Activity Bar enfocada en miembros y tareas del proyecto activo */}
-            <PeerActivityBar
+          !activeProject ? (
+            <NoProjectsView
               currentUser={sessionUser}
-              users={projectMembers}
-              tasks={projectTasks}
-              logs={logs}
+              onOpenCreateProject={handleOpenCreateProject}
+              viewName="board"
             />
+          ) : (
+            <div className="animate-view-fade flex-1 flex flex-col">
+              {/* Peer Activity Bar enfocada en miembros y tareas del proyecto activo */}
+              <PeerActivityBar
+                currentUser={sessionUser}
+                users={projectMembers}
+                tasks={projectTasks}
+                logs={logs}
+              />
 
             {/* Board Controls & Subheader */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
@@ -753,30 +765,47 @@ export const KanbanBoard: React.FC = () => {
               />
             </div>
           </div>
-        )}
+        )
+      )}
 
         {currentView === 'calendar' && (
-          <div className="animate-view-fade flex-1 flex flex-col pb-6">
-            <TaskCalendar
-              tasks={projectTasks}
-              users={projectMembers}
+          !activeProject ? (
+            <NoProjectsView
               currentUser={sessionUser}
-              onOpenNewTask={() => handleOpenAddNew('iniciado')}
-              onOpenEditTask={handleOpenEdit}
-              onUpdateTaskDueDate={handleUpdateTaskDueDate}
+              onOpenCreateProject={handleOpenCreateProject}
+              viewName="calendar"
             />
-          </div>
+          ) : (
+            <div className="animate-view-fade flex-1 flex flex-col pb-6">
+              <TaskCalendar
+                tasks={projectTasks}
+                users={projectMembers}
+                currentUser={sessionUser}
+                onOpenNewTask={() => handleOpenAddNew('iniciado')}
+                onOpenEditTask={handleOpenEdit}
+                onUpdateTaskDueDate={handleUpdateTaskDueDate}
+              />
+            </div>
+          )
         )}
 
         {currentView === 'dashboard' && (
-          <div className="animate-view-fade">
-            <TaskDashboard
-              tasks={projectTasks}
-              users={projectMembers}
+          !activeProject ? (
+            <NoProjectsView
               currentUser={sessionUser}
-              onOpenTaskDetail={handleOpenEdit}
+              onOpenCreateProject={handleOpenCreateProject}
+              viewName="dashboard"
             />
-          </div>
+          ) : (
+            <div className="animate-view-fade">
+              <TaskDashboard
+                tasks={projectTasks}
+                users={projectMembers}
+                currentUser={sessionUser}
+                onOpenTaskDetail={handleOpenEdit}
+              />
+            </div>
+          )
         )}
 
         {/* HABIT CORE: Mis Hábitos / Retos / Objetivos / Progreso */}
