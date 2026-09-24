@@ -413,7 +413,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {/* Unified HUD Action Dock: Campana, Admin, Nueva tarea, Stephan */}
-            <div className="flex items-center p-1 bg-zinc-900/90 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-sm gap-1 sm:gap-1.5 shrink-0">
+            <div className="flex items-center p-1 bg-zinc-900/95 border border-white/[0.08] rounded-xl shadow-sm gap-1 sm:gap-1.5 shrink-0">
               {/* Notification Bell Center */}
               <NotificationCenter
                 currentUser={currentUser}

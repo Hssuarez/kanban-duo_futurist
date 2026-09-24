@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { User, Task, Project } from '@/lib/types';
 import {
   AppNotification,
@@ -67,7 +68,18 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [preferences, setPreferences] = useState<NotificationPreferences>(getNotificationPreferences());
   const [browserPermission, setBrowserPermission] = useState<BrowserNotificationStatus>('default');
   const [dndActive, setDndActive] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Refresh notifications list and evaluate automatic due/overdue items
   const reloadNotifications = () => {
@@ -93,7 +105,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   // Click outside and escape key handling
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        (!popoverRef.current || !popoverRef.current.contains(target))
+      ) {
         setIsOpen(false);
       }
     };
@@ -299,73 +316,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
-  return (
-    <div className={`relative font-sans ${isOpen ? 'z-50' : 'z-20'}`} ref={containerRef}>
-      {/* Trigger Bell Button */}
-      <button
-        type="button"
-        onClick={() => {
-          setIsOpen(!isOpen);
-          if (!isOpen) setPanelView('list');
-        }}
-        title={dndActive ? 'Notificaciones (Modo Concentración activo)' : 'Centro de notificaciones'}
-        className={`relative h-8 w-8 rounded-lg transition-all active:scale-[0.96] flex items-center justify-center cursor-pointer ${
-          isOpen
-            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
-            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80'
-        }`}
-      >
-        <Bell className="w-3.5 h-3.5" />
-
-        {/* DND Moon Indicator Badge */}
-        {dndActive && (
-          <span
-            className="absolute -bottom-1 -left-1 w-3.5 h-3.5 bg-purple-950 border border-purple-400/60 rounded-full flex items-center justify-center text-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.5)]"
-            title="Modo Concentración activo"
-          >
-            <Moon className="w-2 h-2 fill-purple-300" />
-          </span>
-        )}
-
-        {/* Unread Counter Badge */}
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-cyan-500 text-zinc-950 font-mono font-bold text-[10px] rounded-full flex items-center justify-center ring-2 ring-zinc-950 shadow-[0_0_10px_rgba(6,182,212,0.7)] animate-pulse">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {/* Mobile Dimmer Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 sm:hidden animate-fade-in"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsOpen(false);
-          }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-            setIsOpen(false);
-          }}
-        />
-      )}
-
-      {/* Popover Menu: Solid Obsidian Surface with full viewport containment */}
-      {isOpen && (
-        <div
-          style={{
-            transformOrigin: 'top center',
-            backgroundColor: '#070c18',
-          }}
-          className="fixed left-2.5 right-2.5 top-[58px] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-w-lg sm:max-w-md mx-auto sm:mx-0 bg-[#070c18] border border-cyan-500/35 shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.2)] rounded-2xl z-50 animate-modal-enter ring-1 ring-cyan-500/20 backdrop-blur-2xl flex flex-col max-h-[calc(100dvh-72px)] sm:max-h-[500px] overflow-hidden"
-          role="menu"
-        >
-          {/* VIEW: NOTIFICATIONS LIST */}
-          {panelView === 'list' && (
-            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-              {/* Header */}
-              <div className="px-4 py-2.5 border-b border-white/[0.08] bg-[#050811] flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
+  const renderPanelContent = () => (
+    <>
+      {/* VIEW: NOTIFICATIONS LIST */}
+      {panelView === 'list' && (
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Header */}
+          <div className="px-4 py-2.5 border-b border-white/[0.08] bg-[#050811] flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-white tracking-wide">Notificaciones</span>
                   {unreadCount > 0 && (
                     <span className="text-[10px] font-mono font-bold bg-cyan-950/70 border border-cyan-500/30 text-cyan-300 px-1.5 py-0.2 rounded-full">
@@ -761,6 +719,89 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               </div>
             </div>
           )}
+    </>
+  );
+
+  return (
+    <div className={`relative font-sans ${isOpen ? 'z-50' : 'z-20'}`} ref={containerRef}>
+      {/* Trigger Bell Button */}
+      <button
+        type="button"
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (!isOpen) setPanelView('list');
+        }}
+        title={dndActive ? 'Notificaciones (Modo Concentración activo)' : 'Centro de notificaciones'}
+        className={`relative h-8 w-8 rounded-lg transition-all active:scale-[0.96] flex items-center justify-center cursor-pointer ${
+          isOpen
+            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
+            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80'
+        }`}
+      >
+        <Bell className="w-3.5 h-3.5" />
+
+        {/* DND Moon Indicator Badge */}
+        {dndActive && (
+          <span
+            className="absolute -bottom-1 -left-1 w-3.5 h-3.5 bg-purple-950 border border-purple-400/60 rounded-full flex items-center justify-center text-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.5)]"
+            title="Modo Concentración activo"
+          >
+            <Moon className="w-2 h-2 fill-purple-300" />
+          </span>
+        )}
+
+        {/* Unread Counter Badge */}
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-cyan-500 text-zinc-950 font-mono font-bold text-[10px] rounded-full flex items-center justify-center ring-2 ring-zinc-950 shadow-[0_0_10px_rgba(6,182,212,0.7)] animate-pulse">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {/* Mobile Popover Menu via Portal: anchored directly to document.body, free from any ancestor styling */}
+      {isOpen && isMounted && isMobile && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] pointer-events-auto sm:hidden flex flex-col justify-start">
+          {/* Mobile Dimmer Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-fade-in"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+            }}
+          />
+
+          {/* Popover Menu: Solid Obsidian Surface with full viewport width */}
+          <div
+            ref={popoverRef}
+            style={{
+              transformOrigin: 'top center',
+              backgroundColor: '#070c18',
+            }}
+            className="fixed inset-x-2.5 top-[58px] max-h-[calc(100dvh-72px)] bg-[#070c18] border border-cyan-500/35 shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.2)] rounded-2xl ring-1 ring-cyan-500/20 backdrop-blur-2xl flex flex-col overflow-hidden animate-modal-enter z-10"
+            role="menu"
+          >
+            {renderPanelContent()}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Desktop Popover Menu: Anchored directly below the Bell icon */}
+      {isOpen && !isMobile && (
+        <div
+          ref={popoverRef}
+          style={{
+            transformOrigin: 'top right',
+            backgroundColor: '#070c18',
+          }}
+          className="hidden sm:flex absolute right-0 top-full mt-2 w-96 max-w-md bg-[#070c18] border border-cyan-500/35 shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.2)] rounded-2xl z-50 animate-modal-enter ring-1 ring-cyan-500/20 backdrop-blur-2xl flex-col max-h-[500px] overflow-hidden"
+          role="menu"
+        >
+          {renderPanelContent()}
         </div>
       )}
     </div>
