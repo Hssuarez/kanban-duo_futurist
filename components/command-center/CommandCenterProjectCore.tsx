@@ -12,6 +12,8 @@ interface CommandCenterProjectCoreProps {
   onOpenCreateProject?: () => void;
   scale?: number;
   onCoreClick?: () => void;
+  isDropdownOpen?: boolean;
+  onDropdownOpenChange?: (open: boolean) => void;
 }
 
 export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> = ({
@@ -22,29 +24,43 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
   onOpenCreateProject,
   scale = 1,
   onCoreClick,
+  isDropdownOpen: propIsDropdownOpen,
+  onDropdownOpenChange,
 }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isDropdownOpen = propIsDropdownOpen !== undefined ? propIsDropdownOpen : internalOpen;
+  const setDropdownOpen = (open: boolean) => {
+    setInternalOpen(open);
+    onDropdownOpenChange?.(open);
+  };
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const baseSize = 190 * scale;
   const projectColor = activeProject?.color || '#06b6d4';
 
   // Cerrar menú al hacer clic fuera
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsDropdownOpen(false);
+        setDropdownOpen(false);
       }
     };
     if (isDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside as unknown as EventListener);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside as unknown as EventListener);
+    };
   }, [isDropdownOpen]);
 
   return (
     <div
       ref={dropdownRef}
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center justify-center select-none cursor-default group"
+      className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${
+        isDropdownOpen ? 'z-50' : 'z-20'
+      } flex flex-col items-center justify-center select-none cursor-default group`}
       style={{ width: baseSize * 1.5, height: baseSize * 1.5 }}
     >
       {/* 1. Halo de atmósfera exterior reactiva al color del proyecto */}
@@ -147,9 +163,9 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsDropdownOpen((prev) => !prev);
+                  setDropdownOpen(!isDropdownOpen);
                 }}
-                className="mt-1 px-2 py-0.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-[8px] sm:text-[9px] font-mono text-zinc-200 flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
+                className="mt-1 px-2 py-0.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-[8px] sm:text-[9px] font-mono text-zinc-200 flex items-center gap-1 transition-all active:scale-95 cursor-pointer z-10"
                 title="Cambiar proyecto activo"
               >
                 <span>Cambiar</span>
@@ -172,7 +188,7 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
                 e.stopPropagation();
                 onOpenCreateProject?.();
               }}
-              className="mt-1 px-2.5 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-bold text-[9px] sm:text-[10px] flex items-center gap-1 shadow-md shadow-cyan-500/30 transition-transform active:scale-95"
+              className="mt-1 px-2.5 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-bold text-[9px] sm:text-[10px] flex items-center gap-1 shadow-md shadow-cyan-500/30 transition-transform active:scale-95 cursor-pointer"
             >
               <Plus className="w-3 h-3 stroke-[3]" />
               <span>Crear primero</span>
@@ -183,10 +199,12 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
 
       {/* 4. Dropdown Holográfico de Proyectos */}
       {isDropdownOpen && (
-        <div className="absolute top-[85%] z-50 w-56 p-2 rounded-xl border border-cyan-500/30 bg-slate-950/95 backdrop-blur-2xl shadow-[0_10px_35px_rgba(0,0,0,0.85)] animate-modal-enter">
-          <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-white/10 text-[10px] font-mono text-zinc-400">
-            <span>PROYECTOS DISPONIBLES</span>
-            <span className="text-cyan-400 font-bold">{accessibleProjects.length}</span>
+        <div className="absolute top-[85%] left-1/2 -translate-x-1/2 z-50 w-60 sm:w-64 p-2.5 rounded-2xl border border-cyan-500/40 bg-slate-950/95 backdrop-blur-2xl shadow-[0_15px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(6,182,212,0.25)] animate-modal-enter ring-1 ring-cyan-500/20">
+          <div className="flex items-center justify-between px-2 py-1 mb-1.5 border-b border-white/10 text-[10px] font-mono text-zinc-400">
+            <span className="tracking-wider">PROYECTOS DISPONIBLES</span>
+            <span className="text-cyan-400 font-bold bg-cyan-950/60 px-1.5 py-0.2 rounded-full border border-cyan-500/30">
+              {accessibleProjects.length}
+            </span>
           </div>
 
           <div className="max-h-48 overflow-y-auto space-y-1 py-1 custom-scrollbar">
@@ -198,22 +216,22 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
                   type="button"
                   onClick={() => {
                     onSelectProject(p.id);
-                    setIsDropdownOpen(false);
+                    setDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-all ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-cyan-950/80 border border-cyan-500/40 text-cyan-200'
+                      ? 'bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
                       : 'hover:bg-white/[0.06] text-zinc-300'
                   }`}
                 >
                   <div className="flex items-center gap-2 truncate">
                     <span
-                      className="w-2 h-2 rounded-full shrink-0"
+                      className="w-2 h-2 rounded-full shrink-0 shadow-sm"
                       style={{ backgroundColor: p.color || '#3b82f6' }}
                     />
                     <span className="truncate">{p.name}</span>
                   </div>
-                  {isSelected && <Check className="w-3 h-3 text-cyan-400 shrink-0" />}
+                  {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
                 </button>
               );
             })}
@@ -223,12 +241,12 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
             <button
               type="button"
               onClick={() => {
-                setIsDropdownOpen(false);
+                setDropdownOpen(false);
                 onOpenCreateProject();
               }}
-              className="w-full mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-center gap-1.5 py-1 text-[11px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors"
+              className="w-full mt-1.5 pt-2 border-t border-white/10 flex items-center justify-center gap-1.5 py-1 text-[11px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>Nuevo Proyecto</span>
             </button>
           )}

@@ -69,6 +69,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
   const [hoveredModuleId, setHoveredModuleId] = useState<string | null>(null);
   const [draggingModuleId, setDraggingModuleId] = useState<string | null>(null);
   const [pomodoroState, setPomodoroState] = useState<PomodoroState>(getPomodoroState());
+  const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
 
   // Estado angular de cada planeta (imperativo en refs para evitar re-renders por frame a 60 FPS)
   const anglesRef = useRef<Record<string, number>>({});
@@ -363,6 +364,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         onSelectPole={(pole) => {
           setActivePole(pole);
           setHoveredModuleId(null);
+          setIsProjectDropdownOpen(false);
         }}
         isMobile={binaryParams.isMobile}
         layoutMode={binaryParams.layoutMode}
@@ -370,6 +372,21 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
 
       {/* 3. Escenario Orbital Central */}
       <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden">
+        {/* Backdrop tenue cuando el selector de proyectos está abierto */}
+        {isProjectDropdownOpen && (
+          <div
+            className="fixed inset-0 z-[65] bg-black/50 backdrop-blur-[2px] animate-fade-in pointer-events-auto"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsProjectDropdownOpen(false);
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              setIsProjectDropdownOpen(false);
+            }}
+          />
+        )}
+
         {/* Pistas orbitales elípticas */}
         <CommandCenterOrbit
           binaryParams={binaryParams}
@@ -390,7 +407,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
           <>
             {/* Polo WORKSPACE (Izquierda) */}
             <div
-              className="absolute top-1/2 left-1/2"
+              className={`absolute top-1/2 left-1/2 transition-[z-index] ${
+                isProjectDropdownOpen ? 'z-[70]' : 'z-10'
+              }`}
               style={{
                 transform: `translate(calc(-50% + ${binaryParams.workspaceCenter.x}px), -50%)`,
               }}
@@ -403,12 +422,14 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
                 onOpenCreateProject={onOpenCreateProject}
                 scale={binaryParams.coreScale}
                 onCoreClick={() => onNavigate('board')}
+                isDropdownOpen={isProjectDropdownOpen}
+                onDropdownOpenChange={setIsProjectDropdownOpen}
               />
             </div>
 
             {/* Polo HABIT CORE (Derecha) */}
             <div
-              className="absolute top-1/2 left-1/2"
+              className="absolute top-1/2 left-1/2 z-10"
               style={{
                 transform: `translate(calc(-50% + ${binaryParams.habitsCenter.x}px), -50%)`,
               }}
@@ -424,7 +445,11 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
           </>
         ) : (
           /* MODO FOCUS / MÓVIL (Centrado al 100% en el polo activo) */
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div
+            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-[z-index] ${
+              isProjectDropdownOpen ? 'z-[70]' : 'z-10'
+            }`}
+          >
             {activePole === 'workspace' ? (
               <CommandCenterProjectCore
                 activeProject={activeProject}
@@ -434,6 +459,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
                 onOpenCreateProject={onOpenCreateProject}
                 scale={binaryParams.coreScale}
                 onCoreClick={() => onNavigate('board')}
+                isDropdownOpen={isProjectDropdownOpen}
+                onDropdownOpenChange={setIsProjectDropdownOpen}
               />
             ) : (
               <CommandCenterUserCore
