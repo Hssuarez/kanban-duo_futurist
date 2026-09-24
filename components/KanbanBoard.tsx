@@ -58,11 +58,12 @@ import { Filter, Tag as TagIcon, X, FileBarChart } from 'lucide-react';
 import { HabitCoreSubView } from '@/lib/habitTypes';
 import { AppSidebar } from './navigation/AppSidebar';
 import { HabitDashboard } from './habits/HabitDashboard';
+import { CommandCenter } from './command-center/CommandCenter';
 
 export const KanbanBoard: React.FC = () => {
   const [mounted, setMounted] = useState(false);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>('board');
+  const [currentView, setCurrentView] = useState<AppView>('command_center');
   const [habitSubView, setHabitSubView] = useState<HabitCoreSubView>('habits');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -144,13 +145,14 @@ export const KanbanBoard: React.FC = () => {
   // Manejo de sesión
   const handleLoginSuccess = (user: User) => {
     setSessionUser(user);
+    setCurrentView('command_center');
     refreshData();
   };
 
   const handleLogout = () => {
     logoutStorage();
     setSessionUser(null);
-    setCurrentView('board');
+    setCurrentView('command_center');
   };
 
   // Actualización de perfil propio (nombre, foto, clave)
@@ -588,6 +590,7 @@ export const KanbanBoard: React.FC = () => {
         currentUser={sessionUser}
         currentView={currentView}
         habitSubView={habitSubView}
+        onSelectCommandCenter={() => setCurrentView('command_center')}
         onSelectWorkspaceView={(view) => {
           setCurrentView(view);
         }}
@@ -609,7 +612,34 @@ export const KanbanBoard: React.FC = () => {
       />
 
       {/* Main Container */}
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 flex flex-col relative z-10">
+      <main className={`w-full flex-1 flex flex-col relative z-10 ${currentView === 'command_center' ? 'max-w-[1400px] mx-auto px-2 sm:px-4 pt-2 sm:pt-4' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
+        {currentView === 'command_center' && (
+          <div className="animate-view-fade flex-1 w-full">
+            <CommandCenter
+              currentUser={sessionUser}
+              users={users}
+              tasks={tasks}
+              onNavigate={(view: AppView, subView?: string) => {
+                if (view === 'habits' || view === 'challenges' || view === 'goals' || view === 'progress') {
+                  if (subView) {
+                    setHabitSubView(subView as HabitCoreSubView);
+                  } else {
+                    setHabitSubView(view === 'challenges' ? 'challenges' : view === 'goals' ? 'goals' : view === 'progress' ? 'progress' : 'habits');
+                  }
+                }
+                setCurrentView(view);
+              }}
+              onOpenPomodoro={() => {
+                const userTask = tasks.find((t) => t.assignedTo === sessionUser?.id && t.status === 'trabajando') || tasks[0];
+                if (userTask) {
+                  handleStartFocus(userTask);
+                } else {
+                  startPomodoro('pomodoro-general', 'Enfoque General', 25);
+                }
+              }}
+            />
+          </div>
+        )}
         {currentView === 'board' && (
           !activeProject ? (
             <NoProjectsView

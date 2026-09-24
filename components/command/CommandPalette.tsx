@@ -15,6 +15,7 @@ import {
   ListTodo,
   ArrowRight,
   X,
+  Orbit,
 } from 'lucide-react';
 
 interface CommandPaletteProps {
@@ -79,6 +80,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         run: () => {
           onClose();
           onOpenNewTask();
+        },
+      },
+      {
+        id: 'action-view-command-center',
+        category: 'Navegación',
+        title: 'Ir a Command Center (HOME)',
+        subtitle: 'Sistema solar interactivo y mapa 3D de módulos',
+        icon: Orbit,
+        run: () => {
+          onClose();
+          onChangeView('command_center');
         },
       },
       {

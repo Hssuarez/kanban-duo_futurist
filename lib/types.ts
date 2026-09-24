@@ -120,4 +120,13 @@ export type SpaceFilter = 'all' | 'mine' | 'peer' | string;
 
 export type AppDomain = 'workspace' | 'habits';
 
-export type AppView = 'board' | 'calendar' | 'dashboard' | 'admin' | 'habits' | 'challenges' | 'goals' | 'progress';
+export type AppView =
+  | 'command_center'
+  | 'board'
+  | 'calendar'
+  | 'dashboard'
+  | 'admin'
+  | 'habits'
+  | 'challenges'
+  | 'goals'
+  | 'progress';

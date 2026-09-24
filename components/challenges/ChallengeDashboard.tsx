@@ -10,6 +10,7 @@ import {
   ChallengeActivity,
   ChallengeGoal,
   ChallengeSubTab,
+  ChallengeSummaryKpis,
 } from '@/lib/challengeTypes';
 import {
   getLocalChallenges,
@@ -56,7 +57,7 @@ import { ChallengeGoalModal } from './ChallengeGoalModal';
 import { ChallengeModal } from './ChallengeModal';
 import { ChallengeMembersModal } from './ChallengeMembersModal';
 import { ChallengeMigrationModal } from './ChallengeMigrationModal';
-import { Plus } from 'lucide-react';
+import { Plus, Trophy } from 'lucide-react';
 
 interface ChallengeDashboardProps {
   currentUser: User;
@@ -162,60 +163,66 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     return () => unsubscribe();
   }, [loadChallengeData]);
 
-  // Reto seleccionado actual
+  // Retos accesibles para el usuario conectado (Privacidad Estricta - Opción A)
+  const accessibleChallenges = useMemo(() => {
+    if (!currentUser) return [];
+    return challenges.filter((c) => {
+      if (c.status !== 'active') return false;
+      // Admin tiene supervisión transversal
+      if (currentUser.role === 'admin') return true;
+      // El creador siempre tiene acceso
+      if (c.createdBy === currentUser.id) return true;
+      // Miembros invitados explícitamente tienen acceso
+      return members.some((m) => m.challengeId === c.id && m.userId === currentUser.id);
+    });
+  }, [challenges, members, currentUser]);
+
+  // Reto seleccionado actual dentro de los retos accesibles (null si no tiene retos)
   const currentChallenge = useMemo(() => {
-    return (
-      challenges.find((c) => c.id === selectedChallengeId) ||
-      challenges[0] || {
-        id: 'ch-gym-30d',
-        createdBy: currentUser.id,
-        title: '30 DÍAS GYM',
-        description: 'Entrenar al menos 5 veces por semana y mantener la consistencia.',
-        icon: '🏋️',
-        color: '#06b6d4',
-        startDate: '2026-10-01',
-        endDate: '2026-10-30',
-        durationDays: 30,
-        mode: 'competitive' as const,
-        status: 'active' as const,
-        createdAt: '',
-        updatedAt: '',
-      }
-    );
-  }, [challenges, selectedChallengeId, currentUser.id]);
+    if (accessibleChallenges.length === 0) return null;
+    const found = accessibleChallenges.find((c) => c.id === selectedChallengeId);
+    return found || accessibleChallenges[0] || null;
+  }, [accessibleChallenges, selectedChallengeId]);
 
   // Miembros del reto seleccionado
   const challengeMembers = useMemo(() => {
+    if (!currentChallenge) return [];
     return members.filter((m) => m.challengeId === currentChallenge.id);
-  }, [members, currentChallenge.id]);
+  }, [members, currentChallenge?.id]);
 
   // Hábitos del reto seleccionado
   const challengeHabits = useMemo(() => {
+    if (!currentChallenge) return [];
     return habits.filter((h) => h.challengeId === currentChallenge.id);
-  }, [habits, currentChallenge.id]);
+  }, [habits, currentChallenge?.id]);
 
   // Logs del reto seleccionado
   const challengeLogs = useMemo(() => {
+    if (!currentChallenge) return [];
     return logs.filter((l) => l.challengeId === currentChallenge.id);
-  }, [logs, currentChallenge.id]);
+  }, [logs, currentChallenge?.id]);
 
   // Actividades del reto seleccionado
   const challengeActivities = useMemo(() => {
+    if (!currentChallenge) return [];
     return activities.filter((a) => a.challengeId === currentChallenge.id);
-  }, [activities, currentChallenge.id]);
+  }, [activities, currentChallenge?.id]);
 
   // Objetivos del reto seleccionado
   const challengeGoals = useMemo(() => {
+    if (!currentChallenge) return [];
     return goals.filter((g) => g.challengeId === currentChallenge.id);
-  }, [goals, currentChallenge.id]);
+  }, [goals, currentChallenge?.id]);
 
   // Días del reto sincronizados con el mes del calendario
   const challengeDays = useMemo(() => {
+    if (!currentChallenge) return [];
     return getChallengeDays(currentChallenge, todayKey, currentYear, currentMonth);
   }, [currentChallenge, todayKey, currentYear, currentMonth]);
 
   // Leaderboard calculado con resolución determinística de empates y fechas de ingreso
   const leaderboard = useMemo(() => {
+    if (!currentChallenge) return [];
     return calculateChallengeLeaderboard(
       currentChallenge,
       challengeMembers,
@@ -227,7 +234,20 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
   }, [currentChallenge, challengeMembers, users, challengeLogs, challengeHabits, todayKey]);
 
   // KPIs de cabecera
-  const kpis = useMemo(() => {
+  const kpis: ChallengeSummaryKpis = useMemo(() => {
+    if (!currentChallenge) {
+      return {
+        completionRate: 0,
+        totalChecksCompleted: 0,
+        totalChecksExpected: 0,
+        daysRemaining: 0,
+        currentTeamStreak: 0,
+        bestTeamStreak: 0,
+        totalMembersCount: 0,
+        activeMembersCount: 0,
+        mostConsistentMember: null,
+      };
+    }
     return calculateChallengeSummaryKpis(
       currentChallenge,
       challengeMembers,
@@ -240,8 +260,9 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
 
   // Tareas vinculadas al reto desde Kanban
   const challengeTasks = useMemo(() => {
+    if (!currentChallenge) return [];
     return tasks.filter((t) => (t as any).challengeId === currentChallenge.id);
-  }, [tasks, currentChallenge.id]);
+  }, [tasks, currentChallenge?.id]);
 
   // Manejo de Check-in en la matriz: estrictamente protegido por userId
   const handleToggleLog = async (
@@ -297,7 +318,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
       recordChallengeCheckInActivity(
         challengeId,
         userId,
-        `${currentUser.name.split(' ')[0]} cumplió su meta diaria (${habitObj?.title || currentChallenge.title})`,
+        `${currentUser.name.split(' ')[0]} cumplió su meta diaria (${habitObj?.title || currentChallenge?.title || 'Reto'})`,
         habitObj?.title,
         challengeHabitId,
         dateKey
@@ -368,6 +389,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
 
   // Invitar miembro
   const handleAddMember = async (userId: string) => {
+    if (!currentChallenge) return;
     await addChallengeMember(currentChallenge.id, userId, 'member');
     addChallengeActivity(
       currentChallenge.id,
@@ -380,6 +402,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
 
   // Quitar miembro
   const handleRemoveMember = async (userId: string) => {
+    if (!currentChallenge) return;
     await removeChallengeMember(currentChallenge.id, userId);
     loadChallengeData();
   };
@@ -409,6 +432,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
   };
 
   const handleSaveGoal = async (goalData: Partial<ChallengeGoal>) => {
+    if (!currentChallenge) return;
     const goalId = goalData.id || `cg-${Date.now()}`;
     const newGoal: ChallengeGoal = {
       id: goalId,
@@ -429,27 +453,20 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     loadChallengeData();
   };
 
-  // Asegurar que el usuario activo sea miembro del reto seleccionado para que tenga su propia fila
-  useEffect(() => {
-    if (currentChallenge?.id && currentUser?.id) {
-      const isMember = challengeMembers.some((m) => m.userId === currentUser.id);
-      if (!isMember) {
-        addChallengeMember(currentChallenge.id, currentUser.id, 'member', currentChallenge.startDate).then(() => {
-          loadChallengeData();
-        });
-      }
-    }
-  }, [currentChallenge?.id, currentUser?.id, challengeMembers, loadChallengeData]);
-
   const monthName = MONTH_NAMES_ES[currentMonth - 1] || 'Septiembre';
 
   return (
     <div className="space-y-5 font-sans animate-view-fade pb-10 w-full">
-      {/* 1. Top Carousel of Active Challenges Cards */}
+      {/* 1. Top Bar of Active Challenges */}
       <div className="flex items-center justify-between gap-3 pt-1">
-        <h3 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
-          Tus Retos Activos
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+            Tus Retos Activos
+          </h3>
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 font-semibold">
+            {accessibleChallenges.length}
+          </span>
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -463,74 +480,197 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
         </button>
       </div>
 
-      <ChallengeCardsRow
-        challenges={challenges}
-        selectedChallengeId={selectedChallengeId}
-        members={members}
-        onSelectChallenge={(id) => {
-          setSelectedChallengeId(id);
-          saveLastSelectedChallengeId(id);
-        }}
-      />
+      {/* Pantalla de Onboarding / Empty State si el usuario no tiene retos asignados */}
+      {!currentChallenge ? (
+        <div className="py-6 sm:py-10">
+          <div className="rounded-2xl bg-[#070c18] border border-cyan-500/20 p-8 sm:p-12 text-center max-w-xl mx-auto space-y-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden">
+            <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* 2. Selected Challenge Hero Banner & 5 KPI Cards */}
-      <ChallengeHeroHeader
-        challenge={currentChallenge}
-        kpis={kpis}
-        members={challengeMembers}
-        users={users}
-        habits={challengeHabits}
-        currentSubTab={currentSubTab}
-        onChangeSubTab={setCurrentSubTab}
-        onOpenEditChallenge={() => {
-          setEditingChallenge(currentChallenge);
-          setIsChallengeModalOpen(true);
-        }}
-        onDeleteChallenge={handleDeleteChallenge}
-        onOpenInviteMembers={() => setIsMembersModalOpen(true)}
-        monthName={monthName}
-        year={currentYear}
-        onPrevMonth={() => setCurrentMonth((prev) => (prev === 1 ? 12 : prev - 1))}
-        onNextMonth={() => setCurrentMonth((prev) => (prev === 12 ? 1 : prev + 1))}
-        onGoToday={() => {
-          const [y, m] = getBogotaYearMonth();
-          setCurrentMonth(m);
-          setCurrentYear(y);
-        }}
-        onBackToHabits={onBackToHabits}
-        cloudStatus={cloudStatus}
-        onOpenMigrationModal={() => setIsMigrationModalOpen(true)}
-      />
+            <div className="w-16 h-16 rounded-2xl bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center mx-auto text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.25)] relative z-10">
+              <Trophy className="w-8 h-8 text-cyan-400" />
+            </div>
 
-      {/* 3. Main Workspace Grid: Matrix (Protagonist) + Leaderboard & Feed */}
-      {currentSubTab === 'matrix' && (
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-5 items-start">
-          {/* Left Column (3/4): Consistency Matrix + Daily Progress + Goals & Tasks */}
-          <div className="xl:col-span-3 space-y-5 min-w-0">
-            {/* HERO PROTAGONIST: Matriz de Consistencia Multi-Usuario */}
-            <ChallengeMatrix
-              challenge={currentChallenge}
-              members={challengeMembers}
-              users={users}
-              habits={challengeHabits}
-              logs={challengeLogs}
-              days={challengeDays}
-              todayKey={todayKey}
-              currentUser={currentUser}
-              onToggleLog={handleToggleLog}
-              memberCompliances={leaderboard}
-            />
+            <div className="space-y-2 relative z-10">
+              <h3 className="text-lg sm:text-xl font-bold font-mono text-zinc-100">
+                Sin retos asignados
+              </h3>
+              <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
+                Hola <span className="text-cyan-300 font-semibold">{currentUser.name}</span>, actualmente no formas parte de ningún reto colaborativo activo. Puedes crear un nuevo reto e invitar a tu equipo, o esperar a ser invitado por un compañero.
+              </p>
+            </div>
 
-            {/* Progreso Diario del Reto (Suma de hábitos) */}
-            <ChallengeTeamChart
-              challenge={currentChallenge}
-              days={challengeDays}
-              members={challengeMembers}
-              logs={challengeLogs}
-            />
+            <div className="pt-2 relative z-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingChallenge(null);
+                  setIsChallengeModalOpen(true);
+                }}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-mono text-xs font-bold tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(6,182,212,0.35)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] active:scale-95 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Crear mi primer reto</span>
+              </button>
+              {onBackToHabits && (
+                <button
+                  type="button"
+                  onClick={onBackToHabits}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white font-mono text-xs border border-white/[0.08] transition-colors cursor-pointer"
+                >
+                  Volver a mis hábitos
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <ChallengeCardsRow
+            challenges={accessibleChallenges}
+            selectedChallengeId={selectedChallengeId}
+            members={members}
+            onSelectChallenge={(id) => {
+              setSelectedChallengeId(id);
+              saveLastSelectedChallengeId(id);
+            }}
+          />
 
-            {/* Bottom Row: Objetivos del Reto + Tareas Vinculadas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* 2. Selected Challenge Hero Banner & 5 KPI Cards */}
+          <ChallengeHeroHeader
+            challenge={currentChallenge}
+            kpis={kpis}
+            members={challengeMembers}
+            users={users}
+            habits={challengeHabits}
+            currentSubTab={currentSubTab}
+            onChangeSubTab={setCurrentSubTab}
+            onOpenEditChallenge={() => {
+              setEditingChallenge(currentChallenge);
+              setIsChallengeModalOpen(true);
+            }}
+            onDeleteChallenge={handleDeleteChallenge}
+            onOpenInviteMembers={() => setIsMembersModalOpen(true)}
+            monthName={monthName}
+            year={currentYear}
+            onPrevMonth={() => setCurrentMonth((prev) => (prev === 1 ? 12 : prev - 1))}
+            onNextMonth={() => setCurrentMonth((prev) => (prev === 12 ? 1 : prev + 1))}
+            onGoToday={() => {
+              const [y, m] = getBogotaYearMonth();
+              setCurrentMonth(m);
+              setCurrentYear(y);
+            }}
+            onBackToHabits={onBackToHabits}
+            cloudStatus={cloudStatus}
+            onOpenMigrationModal={() => setIsMigrationModalOpen(true)}
+          />
+
+          {/* 3. Main Workspace Grid: Matrix (Protagonist) + Leaderboard & Feed */}
+          {currentSubTab === 'matrix' && (
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-5 items-start">
+              {/* Left Column (3/4): Consistency Matrix + Daily Progress + Goals & Tasks */}
+              <div className="xl:col-span-3 space-y-5 min-w-0">
+                {/* HERO PROTAGONIST: Matriz de Consistencia Multi-Usuario */}
+                <ChallengeMatrix
+                  challenge={currentChallenge}
+                  members={challengeMembers}
+                  users={users}
+                  habits={challengeHabits}
+                  logs={challengeLogs}
+                  days={challengeDays}
+                  todayKey={todayKey}
+                  currentUser={currentUser}
+                  onToggleLog={handleToggleLog}
+                  memberCompliances={leaderboard}
+                />
+
+                {/* Progreso Diario del Reto (Suma de hábitos) */}
+                <ChallengeTeamChart
+                  challenge={currentChallenge}
+                  days={challengeDays}
+                  members={challengeMembers}
+                  logs={challengeLogs}
+                />
+
+                {/* Bottom Row: Objetivos del Reto + Tareas Vinculadas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <ChallengeGoalsCard
+                    goals={challengeGoals}
+                    onToggleGoal={(gId) => {
+                      toggleChallengeGoal(gId);
+                      loadChallengeData();
+                    }}
+                    onOpenNewGoal={handleOpenNewGoal}
+                    onEditGoal={handleOpenEditGoal}
+                    onDeleteGoal={handleDeleteGoal}
+                  />
+
+                  <ChallengeTasksCard
+                    tasks={challengeTasks}
+                    users={users}
+                    onOpenNewTask={() => onOpenNewTaskModal?.(currentChallenge.id)}
+                    onToggleTaskStatus={(task) => onToggleTaskStatus?.(task)}
+                    onOpenTaskDetail={(task) => onOpenTaskDetail?.(task)}
+                  />
+                </div>
+              </div>
+
+              {/* Right Column (1/4): Leaderboard + Live Feed + Weekly Progress */}
+              <div className="xl:col-span-1 space-y-5 min-w-0">
+                {/* Leaderboard Configurable (Competitivo / Colaborativo) */}
+                <ChallengeLeaderboard
+                  challenge={currentChallenge}
+                  leaderboard={leaderboard}
+                />
+
+                {/* Actividad Reciente en Tiempo Real */}
+                <ChallengeActivityFeed
+                  activities={challengeActivities}
+                  users={users}
+                />
+
+                {/* Progreso del Equipo Semanal */}
+                <ChallengeWeeklyProgressCard
+                  challenge={currentChallenge}
+                  members={challengeMembers}
+                  logs={challengeLogs}
+                  todayKey={todayKey}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Otras sub-pestañas: Progreso, Hábitos, Objetivos, Tareas */}
+          {currentSubTab === 'progress' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 animate-fade-in">
+              <ChallengeTeamChart
+                challenge={currentChallenge}
+                days={challengeDays}
+                members={challengeMembers}
+                logs={challengeLogs}
+              />
+              <ChallengeWeeklyProgressCard
+                challenge={currentChallenge}
+                members={challengeMembers}
+                logs={challengeLogs}
+                todayKey={todayKey}
+              />
+            </div>
+          )}
+
+          {currentSubTab === 'tasks' && (
+            <div className="animate-fade-in">
+              <ChallengeTasksCard
+                tasks={challengeTasks}
+                users={users}
+                onOpenNewTask={() => onOpenNewTaskModal?.(currentChallenge.id)}
+                onToggleTaskStatus={(task) => onToggleTaskStatus?.(task)}
+                onOpenTaskDetail={(task) => onOpenTaskDetail?.(task)}
+              />
+            </div>
+          )}
+
+          {currentSubTab === 'goals' && (
+            <div className="animate-fade-in max-w-2xl">
               <ChallengeGoalsCard
                 goals={challengeGoals}
                 onToggleGoal={(gId) => {
@@ -541,85 +681,9 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
                 onEditGoal={handleOpenEditGoal}
                 onDeleteGoal={handleDeleteGoal}
               />
-
-              <ChallengeTasksCard
-                tasks={challengeTasks}
-                users={users}
-                onOpenNewTask={() => onOpenNewTaskModal?.(currentChallenge.id)}
-                onToggleTaskStatus={(task) => onToggleTaskStatus?.(task)}
-                onOpenTaskDetail={(task) => onOpenTaskDetail?.(task)}
-              />
             </div>
-          </div>
-
-          {/* Right Column (1/4): Leaderboard + Live Feed + Weekly Progress */}
-          <div className="xl:col-span-1 space-y-5 min-w-0">
-            {/* Leaderboard Configurable (Competitivo / Colaborativo) */}
-            <ChallengeLeaderboard
-              challenge={currentChallenge}
-              leaderboard={leaderboard}
-            />
-
-            {/* Actividad Reciente en Tiempo Real */}
-            <ChallengeActivityFeed
-              activities={challengeActivities}
-              users={users}
-            />
-
-            {/* Progreso del Equipo Semanal */}
-            <ChallengeWeeklyProgressCard
-              challenge={currentChallenge}
-              members={challengeMembers}
-              logs={challengeLogs}
-              todayKey={todayKey}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Otras sub-pestañas: Progreso, Hábitos, Objetivos, Tareas */}
-      {currentSubTab === 'progress' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 animate-fade-in">
-          <ChallengeTeamChart
-            challenge={currentChallenge}
-            days={challengeDays}
-            members={challengeMembers}
-            logs={challengeLogs}
-          />
-          <ChallengeWeeklyProgressCard
-            challenge={currentChallenge}
-            members={challengeMembers}
-            logs={challengeLogs}
-            todayKey={todayKey}
-          />
-        </div>
-      )}
-
-      {currentSubTab === 'tasks' && (
-        <div className="animate-fade-in">
-          <ChallengeTasksCard
-            tasks={challengeTasks}
-            users={users}
-            onOpenNewTask={() => onOpenNewTaskModal?.(currentChallenge.id)}
-            onToggleTaskStatus={(task) => onToggleTaskStatus?.(task)}
-            onOpenTaskDetail={(task) => onOpenTaskDetail?.(task)}
-          />
-        </div>
-      )}
-
-      {currentSubTab === 'goals' && (
-        <div className="animate-fade-in max-w-2xl">
-          <ChallengeGoalsCard
-            goals={challengeGoals}
-            onToggleGoal={(gId) => {
-              toggleChallengeGoal(gId);
-              loadChallengeData();
-            }}
-            onOpenNewGoal={handleOpenNewGoal}
-            onEditGoal={handleOpenEditGoal}
-            onDeleteGoal={handleDeleteGoal}
-          />
-        </div>
+          )}
+        </>
       )}
 
       {/* Modal para Crear / Editar Reto */}
@@ -634,26 +698,30 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
       />
 
       {/* Modal para Gestionar Participantes */}
-      <ChallengeMembersModal
-        isOpen={isMembersModalOpen}
-        onClose={() => setIsMembersModalOpen(false)}
-        challenge={currentChallenge}
-        members={challengeMembers}
-        users={users}
-        currentUser={currentUser}
-        onAddMember={handleAddMember}
-        onRemoveMember={handleRemoveMember}
-      />
+      {currentChallenge && (
+        <ChallengeMembersModal
+          isOpen={isMembersModalOpen}
+          onClose={() => setIsMembersModalOpen(false)}
+          challenge={currentChallenge}
+          members={challengeMembers}
+          users={users}
+          currentUser={currentUser}
+          onAddMember={handleAddMember}
+          onRemoveMember={handleRemoveMember}
+        />
+      )}
 
       {/* Modal para Crear / Personalizar Objetivo del Reto */}
-      <ChallengeGoalModal
-        isOpen={isGoalModalOpen}
-        onClose={() => setIsGoalModalOpen(false)}
-        onSave={handleSaveGoal}
-        onDelete={handleDeleteGoal}
-        editingGoal={editingGoal}
-        challengeId={currentChallenge.id}
-      />
+      {currentChallenge && (
+        <ChallengeGoalModal
+          isOpen={isGoalModalOpen}
+          onClose={() => setIsGoalModalOpen(false)}
+          onSave={handleSaveGoal}
+          onDelete={handleDeleteGoal}
+          editingGoal={editingGoal}
+          challengeId={currentChallenge.id}
+        />
+      )}
 
       {/* Modal de Sincronización y Migración SQL de Supabase */}
       <ChallengeMigrationModal

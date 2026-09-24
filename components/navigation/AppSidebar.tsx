@@ -22,6 +22,7 @@ interface AppSidebarProps {
   currentUser: User;
   currentView: AppView;
   habitSubView: HabitCoreSubView;
+  onSelectCommandCenter?: () => void;
   onSelectWorkspaceView: (view: 'board' | 'calendar' | 'dashboard') => void;
   onSelectHabitSubView: (subView: HabitCoreSubView) => void;
   onOpenPomodoro?: () => void;
@@ -36,6 +37,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   currentUser,
   currentView,
   habitSubView,
+  onSelectCommandCenter,
   onSelectWorkspaceView,
   onSelectHabitSubView,
   onOpenPomodoro,
@@ -95,6 +97,35 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
         {/* Center: Navigation Groups */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-6">
+          {/* SECTION 0: COMMAND CENTER (HOME) */}
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => {
+                onSelectCommandCenter?.();
+                onCloseMobile();
+              }}
+              title="Command Center (HOME)"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
+                currentView === 'command_center'
+                  ? 'bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-purple-500/20 text-cyan-200 border border-cyan-400/40 shadow-[0_0_16px_rgba(6,182,212,0.25)]'
+                  : 'text-zinc-300 hover:text-white hover:bg-white/[0.06] border border-white/[0.04]'
+              }`}
+            >
+              <div className="w-5 h-5 rounded-lg bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-[11px] text-cyan-300 group-hover:rotate-90 transition-transform duration-500 shrink-0">
+                ◈
+              </div>
+              {!isCollapsed && (
+                <div className="flex items-center justify-between flex-1">
+                  <span className="tracking-wide">Command Center</span>
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 font-bold">
+                    HOME
+                  </span>
+                </div>
+              )}
+            </button>
+          </div>
+
           {/* SECTION 1: WORKSPACE */}
           <div className="space-y-1">
             {!isCollapsed && (

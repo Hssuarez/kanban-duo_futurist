@@ -258,23 +258,44 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-center text-zinc-100 shadow-[0_0_15px_rgba(6,182,212,0.18)]">
-              <div className="flex items-end gap-0.5 h-3.5" aria-hidden="true">
-                <div className="w-0.5 h-3.5 bg-white rounded-full shadow-[0_0_4px_rgba(255,255,255,0.7)]" />
-                <div className="w-0.5 h-2.5 bg-cyan-400 rounded-full shadow-[0_0_6px_rgba(6,182,212,0.9)]" />
-                <div className="w-0.5 h-3 bg-white/80 rounded-full" />
+            <button
+              type="button"
+              onClick={() => setCurrentView('command_center')}
+              className="flex items-center gap-2 sm:gap-3 text-left group cursor-pointer"
+              title="Ir a Command Center (HOME)"
+            >
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-center text-zinc-100 shadow-[0_0_15px_rgba(6,182,212,0.18)] group-hover:border-cyan-400/60 group-hover:shadow-[0_0_20px_rgba(6,182,212,0.35)] transition-all">
+                <div className="flex items-end gap-0.5 h-3.5" aria-hidden="true">
+                  <div className="w-0.5 h-3.5 bg-white rounded-full shadow-[0_0_4px_rgba(255,255,255,0.7)]" />
+                  <div className="w-0.5 h-2.5 bg-cyan-400 rounded-full shadow-[0_0_6px_rgba(6,182,212,0.9)]" />
+                  <div className="w-0.5 h-3 bg-white/80 rounded-full" />
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="hidden sm:block font-bold text-white text-sm sm:text-base tracking-tight font-mono">
-                  Kanban<span className="text-cyan-400 font-semibold drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">Duo</span>
-                </h1>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="hidden sm:block font-bold text-white text-sm sm:text-base tracking-tight font-mono group-hover:text-cyan-100 transition-colors">
+                    Kanban<span className="text-cyan-400 font-semibold drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">Duo</span>
+                  </h1>
+                </div>
               </div>
-            </div>
+            </button>
 
-            {/* Global Domain Switcher: Workspace vs Habit Core */}
+            {/* Global Domain Switcher: Command Center vs Workspace vs Habit Core */}
             <div className="hidden xl:flex items-center p-0.5 bg-zinc-900/90 rounded-xl border border-white/[0.08] shrink-0 ml-1">
+              <button
+                type="button"
+                onClick={() => setCurrentView('command_center')}
+                title="Command Center (HOME)"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  currentView === 'command_center'
+                    ? 'bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 text-cyan-200 font-semibold border border-cyan-400/40 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <span className="text-cyan-400 font-mono text-[11px]">◈</span>
+                <span>Command Center</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setCurrentView('board')}

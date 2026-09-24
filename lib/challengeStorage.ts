@@ -1462,26 +1462,30 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           joinedAt: m.joined_at || new Date().toISOString().slice(0, 10),
         }));
 
-      const memberMap = new Map<string, ChallengeMember>();
-      mappedMembers.forEach((m) => memberMap.set(m.id, m));
-      const currentMembers = getLocalChallengeMembers();
-      for (const m of currentMembers) {
-        if (activeChallengeIds.has(m.challengeId) && !memberMap.has(m.id)) {
-          memberMap.set(m.id, m);
-          try {
-            await (client.from('challenge_members') as any).upsert({
-              id: m.id,
-              challenge_id: m.challengeId,
-              user_id: m.userId,
-              role: m.role,
-              joined_at: m.joinedAt,
-            });
-          } catch (e) {
-            console.warn('Sync pending member exception:', e);
+      if (cloudMembers.length > 0) {
+        saveLocalChallengeMembers(mappedMembers);
+      } else {
+        const memberMap = new Map<string, ChallengeMember>();
+        mappedMembers.forEach((m) => memberMap.set(m.id, m));
+        const currentMembers = getLocalChallengeMembers();
+        for (const m of currentMembers) {
+          if (activeChallengeIds.has(m.challengeId) && !memberMap.has(m.id)) {
+            memberMap.set(m.id, m);
+            try {
+              await (client.from('challenge_members') as any).upsert({
+                id: m.id,
+                challenge_id: m.challengeId,
+                user_id: m.userId,
+                role: m.role,
+                joined_at: m.joinedAt,
+              });
+            } catch (e) {
+              console.warn('Sync pending member exception:', e);
+            }
           }
         }
+        saveLocalChallengeMembers(Array.from(memberMap.values()).filter((m) => activeChallengeIds.has(m.challengeId)));
       }
-      saveLocalChallengeMembers(Array.from(memberMap.values()).filter((m) => activeChallengeIds.has(m.challengeId)));
     }
 
     // 3. Sincronizar hábitos (challenge_habits)
