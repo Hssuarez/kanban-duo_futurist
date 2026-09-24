@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Project } from '@/lib/types';
-import { Layers, ChevronDown, Plus, Check, Sparkles, FolderPlus } from 'lucide-react';
+import { Layers, ChevronDown, Plus, Check, Sparkles, FolderPlus, X } from 'lucide-react';
 
 interface CommandCenterProjectCoreProps {
   activeProject: Project | null;
@@ -34,6 +35,17 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
     onDropdownOpenChange?.(open);
   };
 
+  const [isMounted, setIsMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const baseSize = 190 * scale;
   const projectColor = activeProject?.color || '#06b6d4';
@@ -54,6 +66,73 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
       document.removeEventListener('touchstart', handleClickOutside as unknown as EventListener);
     };
   }, [isDropdownOpen]);
+
+  const renderProjectList = (isMobileView: boolean) => (
+    <>
+      <div className="flex items-center justify-between px-2.5 py-1.5 mb-1.5 border-b border-white/10 text-[10px] sm:text-[11px] font-mono text-zinc-300">
+        <div className="flex items-center gap-1.5 font-bold tracking-wider">
+          <span>PROYECTOS DISPONIBLES</span>
+          <span className="text-cyan-400 bg-cyan-950/80 px-1.5 py-0.2 rounded-full border border-cyan-500/30 text-[10px]">
+            {accessibleProjects.length}
+          </span>
+        </div>
+        {isMobileView && (
+          <button
+            type="button"
+            onClick={() => setDropdownOpen(false)}
+            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            title="Cerrar"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      <div className="max-h-56 sm:max-h-48 overflow-y-auto space-y-1.5 sm:space-y-1 py-1 custom-scrollbar">
+        {accessibleProjects.map((p) => {
+          const isSelected = activeProject?.id === p.id;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => {
+                onSelectProject(p.id);
+                setDropdownOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 sm:py-1.5 rounded-xl text-left text-xs font-mono transition-all cursor-pointer ${
+                isSelected
+                  ? 'bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
+                  : 'hover:bg-white/[0.06] text-zinc-300'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 truncate">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
+                  style={{ backgroundColor: p.color || '#3b82f6' }}
+                />
+                <span className="truncate">{p.name}</span>
+              </div>
+              {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+
+      {onOpenCreateProject && (
+        <button
+          type="button"
+          onClick={() => {
+            setDropdownOpen(false);
+            onOpenCreateProject();
+          }}
+          className="w-full mt-2 pt-2 border-t border-white/10 flex items-center justify-center gap-1.5 py-1.5 text-xs font-mono text-cyan-400 hover:text-cyan-300 active:bg-cyan-950/30 rounded-lg transition-colors cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>Nuevo Proyecto</span>
+        </button>
+      )}
+    </>
+  );
 
   return (
     <div
@@ -197,59 +276,34 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
         )}
       </div>
 
-      {/* 4. Dropdown Holográfico de Proyectos */}
-      {isDropdownOpen && (
-        <div className="absolute top-[85%] left-1/2 -translate-x-1/2 z-50 w-60 sm:w-64 p-2.5 rounded-2xl border border-cyan-500/40 bg-slate-950/95 backdrop-blur-2xl shadow-[0_15px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(6,182,212,0.25)] animate-modal-enter ring-1 ring-cyan-500/20">
-          <div className="flex items-center justify-between px-2 py-1 mb-1.5 border-b border-white/10 text-[10px] font-mono text-zinc-400">
-            <span className="tracking-wider">PROYECTOS DISPONIBLES</span>
-            <span className="text-cyan-400 font-bold bg-cyan-950/60 px-1.5 py-0.2 rounded-full border border-cyan-500/30">
-              {accessibleProjects.length}
-            </span>
-          </div>
+      {/* 4A. Modal Móvil Holográfico en Portal: 100% centrado en la pantalla del celular */}
+      {isDropdownOpen && isMobile && isMounted && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-auto sm:hidden animate-fade-in">
+          {/* Telón de fondo oscuro táctil */}
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setDropdownOpen(false)}
+            onTouchStart={() => setDropdownOpen(false)}
+          />
 
-          <div className="max-h-48 overflow-y-auto space-y-1 py-1 custom-scrollbar">
-            {accessibleProjects.map((p) => {
-              const isSelected = activeProject?.id === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    onSelectProject(p.id);
-                    setDropdownOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
-                      : 'hover:bg-white/[0.06] text-zinc-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <span
-                      className="w-2 h-2 rounded-full shrink-0 shadow-sm"
-                      style={{ backgroundColor: p.color || '#3b82f6' }}
-                    />
-                    <span className="truncate">{p.name}</span>
-                  </div>
-                  {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
-                </button>
-              );
-            })}
+          {/* Tarjeta Modal Centrada para Móvil */}
+          <div
+            style={{ backgroundColor: '#070c18' }}
+            className="relative w-full max-w-[320px] rounded-2xl border border-cyan-500/40 bg-[#070c18] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.25)] ring-1 ring-cyan-500/25 z-10 overflow-hidden animate-modal-enter"
+          >
+            {renderProjectList(true)}
           </div>
+        </div>,
+        document.body
+      )}
 
-          {onOpenCreateProject && (
-            <button
-              type="button"
-              onClick={() => {
-                setDropdownOpen(false);
-                onOpenCreateProject();
-              }}
-              className="w-full mt-1.5 pt-2 border-t border-white/10 flex items-center justify-center gap-1.5 py-1 text-[11px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Nuevo Proyecto</span>
-            </button>
-          )}
+      {/* 4B. Dropdown Holográfico de Escritorio: Anclado matemáticamente bajo el Núcleo Central */}
+      {isDropdownOpen && !isMobile && (
+        <div
+          style={{ backgroundColor: '#070c18' }}
+          className="hidden sm:block absolute top-[85%] left-1/2 z-50 w-60 sm:w-64 p-2.5 rounded-2xl border border-cyan-500/40 bg-[#070c18] backdrop-blur-2xl shadow-[0_15px_50px_rgba(0,0,0,0.95),0_0_30px_rgba(6,182,212,0.25)] ring-1 ring-cyan-500/20 animate-dropdown-centered"
+        >
+          {renderProjectList(false)}
         </div>
       )}
     </div>
