@@ -68,7 +68,7 @@ export const WORKSPACE_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitSpeedRadPerSec: 0.007,
     planetSizePx: 82,
     ringTiltDeg: 22,
-    axialSpinSpeedDegPerSec: 18,
+    axialSpinSpeedDegPerSec: 36,
     description: 'Visualiza columnas Iniciado, Trabajando y Finalizado de este proyecto.',
   },
   {
@@ -88,7 +88,7 @@ export const WORKSPACE_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitSpeedRadPerSec: 0.0055,
     planetSizePx: 78,
     ringTiltDeg: -28,
-    axialSpinSpeedDegPerSec: 14,
+    axialSpinSpeedDegPerSec: 28,
     description: 'Planificación temporal, fechas límite e hitos del proyecto.',
   },
   {
@@ -108,7 +108,7 @@ export const WORKSPACE_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitSpeedRadPerSec: 0.0055,
     planetSizePx: 78,
     ringTiltDeg: 26,
-    axialSpinSpeedDegPerSec: 16,
+    axialSpinSpeedDegPerSec: 33,
     description: 'Estadísticas de velocidad y porcentaje de avance de este proyecto.',
   },
 ];
@@ -135,7 +135,7 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitSpeedRadPerSec: 0.005,
     planetSizePx: 82,
     ringTiltDeg: 30,
-    axialSpinSpeedDegPerSec: 15,
+    axialSpinSpeedDegPerSec: 40,
     description: 'Matriz de consistencia mensual, rachas e indicadores personales.',
   },
   {
@@ -156,7 +156,7 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitSpeedRadPerSec: 0.0065,
     planetSizePx: 78,
     ringTiltDeg: -24,
-    axialSpinSpeedDegPerSec: 14,
+    axialSpinSpeedDegPerSec: 30,
     description: 'Retos compartidos con tabla de posiciones y constancia grupal.',
   },
   {
@@ -177,7 +177,7 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitSpeedRadPerSec: 0.004,
     planetSizePx: 78,
     ringTiltDeg: -20,
-    axialSpinSpeedDegPerSec: 12,
+    axialSpinSpeedDegPerSec: 26,
     description: 'Metas mensuales medibles y progreso cuantitativo personal.',
   },
   {
@@ -197,7 +197,7 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitSpeedRadPerSec: 0.008,
     planetSizePx: 76,
     ringTiltDeg: 18,
-    axialSpinSpeedDegPerSec: 20,
+    axialSpinSpeedDegPerSec: 45,
     description: 'Bloques de concentración profunda con temporizador inteligente.',
   },
 ];
