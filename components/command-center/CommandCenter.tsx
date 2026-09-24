@@ -244,6 +244,74 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         color: string;
       }> = [];
 
+      // 1. Distancias de seguridad adaptativas según escala de planetas
+      const safeDMin = Math.round(112 * binaryParams.planetScale);
+      const safeDWarn = Math.round(155 * binaryParams.planetScale);
+
+      // 2. Modificadores de velocidad para amortiguación suave de proximidad
+      const proximityModifiers: Record<string, number> = {};
+      visibleModules.forEach((m) => {
+        proximityModifiers[m.id] = 1.0;
+      });
+
+      // Cálculo de distancias visuales entre pares del mismo polo
+      for (let i = 0; i < visibleModules.length; i++) {
+        for (let j = i + 1; j < visibleModules.length; j++) {
+          const modA = visibleModules[i];
+          const modB = visibleModules[j];
+          if (modA.pole !== modB.pole) continue;
+
+          const angleA = anglesRef.current[modA.id] ?? modA.baseAngleRad;
+          const angleB = anglesRef.current[modB.id] ?? modB.baseAngleRad;
+
+          const isWs = modA.pole === 'workspace';
+          const bRx = isWs ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX;
+          const bRy = isWs ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY;
+
+          const laneA = modA.laneScale ?? 1.0;
+          const laneB = modB.laneScale ?? 1.0;
+
+          const xA = bRx * laneA * Math.cos(angleA);
+          const yA = bRy * laneA * Math.sin(angleA);
+          const xB = bRx * laneB * Math.cos(angleB);
+          const yB = bRy * laneB * Math.sin(angleB);
+
+          const dist = Math.hypot(xA - xB, yA - yB);
+
+          if (dist < safeDWarn) {
+            // Intensidad de proximidad normalizada [0 = en safeDWarn, 1 = en safeDMin]
+            const prox = Math.max(0, Math.min(1, 1 - (dist - safeDMin) / (safeDWarn - safeDMin)));
+
+            // Calcular quién viene detrás en el sentido orbital
+            let diff = (angleB - angleA) % (Math.PI * 2);
+            if (diff < 0) diff += Math.PI * 2;
+
+            if (diff < Math.PI) {
+              // ModA se aproxima a ModB por detrás -> desaceleración suave para ModA
+              proximityModifiers[modA.id] = Math.min(
+                proximityModifiers[modA.id],
+                Math.max(0.70, 1 - 0.25 * prox)
+              );
+              proximityModifiers[modB.id] = Math.max(
+                proximityModifiers[modB.id],
+                1 + 0.10 * prox
+              );
+            } else {
+              // ModB se aproxima a ModA por detrás -> desaceleración suave para ModB
+              proximityModifiers[modB.id] = Math.min(
+                proximityModifiers[modB.id],
+                Math.max(0.70, 1 - 0.25 * prox)
+              );
+              proximityModifiers[modA.id] = Math.max(
+                proximityModifiers[modA.id],
+                1 + 0.10 * prox
+              );
+            }
+          }
+        }
+      }
+
+      // 3. Avance cinético determinístico y suave
       visibleModules.forEach((m) => {
         let currentAngle = anglesRef.current[m.id] ?? m.baseAngleRad;
 
@@ -251,12 +319,19 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         const isHoveringThis = hoveredModuleId === m.id;
 
         if (!prefersReducedMotion && !isDraggingThis) {
-          const speedMultiplier = isHoveringThis ? 0.25 : 1.0;
-          currentAngle += m.orbitSpeedRadPerSec * speedMultiplier * dt;
+          // Desaceleración suave en hover (0.45x) sin frenar en seco
+          const hoverMultiplier = isHoveringThis ? 0.45 : 1.0;
+          // Modulación armónica Kepleriana (media = 1.0 sobre revolución completa)
+          const amp = m.speedModAmp ?? 0.15;
+          const phase = m.speedModPhase ?? 0;
+          const organicWave = 1 + amp * Math.sin(currentAngle + phase);
+          const proxMod = proximityModifiers[m.id] ?? 1.0;
+
+          currentAngle += m.orbitSpeedRadPerSec * organicWave * hoverMultiplier * proxMod * dt;
           anglesRef.current[m.id] = currentAngle;
         }
 
-        // Obtener el centro orbital del polo y radio
+        // Obtener el centro orbital del polo y radio con carril específico
         const isWorkspace = m.pole === 'workspace';
         const center =
           binaryParams.layoutMode === 'panoramic'
@@ -265,8 +340,11 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
               : binaryParams.habitsCenter
             : { x: 0, y: 0 };
 
-        const rx = isWorkspace ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX;
-        const ry = isWorkspace ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY;
+        const baseRx = isWorkspace ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX;
+        const baseRy = isWorkspace ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY;
+        const lane = m.laneScale ?? 1.0;
+        const rx = baseRx * lane;
+        const ry = baseRy * lane;
 
         const posX = center.x + rx * Math.cos(currentAngle);
         const posY = center.y + ry * Math.sin(currentAngle);
@@ -540,8 +618,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
                 : binaryParams.habitsCenter
               : { x: 0, y: 0 };
 
-          const rx = isWs ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX;
-          const ry = isWs ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY;
+          const lane = module.laneScale ?? 1.0;
+          const rx = (isWs ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX) * lane;
+          const ry = (isWs ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY) * lane;
 
           const pos = planetPositions.find((p) => p.id === module.id) || {
             x: center.x + rx * Math.cos(module.baseAngleRad),

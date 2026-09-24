@@ -41,6 +41,9 @@ export interface CommandCenterModuleConfig {
   orbitRadiusY: number; // Radio vertical en px (desktop base)
   baseAngleRad: number; // Posición angular inicial en radianes
   orbitSpeedRadPerSec: number; // Velocidad orbital zen (rad/seg)
+  laneScale?: number; // Escala del carril orbital para separación física
+  speedModAmp?: number; // Amplitud de modulación de velocidad Kepleriana
+  speedModPhase?: number; // Fase de modulación de velocidad
   planetSizePx: number; // Diámetro visual del planeta (desktop)
   ringTiltDeg: number; // Inclinación del anillo giroscópico propio
   axialSpinSpeedDegPerSec: number; // Velocidad de rotación sobre su propio eje
@@ -62,34 +65,17 @@ export const WORKSPACE_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     glowRgba: 'rgba(6, 182, 212, 0.45)',
     accentHex: '#22d3ee',
     orbitTrackIndex: 0,
+    laneScale: 0.975,
     orbitRadiusX: 195,
     orbitRadiusY: 130,
     baseAngleRad: -Math.PI / 2, // 270° (Arriba centrado, ~12h)
-    orbitSpeedRadPerSec: 0.007,
+    orbitSpeedRadPerSec: 0.006,
+    speedModAmp: 0.14,
+    speedModPhase: 0,
     planetSizePx: 82,
     ringTiltDeg: 22,
     axialSpinSpeedDegPerSec: 36,
     description: 'Visualiza columnas Iniciado, Trabajando y Finalizado de este proyecto.',
-  },
-  {
-    id: 'calendar',
-    title: 'CALENDARIO',
-    subtitle: 'Cronograma del proyecto',
-    targetView: 'calendar',
-    pole: 'workspace',
-    color: '#a855f7', // Violeta / Púrpura
-    secondaryColor: '#c084fc',
-    glowRgba: 'rgba(168, 85, 247, 0.45)',
-    accentHex: '#d8b4fe',
-    orbitTrackIndex: 1,
-    orbitRadiusX: 215,
-    orbitRadiusY: 145,
-    baseAngleRad: (150 * Math.PI) / 180, // Inferior izquierda (~7:30h)
-    orbitSpeedRadPerSec: 0.0055,
-    planetSizePx: 78,
-    ringTiltDeg: -28,
-    axialSpinSpeedDegPerSec: 28,
-    description: 'Planificación temporal, fechas límite e hitos del proyecto.',
   },
   {
     id: 'dashboard',
@@ -102,14 +88,40 @@ export const WORKSPACE_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     glowRgba: 'rgba(59, 130, 246, 0.45)',
     accentHex: '#93c5fd',
     orbitTrackIndex: 1,
+    laneScale: 1.10,
     orbitRadiusX: 215,
     orbitRadiusY: 145,
     baseAngleRad: (30 * Math.PI) / 180, // Inferior derecha (~4:30h)
-    orbitSpeedRadPerSec: 0.0055,
+    orbitSpeedRadPerSec: 0.006,
+    speedModAmp: 0.16,
+    speedModPhase: 2.1,
     planetSizePx: 78,
     ringTiltDeg: 26,
     axialSpinSpeedDegPerSec: 33,
     description: 'Estadísticas de velocidad y porcentaje de avance de este proyecto.',
+  },
+  {
+    id: 'calendar',
+    title: 'CALENDARIO',
+    subtitle: 'Cronograma del proyecto',
+    targetView: 'calendar',
+    pole: 'workspace',
+    color: '#a855f7', // Violeta / Púrpura
+    secondaryColor: '#c084fc',
+    glowRgba: 'rgba(168, 85, 247, 0.45)',
+    accentHex: '#d8b4fe',
+    orbitTrackIndex: 2,
+    laneScale: 1.225,
+    orbitRadiusX: 215,
+    orbitRadiusY: 145,
+    baseAngleRad: (150 * Math.PI) / 180, // Inferior izquierda (~7:30h)
+    orbitSpeedRadPerSec: 0.006,
+    speedModAmp: 0.13,
+    speedModPhase: 4.2,
+    planetSizePx: 78,
+    ringTiltDeg: -28,
+    axialSpinSpeedDegPerSec: 28,
+    description: 'Planificación temporal, fechas límite e hitos del proyecto.',
   },
 ];
 
@@ -117,6 +129,29 @@ export const WORKSPACE_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
 // 2. POLO HABIT CORE: 4 Módulos vinculados a la Disciplina Personal
 // --------------------------------------------------------
 export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
+  {
+    id: 'pomodoro',
+    title: 'POMODORO',
+    subtitle: 'Enfócate y avanza',
+    targetView: 'pomodoro_action',
+    pole: 'habits',
+    color: '#f43f5e', // Carmesí / Coral
+    secondaryColor: '#fb7185',
+    glowRgba: 'rgba(244, 63, 94, 0.45)',
+    accentHex: '#fda4af',
+    orbitTrackIndex: 0,
+    laneScale: 0.975,
+    orbitRadiusX: 195,
+    orbitRadiusY: 130,
+    baseAngleRad: -Math.PI / 2, // Arriba (~12h)
+    orbitSpeedRadPerSec: 0.0055,
+    speedModAmp: 0.14,
+    speedModPhase: 0.5,
+    planetSizePx: 76,
+    ringTiltDeg: 18,
+    axialSpinSpeedDegPerSec: 45,
+    description: 'Bloques de concentración profunda con temporizador inteligente.',
+  },
   {
     id: 'habits',
     title: 'MIS HÁBITOS',
@@ -128,11 +163,14 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     secondaryColor: '#06b6d4',
     glowRgba: 'rgba(16, 185, 129, 0.45)',
     accentHex: '#34d399',
-    orbitTrackIndex: 0,
+    orbitTrackIndex: 1,
+    laneScale: 1.10,
     orbitRadiusX: 215,
     orbitRadiusY: 145,
     baseAngleRad: 0, // Derecha (~3h)
-    orbitSpeedRadPerSec: 0.005,
+    orbitSpeedRadPerSec: 0.0055,
+    speedModAmp: 0.16,
+    speedModPhase: 2.0,
     planetSizePx: 82,
     ringTiltDeg: 30,
     axialSpinSpeedDegPerSec: 40,
@@ -150,10 +188,13 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     glowRgba: 'rgba(234, 179, 8, 0.45)',
     accentHex: '#fde047',
     orbitTrackIndex: 1,
+    laneScale: 1.10,
     orbitRadiusX: 195,
     orbitRadiusY: 130,
     baseAngleRad: Math.PI / 2, // Abajo (~6h)
-    orbitSpeedRadPerSec: 0.0065,
+    orbitSpeedRadPerSec: 0.0055,
+    speedModAmp: 0.13,
+    speedModPhase: 3.5,
     planetSizePx: 78,
     ringTiltDeg: -24,
     axialSpinSpeedDegPerSec: 30,
@@ -170,35 +211,18 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     secondaryColor: '#fb923c',
     glowRgba: 'rgba(249, 115, 22, 0.45)',
     accentHex: '#fdba74',
-    orbitTrackIndex: 1,
+    orbitTrackIndex: 2,
+    laneScale: 1.225,
     orbitRadiusX: 215,
     orbitRadiusY: 145,
     baseAngleRad: Math.PI, // Izquierda (~9h)
-    orbitSpeedRadPerSec: 0.004,
+    orbitSpeedRadPerSec: 0.0055,
+    speedModAmp: 0.15,
+    speedModPhase: 5.0,
     planetSizePx: 78,
     ringTiltDeg: -20,
     axialSpinSpeedDegPerSec: 26,
     description: 'Metas mensuales medibles y progreso cuantitativo personal.',
-  },
-  {
-    id: 'pomodoro',
-    title: 'POMODORO',
-    subtitle: 'Enfócate y avanza',
-    targetView: 'pomodoro_action',
-    pole: 'habits',
-    color: '#f43f5e', // Carmesí / Coral
-    secondaryColor: '#fb7185',
-    glowRgba: 'rgba(244, 63, 94, 0.45)',
-    accentHex: '#fda4af',
-    orbitTrackIndex: 0,
-    orbitRadiusX: 195,
-    orbitRadiusY: 130,
-    baseAngleRad: -Math.PI / 2, // Arriba (~12h)
-    orbitSpeedRadPerSec: 0.008,
-    planetSizePx: 76,
-    ringTiltDeg: 18,
-    axialSpinSpeedDegPerSec: 45,
-    description: 'Bloques de concentración profunda con temporizador inteligente.',
   },
 ];
 
