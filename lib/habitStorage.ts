@@ -474,41 +474,16 @@ export function getLocalHabits(userId?: string): Habit[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(HABIT_STORAGE_KEYS.HABITS);
-    let parsed: Habit[] = raw ? JSON.parse(raw) : [];
-    const isInit = isHabitsInitialized();
-    const backups = getHabitsBackups();
-
     if (!raw) {
-      // Si la app ya fue inicializada o tiene respaldos previos, respetar estado
-      if (isInit || backups.length > 0) {
-        return [];
-      }
-      parsed = [...DEFAULT_INITIAL_HABITS];
-      localStorage.setItem(HABIT_STORAGE_KEYS.HABITS, JSON.stringify(parsed));
-      markHabitsInitialized();
+      return [];
     }
-
+    const parsed: Habit[] = JSON.parse(raw);
     if (userId) {
-      const userHabits = parsed.filter((h) => h.userId === userId);
-      // Solo generar plantilla si nunca fue inicializado y no hay hábitos
-      if (userHabits.length === 0 && !isInit && backups.length === 0) {
-        const userTemplate = DEFAULT_INITIAL_HABITS.map((h, idx) => ({
-          ...h,
-          id: `habit-${userId}-${idx + 1}`,
-          userId: userId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }));
-        const combined = [...parsed, ...userTemplate];
-        localStorage.setItem(HABIT_STORAGE_KEYS.HABITS, JSON.stringify(combined));
-        markHabitsInitialized();
-        return userTemplate;
-      }
-      return userHabits;
+      return parsed.filter((h) => h.userId === userId || (userId === 'user-admin' && h.userId === 'user-admin'));
     }
     return parsed;
   } catch {
-    return DEFAULT_INITIAL_HABITS;
+    return [];
   }
 }
 
@@ -664,44 +639,12 @@ export function getLocalHabitLogs(userId?: string): HabitLog[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(HABIT_STORAGE_KEYS.LOGS);
-    let parsed: HabitLog[] = raw ? JSON.parse(raw) : [];
-    const seededUsers = getSeededUsers();
-    const isInit = isHabitsInitialized();
-    const backups = getHabitsBackups();
-
     if (!raw) {
-      // Si la app ya ha sido inicializada previamente o si existen copias de respaldo,
-      // NUNCA sobreescribir con datos demo. Mantener array vacío para proteger el estado del usuario.
-      if (isInit || backups.length > 0) {
-        localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify([]));
-        return [];
-      }
-
-      // Solo en la primerísima ejecución pura se genera la semilla de inicio
-      const defaultUserId = userId || 'user-admin';
-      const seed = generateSeedLogsForUser(defaultUserId);
-      localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify(seed));
-      markUserSeeded(defaultUserId);
-      markHabitsInitialized();
-      createHabitsBackupSnapshot('Semilla inicial demo');
-      return seed;
+      return [];
     }
-
+    const parsed: HabitLog[] = JSON.parse(raw);
     if (userId) {
-      const userLogs = parsed.filter((l) => l.userId === userId);
-      // Solo generar semillas si:
-      // 1. El usuario NUNCA ha sido inicializado antes
-      // 2. No tiene ningún log registrado
-      // 3. Y la aplicación nunca ha sido inicializada previamente
-      if (!seededUsers.includes(userId) && userLogs.length === 0 && !isInit && backups.length === 0) {
-        const userSeed = generateSeedLogsForUser(userId);
-        const combined = [...parsed, ...userSeed];
-        localStorage.setItem(HABIT_STORAGE_KEYS.LOGS, JSON.stringify(combined));
-        markUserSeeded(userId);
-        markHabitsInitialized();
-        return userSeed;
-      }
-      return userLogs;
+      return parsed.filter((l) => l.userId === userId);
     }
     return parsed;
   } catch {
@@ -1113,6 +1056,21 @@ export async function syncCloudHabits(userId?: string): Promise<boolean> {
     }
     const { data: cloudHabits, error: hErr } = await habitsQuery;
 
+    // Auto-setup de tablas en Supabase si aún no existen (código PGRST205)
+    if (hErr && (hErr.code === 'PGRST205' || hErr.message?.includes('schema cache'))) {
+      console.log('⚠️ Tablas de habit core ausentes en Supabase. Intentando auto-creación vía /api/setup-db...');
+      try {
+        const setupRes = await fetch('/api/setup-db', { method: 'POST' });
+        const setupData = await setupRes.json();
+        if (setupData.success) {
+          console.log('✅ Tablas creadas con éxito en Supabase. Reintentando sincronización...');
+          return syncCloudHabits(userId);
+        }
+      } catch (err) {
+        console.warn('Auto-setup error:', err);
+      }
+    }
+
     // 2. Logs
     let logsQuery = client.from('habit_logs').select('*');
     if (userId) {
@@ -1135,6 +1093,67 @@ export async function syncCloudHabits(userId?: string): Promise<boolean> {
     const { data: cloudNotes, error: nErr } = await notesQuery;
 
     let hasChanges = false;
+
+    // Subir hábitos locales a Supabase si existen localmente pero aún no en la nube
+    if (!hErr) {
+      const currentLocalHabits = getLocalHabits(userId);
+      const cloudHabitIds = new Set((cloudHabits || []).map((h: any) => h.id));
+      const habitsToUpload = currentLocalHabits.filter((h) => !cloudHabitIds.has(h.id));
+
+      for (const h of habitsToUpload) {
+        try {
+          await client.from('habits').upsert({
+            id: h.id,
+            user_id: h.userId,
+            challenge_id: h.challengeId || null,
+            title: h.title,
+            description: h.description || null,
+            icon: h.icon,
+            color: h.color,
+            category: h.category,
+            target_type: h.targetType,
+            target_value: h.targetValue,
+            target_unit: h.targetUnit || null,
+            frequency: h.frequency,
+            frequency_days: h.frequencyDays || null,
+            is_active: h.isActive,
+            is_archived: h.isArchived,
+            display_order: h.displayOrder,
+            created_at: h.createdAt,
+            updated_at: h.updatedAt,
+          });
+          console.log('☁️ Hábito local sincronizado a Supabase:', h.title);
+        } catch (e) {
+          console.warn('Error subiendo hábito a Supabase:', e);
+        }
+      }
+    }
+
+    // Subir logs locales a Supabase si no existen en la nube
+    if (!lErr) {
+      const rawLogs = localStorage.getItem(HABIT_STORAGE_KEYS.LOGS);
+      const currentLocalLogs: HabitLog[] = rawLogs ? JSON.parse(rawLogs) : [];
+      const cloudLogIds = new Set((cloudLogs || []).map((l: any) => l.id));
+      const logsToUpload = currentLocalLogs.filter((l) => !cloudLogIds.has(l.id));
+
+      for (const l of logsToUpload) {
+        try {
+          await client.from('habit_logs').upsert({
+            id: l.id,
+            habit_id: l.habitId,
+            user_id: l.userId,
+            date_key: l.dateKey,
+            status: l.status,
+            numeric_value: l.numericValue || null,
+            notes: l.notes || null,
+            created_at: l.createdAt,
+            updated_at: l.updatedAt,
+          });
+        } catch (e) {
+          console.warn('Error subiendo log a Supabase:', e);
+        }
+      }
+    }
 
     // Fusionar Hábitos
     if (!hErr && cloudHabits && cloudHabits.length > 0) {
@@ -1177,8 +1196,9 @@ export async function syncCloudHabits(userId?: string): Promise<boolean> {
         }
       });
 
-      if (hasChanges) {
+      if (hasChanges || localHabits.length === 0) {
         saveLocalHabits(Array.from(habitMap.values()));
+        hasChanges = true;
       }
     }
 
@@ -1219,7 +1239,7 @@ export async function syncCloudHabits(userId?: string): Promise<boolean> {
         }
       });
 
-      if (logsChanged || !raw) {
+      if (logsChanged || !raw || localLogs.length === 0) {
         saveLocalHabitLogs(Array.from(logMap.values()));
         hasChanges = true;
       }
@@ -1257,7 +1277,7 @@ export async function syncCloudHabits(userId?: string): Promise<boolean> {
         }
       });
 
-      if (goalsChanged) {
+      if (goalsChanged || localGoals.length === 0) {
         saveLocalGoals(Array.from(goalMap.values()));
         hasChanges = true;
       }
@@ -1296,27 +1316,13 @@ export function getLocalGoals(userId?: string, monthKey?: string): Goal[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(HABIT_STORAGE_KEYS.GOALS);
-    let parsed: Goal[] = raw ? JSON.parse(raw) : [];
-
-    if (!raw || parsed.length === 0) {
-      parsed = [...DEFAULT_INITIAL_GOALS];
-      localStorage.setItem(HABIT_STORAGE_KEYS.GOALS, JSON.stringify(parsed));
+    if (!raw) {
+      return [];
     }
+    const parsed: Goal[] = JSON.parse(raw);
 
     if (userId) {
-      let userGoals = parsed.filter((g) => g.userId === userId);
-      if (userGoals.length === 0) {
-        const initialUserGoals = DEFAULT_INITIAL_GOALS.map((g, idx) => ({
-          ...g,
-          id: `goal-${userId}-${idx + 1}`,
-          userId: userId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }));
-        parsed = [...parsed, ...initialUserGoals];
-        localStorage.setItem(HABIT_STORAGE_KEYS.GOALS, JSON.stringify(parsed));
-        userGoals = initialUserGoals;
-      }
+      const userGoals = parsed.filter((g) => g.userId === userId);
       if (monthKey) {
         return userGoals.filter((g) => !g.monthKey || g.monthKey === monthKey);
       }
@@ -1326,9 +1332,10 @@ export function getLocalGoals(userId?: string, monthKey?: string): Goal[] {
     if (monthKey) {
       return parsed.filter((g) => !g.monthKey || g.monthKey === monthKey);
     }
+
     return parsed;
   } catch {
-    return DEFAULT_INITIAL_GOALS;
+    return [];
   }
 }
 

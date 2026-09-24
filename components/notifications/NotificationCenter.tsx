@@ -350,21 +350,21 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         />
       )}
 
-      {/* Popover Menu: Solid Obsidian Surface */}
+      {/* Popover Menu: Solid Obsidian Surface with full viewport containment */}
       {isOpen && (
         <div
           style={{
             transformOrigin: 'top center',
             backgroundColor: '#070c18',
           }}
-          className="fixed left-3 right-3 top-[62px] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-w-sm sm:max-w-md mx-auto sm:mx-0 bg-[#070c18] border border-cyan-500/35 shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.2)] rounded-2xl py-2 z-50 animate-modal-enter ring-1 ring-cyan-500/20 backdrop-blur-2xl"
+          className="fixed left-2.5 right-2.5 top-[58px] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-w-lg sm:max-w-md mx-auto sm:mx-0 bg-[#070c18] border border-cyan-500/35 shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_25px_rgba(6,182,212,0.2)] rounded-2xl z-50 animate-modal-enter ring-1 ring-cyan-500/20 backdrop-blur-2xl flex flex-col max-h-[calc(100dvh-72px)] sm:max-h-[500px] overflow-hidden"
           role="menu"
         >
           {/* VIEW: NOTIFICATIONS LIST */}
           {panelView === 'list' && (
-            <>
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
               {/* Header */}
-              <div className="px-4 py-2.5 border-b border-white/[0.08] bg-[#050811] flex items-center justify-between rounded-t-xl">
+              <div className="px-4 py-2.5 border-b border-white/[0.08] bg-[#050811] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-white tracking-wide">Notificaciones</span>
                   {unreadCount > 0 && (
@@ -410,7 +410,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               </div>
 
               {/* Filter Tabs */}
-              <div className="px-3 pt-2 pb-1.5 flex items-center gap-1.5 border-b border-white/[0.04] bg-[#070c18] overflow-x-auto no-scrollbar">
+              <div className="px-3 pt-2 pb-1.5 flex items-center gap-1.5 border-b border-white/[0.04] bg-[#070c18] overflow-x-auto no-scrollbar shrink-0">
                 <button
                   type="button"
                   onClick={() => setFilterMode('all')}
@@ -449,7 +449,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               </div>
 
               {/* Notifications Scrollable List */}
-              <div className="max-h-[calc(100vh-220px)] sm:max-h-[340px] overflow-y-auto custom-scrollbar divide-y divide-white/[0.04] px-1 py-1 bg-[#070c18]">
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar divide-y divide-white/[0.04] px-1 py-1 bg-[#070c18]">
                 {filteredList.length === 0 ? (
                   <div className="py-8 px-4 text-center">
                     <div className="w-10 h-10 rounded-full bg-cyan-950/30 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto mb-2 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
@@ -513,7 +513,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
               {/* Footer actions */}
               {userNotifications.length > 0 && (
-                <div className="px-3 pt-2 pb-1 border-t border-white/[0.06] bg-[#050811] flex items-center justify-between text-[11px] rounded-b-xl">
+                <div className="px-3 py-2 border-t border-white/[0.06] bg-[#050811] flex items-center justify-between text-[11px] shrink-0">
                   <button
                     type="button"
                     onClick={handleClearAll}
@@ -528,14 +528,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   </span>
                 </div>
               )}
-            </>
+            </div>
           )}
 
           {/* VIEW: SETTINGS & DND PREFERENCES */}
           {panelView === 'settings' && (
-            <div className="flex flex-col">
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
               {/* Header */}
-              <div className="px-4 py-2.5 border-b border-white/[0.08] bg-[#050811] flex items-center justify-between rounded-t-xl">
+              <div className="px-4 py-2.5 border-b border-white/[0.08] bg-[#050811] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -561,7 +561,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               </div>
 
               {/* Settings Body */}
-              <div className="max-h-[calc(100vh-220px)] sm:max-h-[360px] overflow-y-auto custom-scrollbar p-3.5 space-y-4 text-xs">
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3.5 space-y-4 text-xs">
                 {/* 1. Modo Concentración (DND) */}
                 <div className="p-3 rounded-xl bg-[#090f1f] border border-purple-500/30">
                   <div className="flex items-center justify-between mb-1.5">
@@ -580,7 +580,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   <p className="text-[11px] text-zinc-400 mb-2.5 leading-relaxed">
                     Silencia temporalmente los sonidos y avisos flotantes para trabajar enfocado.
                   </p>
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                     <button
                       type="button"
                       onClick={() => handleSetDnd(null)}
@@ -749,7 +749,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               </div>
 
               {/* Footer */}
-              <div className="px-4 py-2.5 border-t border-white/[0.06] bg-[#050811] flex items-center justify-between text-[11px] rounded-b-xl">
+              <div className="px-4 py-2.5 border-t border-white/[0.06] bg-[#050811] flex items-center justify-between text-[11px] shrink-0">
                 <span className="text-zinc-500 font-mono text-[10px]">Preferencias guardadas</span>
                 <button
                   type="button"

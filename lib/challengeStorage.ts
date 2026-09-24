@@ -447,13 +447,9 @@ export function getLocalChallenges(): Challenge[] {
       }
     }
 
-    // Si no hay datos iniciales en localStorage, cargar los defaults excluyendo los eliminados
+    // Si no hay datos iniciales en localStorage, retornar vacío para permitir que syncCloudChallenges cargue la nube
     if (!raw && challenges.length === 0) {
-      const initial = DEFAULT_CHALLENGES.filter(
-        (c) => !deletedIds.includes(c.id) && !LEGACY_DELETED_DEMO_IDS.includes(c.id)
-      );
-      localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(initial));
-      return initial;
+      return [];
     }
 
     // Filtrar siempre y permanentemente cualquier reto eliminado o demo legacy
@@ -1381,9 +1377,8 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
       const mergedMap = new Map<string, Challenge>();
       mappedCloud.forEach((c) => mergedMap.set(c.id, c));
 
-      // 1.3. Subir ÚNICAMENTE retos locales que estén pendientes de sincronización (o creados por el usuario que no sean demos)
+      // 1.3. Subir ÚNICAMENTE retos locales que estén explícitamente marcados como pendientes de subida
       const currentLocal = getLocalChallenges();
-      const isCloudEmpty = mappedCloud.length === 0;
 
       for (const c of currentLocal) {
         if (deletedIds.includes(c.id) || LEGACY_DELETED_DEMO_IDS.includes(c.id)) {
@@ -1391,14 +1386,10 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
         }
 
         const isPending = pendingUploadIds.includes(c.id);
-        const isUserCreated =
-          !c.id.startsWith('ch-gym-') &&
-          !c.id.startsWith('ch-lectura-') &&
-          !c.id.startsWith('ch-hidrata-') &&
-          !c.id.startsWith('ch-sueno-');
 
-        // Solo subir si está pendiente o es un reto creado por el usuario que aún no existe en la nube
-        if (!mergedMap.has(c.id) && (isCloudEmpty || isPending || isUserCreated)) {
+        // NUNCA resucitar retos ausentes en la nube que no estén pendientes de subida,
+        // ya que si no están en la nube y no están pendientes, significa que fueron eliminados en otro dispositivo.
+        if (!mergedMap.has(c.id) && isPending) {
           mergedMap.set(c.id, c);
           try {
             const { error: upErr } = await (client.from('challenges') as any).upsert({
