@@ -67,12 +67,19 @@ export const CommandCenterConnections: React.FC<CommandCenterConnectionsProps> =
         // Punto de control intermedio para curva suave tecnológica
         const midX = (origX + targetX) / 2;
         const midY = (origY + targetY) / 2;
-        // Ligera curvatura tangencial para que no sea una línea rígida
         const curveOffset = Math.sin((pos.x + pos.y) * 0.01) * 16;
         const ctrlX = midX - (targetY - origY) * 0.05 + curveOffset;
         const ctrlY = midY + (targetX - origX) * 0.05;
 
-        const pathD = `M ${origX} ${origY} Q ${ctrlX} ${ctrlY} ${targetX} ${targetY}`;
+        // Detener el haz en el borde perimetral del planeta (~38px) para jamás atravesar su cuerpo esférico
+        const dx = targetX - ctrlX;
+        const dy = targetY - ctrlY;
+        const dist = Math.hypot(dx, dy) || 1;
+        const planetRimOffset = 38;
+        const endX = targetX - (dx / dist) * planetRimOffset;
+        const endY = targetY - (dy / dist) * planetRimOffset;
+
+        const pathD = `M ${origX} ${origY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`;
 
         return (
           <g key={pos.id} className="transition-all duration-300">
@@ -81,9 +88,9 @@ export const CommandCenterConnections: React.FC<CommandCenterConnectionsProps> =
               d={pathD}
               fill="none"
               stroke={`url(#beam-${pos.id})`}
-              strokeWidth={isHovered ? 2 : 1}
-              strokeDasharray={isHovered ? 'none' : '3 6'}
-              opacity={isHovered ? 0.85 : 0.25}
+              strokeWidth={isHovered ? 1.75 : 0.85}
+              strokeDasharray={isHovered ? 'none' : '3 7'}
+              opacity={isHovered ? 0.85 : 0.12}
             />
 
             {/* Pulso de energía viajero cuando está en hover */}
@@ -92,7 +99,7 @@ export const CommandCenterConnections: React.FC<CommandCenterConnectionsProps> =
                 d={pathD}
                 fill="none"
                 stroke={pos.color}
-                strokeWidth="3"
+                strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeDasharray="16 120"
                 className="animate-pulse"
@@ -100,13 +107,13 @@ export const CommandCenterConnections: React.FC<CommandCenterConnectionsProps> =
               />
             )}
 
-            {/* Nodo luminoso en el punto de contacto del planeta */}
+            {/* Nodo luminoso en el punto perimetral de contacto exterior del planeta */}
             <circle
-              cx={targetX}
-              cy={targetY}
-              r={isHovered ? 4 : 2.5}
+              cx={endX}
+              cy={endY}
+              r={isHovered ? 3.5 : 2}
               fill={pos.color}
-              opacity={isHovered ? 0.9 : 0.4}
+              opacity={isHovered ? 0.9 : 0.25}
               className="transition-all duration-300"
             />
           </g>

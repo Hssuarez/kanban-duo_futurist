@@ -27,6 +27,7 @@ interface CommandCenterPlanetProps {
   onDragStateChange: (moduleId: string, isDragging: boolean) => void;
   isMobile?: boolean;
   positionPreference?: 'top' | 'bottom' | 'left' | 'right';
+  zIndex?: number;
 }
 
 // Mapa de iconos según módulo
@@ -52,6 +53,7 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
   onDragStateChange,
   isMobile = false,
   positionPreference = 'right',
+  zIndex,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -162,7 +164,7 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
       style={{
         transform: `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0)`,
         willChange: 'transform',
-        zIndex: isHovered ? 50 : 20,
+        zIndex: isHovered ? 60 : zIndex ?? 25,
       }}
       onMouseEnter={() => onHover(module.id)}
       onMouseLeave={() => {

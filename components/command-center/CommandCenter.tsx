@@ -343,16 +343,53 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
       className="relative w-full rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#020617] via-[#050b14] to-[#020617] overflow-hidden select-none shadow-[0_0_50px_rgba(6,182,212,0.12)] flex flex-col justify-between"
       style={{ minHeight: binaryParams.containerHeight, height: 'calc(100vh - 120px)' }}
     >
-      {/* 1. Malla estelar de fondo ambiental */}
-      <div
-        className="absolute inset-0 opacity-20 pointer-events-none"
-        style={{
-          backgroundImage:
-            'radial-gradient(#38bdf8 0.75px, transparent 0.75px), radial-gradient(#10b981 0.75px, transparent 0.75px)',
-          backgroundSize: '32px 32px',
-          backgroundPosition: '0 0, 16px 16px',
-        }}
-      />
+      {/* 1. Malla estelar de fondo ambiental con iluminación y viñeta cinematográfica */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Gradiente difuso atmosférico detrás de Workspace (Cyan / Azul) */}
+        <div
+          className="absolute -inset-10 opacity-70 transition-all duration-700 pointer-events-none"
+          style={{
+            background:
+              binaryParams.layoutMode === 'panoramic'
+                ? `radial-gradient(circle 380px at calc(50% + ${binaryParams.workspaceCenter.x}px) 50%, rgba(6, 182, 212, 0.08) 0%, rgba(59, 130, 246, 0.02) 45%, transparent 75%)`
+                : activePole === 'workspace'
+                ? 'radial-gradient(circle 320px at 50% 50%, rgba(6, 182, 212, 0.09) 0%, rgba(59, 130, 246, 0.02) 50%, transparent 75%)'
+                : 'none',
+          }}
+        />
+
+        {/* Gradiente difuso atmosférico detrás de Habit Core (Esmeralda / Menta) */}
+        <div
+          className="absolute -inset-10 opacity-70 transition-all duration-700 pointer-events-none"
+          style={{
+            background:
+              binaryParams.layoutMode === 'panoramic'
+                ? `radial-gradient(circle 380px at calc(50% + ${binaryParams.habitsCenter.x}px) 50%, rgba(16, 185, 129, 0.08) 0%, rgba(6, 182, 212, 0.02) 45%, transparent 75%)`
+                : activePole === 'habits'
+                ? 'radial-gradient(circle 320px at 50% 50%, rgba(16, 185, 129, 0.09) 0%, rgba(6, 182, 212, 0.02) 50%, transparent 75%)'
+                : 'none',
+          }}
+        />
+
+        {/* Malla estelar fina con sutil profundidad */}
+        <div
+          className="absolute inset-0 opacity-20 pointer-events-none"
+          style={{
+            backgroundImage:
+              'radial-gradient(#38bdf8 0.75px, transparent 0.75px), radial-gradient(#10b981 0.75px, transparent 0.75px)',
+            backgroundSize: '34px 34px',
+            backgroundPosition: '0 0, 17px 17px',
+          }}
+        />
+
+        {/* Viñeta perimetral obsidiana para concentrar la mirada en los núcleos */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at center, transparent 55%, rgba(2, 6, 23, 0.75) 100%)',
+          }}
+        />
+      </div>
 
       {/* 2. Selector HUD Superior / Baricentro de Conexión */}
       <CommandCenterBarycenter
@@ -387,20 +424,26 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
           />
         )}
 
-        {/* Pistas orbitales elípticas */}
-        <CommandCenterOrbit
-          binaryParams={binaryParams}
-          activePole={activePole}
-          activeProjectColor={activeProject?.color || '#06b6d4'}
-        />
+        {/* Capa Trasera de Órbitas (arcos superiores Y <= 0 y puente posterior, detrás de los núcleos) */}
+        <div className="absolute inset-0 z-[5] pointer-events-none">
+          <CommandCenterOrbit
+            layer="back"
+            binaryParams={binaryParams}
+            activePole={activePole}
+            activeProjectColor={activeProject?.color || '#06b6d4'}
+            hoveredModuleId={hoveredModuleId}
+          />
+        </div>
 
         {/* Haces de conexión holográficos hacia cada polo */}
-        <CommandCenterConnections
-          planetPositions={planetPositions}
-          hoveredModuleId={hoveredModuleId}
-          containerWidth={containerDimensions.width}
-          containerHeight={containerDimensions.height}
-        />
+        <div className="absolute inset-0 z-[7] pointer-events-none">
+          <CommandCenterConnections
+            planetPositions={planetPositions}
+            hoveredModuleId={hoveredModuleId}
+            containerWidth={containerDimensions.width}
+            containerHeight={containerDimensions.height}
+          />
+        </div>
 
         {/* NÚCLEOS CENTRALES */}
         {binaryParams.layoutMode === 'panoramic' ? (
@@ -408,7 +451,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
             {/* Polo WORKSPACE (Izquierda) */}
             <div
               className={`absolute top-1/2 left-1/2 transition-[z-index] ${
-                isProjectDropdownOpen ? 'z-[70]' : 'z-10'
+                isProjectDropdownOpen ? 'z-[70]' : 'z-[15]'
               }`}
               style={{
                 transform: `translate(calc(-50% + ${binaryParams.workspaceCenter.x}px), -50%)`,
@@ -430,7 +473,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
 
             {/* Polo HABIT CORE (Derecha) */}
             <div
-              className="absolute top-1/2 left-1/2 z-10"
+              className="absolute top-1/2 left-1/2 z-[15]"
               style={{
                 transform: `translate(calc(-50% + ${binaryParams.habitsCenter.x}px), -50%)`,
               }}
@@ -448,7 +491,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
           /* MODO FOCUS / MÓVIL (Centrado al 100% en el polo activo) */
           <div
             className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-[z-index] ${
-              isProjectDropdownOpen ? 'z-[70]' : 'z-10'
+              isProjectDropdownOpen ? 'z-[70]' : 'z-[15]'
             }`}
           >
             {activePole === 'workspace' ? (
@@ -475,6 +518,17 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
             )}
           </div>
         )}
+
+        {/* Capa Delantera de Órbitas (arcos inferiores Y > 0 y puente frontal, delante de los núcleos pero detrás de planetas) */}
+        <div className="absolute inset-0 z-[18] pointer-events-none">
+          <CommandCenterOrbit
+            layer="front"
+            binaryParams={binaryParams}
+            activePole={activePole}
+            activeProjectColor={activeProject?.color || '#06b6d4'}
+            hoveredModuleId={hoveredModuleId}
+          />
+        </div>
 
         {/* PLANETAS EN ÓRBITA */}
         {visibleModules.map((module) => {
@@ -508,6 +562,13 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
             positionPref = pos.y < 0 ? 'bottom' : 'top';
           }
 
+          // Factor de profundidad en el eje vertical Y:
+          // pos.y < center.y (arriba/fondo): depthFactor < 0
+          // pos.y > center.y (abajo/primer plano): depthFactor > 0
+          const depthFactor = Math.max(-1, Math.min(1, (pos.y - center.y) / (ry || 1)));
+          // zIndex entre 26 y 36 cuando no hay hover, 60 en hover
+          const dynamicZIndex = isHovered ? 60 : 26 + Math.round(depthFactor * 8);
+
           return (
             <CommandCenterPlanet
               key={module.id}
@@ -522,6 +583,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
               onDragStateChange={handleDragStateChange}
               isMobile={binaryParams.isMobile}
               positionPreference={positionPref}
+              zIndex={dynamicZIndex}
             />
           );
         })}

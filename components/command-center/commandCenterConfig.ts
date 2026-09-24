@@ -208,10 +208,49 @@ export const COMMAND_CENTER_MODULES: CommandCenterModuleConfig[] = [
   ...HABIT_MODULE_CONFIGS,
 ];
 
-// Pistas orbitales elípticas locales para cada polo
+// Pistas orbitales elípticas locales para cada polo (Jerarquía de 3 niveles: Principal, Secundaria, Profunda)
 export const POLE_ORBITAL_TRACKS = [
-  { index: 0, radiusX: 195, radiusY: 130, strokeDash: '4 8', opacity: 0.25 },
-  { index: 1, radiusX: 220, radiusY: 145, strokeDash: '6 12', opacity: 0.2 },
+  { index: 0, radiusX: 195, radiusY: 130, strokeDash: 'none', opacity: 0.32, label: 'primary' },
+  { index: 1, radiusX: 220, radiusY: 145, strokeDash: '5 9', opacity: 0.22, label: 'secondary' },
+  { index: 2, radiusX: 245, radiusY: 160, strokeDash: '2 8', opacity: 0.12, label: 'deep' },
+];
+
+export interface OrbitDataPacketConfig {
+  id: string;
+  moduleId?: CommandCenterModuleId;
+  pole?: CommandCenterPole;
+  isBridge?: boolean;
+  color: string;
+  speed: number; // rad/s para órbitas, progresión normalizada/s para puente
+  size: number;
+  initialOffset: number; // 0 a 2*PI para órbitas, 0 a 1 para puente
+  trackIndex?: number;
+  direction?: 1 | -1;
+}
+
+export const ORBIT_DATA_PACKETS: OrbitDataPacketConfig[] = [
+  // Polo Workspace
+  { id: 'pkt-board-1', moduleId: 'board', pole: 'workspace', color: '#06b6d4', speed: 0.08, size: 2.2, initialOffset: 0.2, trackIndex: 0 },
+  { id: 'pkt-board-2', moduleId: 'board', pole: 'workspace', color: '#22d3ee', speed: 0.055, size: 1.8, initialOffset: 3.4, trackIndex: 0 },
+  { id: 'pkt-calendar-1', moduleId: 'calendar', pole: 'workspace', color: '#a855f7', speed: 0.065, size: 2.0, initialOffset: 2.1, trackIndex: 1 },
+  { id: 'pkt-calendar-2', moduleId: 'calendar', pole: 'workspace', color: '#c084fc', speed: 0.095, size: 1.6, initialOffset: 5.0, trackIndex: 1 },
+  { id: 'pkt-dashboard-1', moduleId: 'dashboard', pole: 'workspace', color: '#3b82f6', speed: 0.075, size: 2.2, initialOffset: 1.0, trackIndex: 1 },
+  { id: 'pkt-dashboard-2', moduleId: 'dashboard', pole: 'workspace', color: '#60a5fa', speed: 0.11, size: 1.7, initialOffset: 4.2, trackIndex: 1 },
+
+  // Polo Habit Core
+  { id: 'pkt-habits-1', moduleId: 'habits', pole: 'habits', color: '#10b981', speed: 0.07, size: 2.2, initialOffset: 0.5, trackIndex: 0 },
+  { id: 'pkt-habits-2', moduleId: 'habits', pole: 'habits', color: '#34d399', speed: 0.10, size: 1.8, initialOffset: 3.7, trackIndex: 0 },
+  { id: 'pkt-challenges-1', moduleId: 'challenges', pole: 'habits', color: '#eab308', speed: 0.065, size: 2.0, initialOffset: 1.8, trackIndex: 1 },
+  { id: 'pkt-challenges-2', moduleId: 'challenges', pole: 'habits', color: '#fde047', speed: 0.085, size: 1.7, initialOffset: 4.8, trackIndex: 1 },
+  { id: 'pkt-goals-1', moduleId: 'goals', pole: 'habits', color: '#f97316', speed: 0.08, size: 2.0, initialOffset: 2.9, trackIndex: 1 },
+  { id: 'pkt-goals-2', moduleId: 'goals', pole: 'habits', color: '#fb923c', speed: 0.06, size: 1.6, initialOffset: 5.8, trackIndex: 1 },
+  { id: 'pkt-pomodoro-1', moduleId: 'pomodoro', pole: 'habits', color: '#f43f5e', speed: 0.11, size: 2.2, initialOffset: 4.5, trackIndex: 0 },
+  { id: 'pkt-pomodoro-2', moduleId: 'pomodoro', pole: 'habits', color: '#fda4af', speed: 0.07, size: 1.8, initialOffset: 1.2, trackIndex: 0 },
+
+  // Puente Gravitacional (flujo de energía entre Workspace y Habit Core)
+  { id: 'pkt-bridge-1', isBridge: true, color: '#06b6d4', speed: 0.16, size: 2.4, initialOffset: 0.1, direction: 1 },
+  { id: 'pkt-bridge-2', isBridge: true, color: '#10b981', speed: 0.14, size: 2.2, initialOffset: 0.55, direction: -1 },
+  { id: 'pkt-bridge-3', isBridge: true, color: '#38bdf8', speed: 0.20, size: 1.9, initialOffset: 0.85, direction: 1 },
 ];
 
 export interface BinaryOrbitParams {
