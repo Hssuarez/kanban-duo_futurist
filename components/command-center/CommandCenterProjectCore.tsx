@@ -15,6 +15,7 @@ interface CommandCenterProjectCoreProps {
   onCoreClick?: () => void;
   isDropdownOpen?: boolean;
   onDropdownOpenChange?: (open: boolean) => void;
+  isMobile?: boolean;
 }
 
 export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> = ({
@@ -27,6 +28,7 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
   onCoreClick,
   isDropdownOpen: propIsDropdownOpen,
   onDropdownOpenChange,
+  isMobile: propIsMobile,
 }) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const isDropdownOpen = propIsDropdownOpen !== undefined ? propIsDropdownOpen : internalOpen;
@@ -36,34 +38,43 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
   };
 
   const [isMounted, setIsMounted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [internalIsMobile, setInternalIsMobile] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    const checkMobile = () => setInternalIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const isMobile = propIsMobile !== undefined ? propIsMobile : internalIsMobile;
+
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileModalRef = useRef<HTMLDivElement>(null);
   const baseSize = 190 * scale;
   const projectColor = activeProject?.color || '#06b6d4';
 
-  // Cerrar menú al hacer clic fuera
+  // Cerrar menú al hacer clic fuera (en escritorio)
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      // Si el clic ocurrió dentro del disparador/núcleo, ignorar
+      if (dropdownRef.current && dropdownRef.current.contains(target)) {
+        return;
       }
+      // Si estamos en móvil y el clic ocurrió dentro de la tarjeta modal, ignorar
+      if (mobileModalRef.current && mobileModalRef.current.contains(target)) {
+        return;
+      }
+      setDropdownOpen(false);
     };
+
     if (isDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside as unknown as EventListener);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside as unknown as EventListener);
     };
   }, [isDropdownOpen]);
 
@@ -79,8 +90,11 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
         {isMobileView && (
           <button
             type="button"
-            onClick={() => setDropdownOpen(false)}
-            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDropdownOpen(false);
+            }}
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             title="Cerrar"
           >
             <X className="w-4 h-4" />
@@ -95,14 +109,15 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
             <button
               key={p.id}
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 onSelectProject(p.id);
                 setDropdownOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3 py-2 sm:py-1.5 rounded-xl text-left text-xs font-mono transition-all cursor-pointer ${
+              className={`w-full min-h-[44px] sm:min-h-0 flex items-center justify-between px-3 py-2.5 sm:py-1.5 rounded-xl text-left text-xs font-mono transition-all cursor-pointer active:scale-[0.98] ${
                 isSelected
                   ? 'bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
-                  : 'hover:bg-white/[0.06] text-zinc-300'
+                  : 'hover:bg-white/[0.06] active:bg-white/[0.1] text-zinc-300'
               }`}
             >
               <div className="flex items-center gap-2.5 truncate">
@@ -112,7 +127,7 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
                 />
                 <span className="truncate">{p.name}</span>
               </div>
-              {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
+              {isSelected && <Check className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-cyan-400 shrink-0" />}
             </button>
           );
         })}
@@ -121,11 +136,12 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
       {onOpenCreateProject && (
         <button
           type="button"
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             setDropdownOpen(false);
             onOpenCreateProject();
           }}
-          className="w-full mt-2 pt-2 border-t border-white/10 flex items-center justify-center gap-1.5 py-1.5 text-xs font-mono text-cyan-400 hover:text-cyan-300 active:bg-cyan-950/30 rounded-lg transition-colors cursor-pointer"
+          className="w-full mt-2 pt-2 border-t border-white/10 flex items-center justify-center gap-1.5 py-2 sm:py-1.5 text-xs font-mono text-cyan-400 hover:text-cyan-300 active:bg-cyan-950/30 rounded-lg transition-colors cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
           <span>Nuevo Proyecto</span>
@@ -216,14 +232,32 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
         {activeProject ? (
           <div className="relative z-10 flex flex-col items-center gap-0.5 sm:gap-1 max-w-[90%]">
             {/* Indicador de Polo */}
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-400/30 text-[8px] sm:text-[9px] font-mono font-bold text-cyan-300 tracking-wider">
+            <div
+              onClick={(e) => {
+                if (accessibleProjects.length > 1) {
+                  e.stopPropagation();
+                  setDropdownOpen(!isDropdownOpen);
+                }
+              }}
+              className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-400/30 text-[8px] sm:text-[9px] font-mono font-bold text-cyan-300 tracking-wider ${
+                accessibleProjects.length > 1 ? 'cursor-pointer hover:bg-cyan-900/60' : ''
+              }`}
+            >
               <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: projectColor }} />
               <span>WORKSPACE</span>
             </div>
 
             {/* Nombre del Proyecto */}
             <h3
-              className="font-mono font-black tracking-wide text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] truncate max-w-[130px] sm:max-w-[160px] leading-tight mt-0.5"
+              onClick={(e) => {
+                if (accessibleProjects.length > 1) {
+                  e.stopPropagation();
+                  setDropdownOpen(!isDropdownOpen);
+                }
+              }}
+              className={`font-mono font-black tracking-wide text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] truncate max-w-[130px] sm:max-w-[160px] leading-tight mt-0.5 ${
+                accessibleProjects.length > 1 ? 'cursor-pointer hover:text-cyan-300' : ''
+              }`}
               style={{ fontSize: scale < 0.7 ? '11px' : scale < 0.9 ? '13px' : '15px' }}
               title={activeProject.name}
             >
@@ -244,11 +278,11 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
                   e.stopPropagation();
                   setDropdownOpen(!isDropdownOpen);
                 }}
-                className="mt-1 px-2 py-0.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-[8px] sm:text-[9px] font-mono text-zinc-200 flex items-center gap-1 transition-all active:scale-95 cursor-pointer z-10"
+                className="mt-1 px-2.5 py-1 sm:py-0.5 rounded-lg sm:rounded-md bg-cyan-500/20 sm:bg-white/10 hover:bg-cyan-500/30 sm:hover:bg-white/20 border border-cyan-400/40 sm:border-white/15 text-[9px] sm:text-[9px] font-mono font-semibold text-cyan-200 sm:text-zinc-200 flex items-center gap-1.5 sm:gap-1 transition-all active:scale-95 cursor-pointer z-10 shadow-sm shadow-cyan-500/10"
                 title="Cambiar proyecto activo"
               >
                 <span>Cambiar</span>
-                <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3 h-3 sm:w-2.5 sm:h-2.5 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
             )}
           </div>
@@ -278,18 +312,20 @@ export const CommandCenterProjectCore: React.FC<CommandCenterProjectCoreProps> =
 
       {/* 4A. Modal Móvil Holográfico en Portal: 100% centrado en la pantalla del celular */}
       {isDropdownOpen && isMobile && isMounted && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-auto sm:hidden animate-fade-in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-auto animate-fade-in">
           {/* Telón de fondo oscuro táctil */}
           <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm cursor-pointer"
             onClick={() => setDropdownOpen(false)}
-            onTouchStart={() => setDropdownOpen(false)}
           />
 
           {/* Tarjeta Modal Centrada para Móvil */}
           <div
+            ref={mobileModalRef}
             style={{ backgroundColor: '#070c18' }}
             className="relative w-full max-w-[320px] rounded-2xl border border-cyan-500/40 bg-[#070c18] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_35px_rgba(6,182,212,0.25)] ring-1 ring-cyan-500/25 z-10 overflow-hidden animate-modal-enter"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             {renderProjectList(true)}
           </div>

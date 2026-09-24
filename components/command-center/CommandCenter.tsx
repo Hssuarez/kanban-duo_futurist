@@ -424,6 +424,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
                 onCoreClick={() => onNavigate('board')}
                 isDropdownOpen={isProjectDropdownOpen}
                 onDropdownOpenChange={setIsProjectDropdownOpen}
+                isMobile={binaryParams.isMobile}
               />
             </div>
 
@@ -461,6 +462,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
                 onCoreClick={() => onNavigate('board')}
                 isDropdownOpen={isProjectDropdownOpen}
                 onDropdownOpenChange={setIsProjectDropdownOpen}
+                isMobile={binaryParams.isMobile}
               />
             ) : (
               <CommandCenterUserCore
