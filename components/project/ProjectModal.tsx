@@ -95,7 +95,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const canDelete =
     isEditing &&
     !isDefaultProject &&
-    (currentUser.role === 'admin' || editingProject?.createdBy === currentUser.id);
+    (editingProject?.createdBy === currentUser.id ||
+      (currentUser.role === 'admin' &&
+        Array.isArray(editingProject?.memberIds) &&
+        editingProject.memberIds.includes(currentUser.id)));
 
   const toggleMember = (userId: string) => {
     // Si es el creador del proyecto, no se puede desmarcar

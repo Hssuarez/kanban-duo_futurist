@@ -1338,8 +1338,12 @@ export async function updateProject(
 
   const current = projects[index];
 
-  if (actorUser.role !== 'admin' && current.createdBy !== actorUser.id) {
-    throw new Error('Solo el creador del proyecto o un administrador pueden editar este proyecto.');
+  const isMemberOrCreator =
+    current.createdBy === actorUser.id ||
+    (Array.isArray(current.memberIds) && current.memberIds.includes(actorUser.id));
+
+  if (!isMemberOrCreator) {
+    throw new Error('Solo el creador del proyecto o sus miembros pueden editar este proyecto.');
   }
 
   const nowIso = new Date().toISOString();
@@ -1400,8 +1404,12 @@ export async function deleteProject(id: string, actorUser: User): Promise<{ succ
   const target = projects.find((p) => p.id === id);
   if (!target) return { success: false, error: 'Proyecto no encontrado.' };
 
-  if (actorUser.role !== 'admin' && target.createdBy !== actorUser.id) {
-    return { success: false, error: 'Solo el creador del proyecto o un administrador pueden eliminar este proyecto.' };
+  const isTargetMemberOrCreator =
+    target.createdBy === actorUser.id ||
+    (Array.isArray(target.memberIds) && target.memberIds.includes(actorUser.id));
+
+  if (!isTargetMemberOrCreator) {
+    return { success: false, error: 'Solo el creador del proyecto o un miembro del mismo pueden eliminar este proyecto.' };
   }
 
   const tasks = getTasks().filter((t) => (t.projectId || 'proj-default') !== id);

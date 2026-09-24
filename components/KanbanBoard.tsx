@@ -171,12 +171,11 @@ export const KanbanBoard: React.FC = () => {
   };
 
   // Filtro de proyectos accesibles para el usuario conectado
-  // (Admin ve todos, creador ve el suyo, miembros con acceso ven el compartido)
+  // (Estrictamente proyectos donde es creador o miembro; el admin tampoco ve proyectos ajenos donde no es miembro)
   const accessibleProjects = useMemo(() => {
     if (!sessionUser) return [];
     return projects.filter(
       (p) =>
-        sessionUser.role === 'admin' ||
         p.createdBy === sessionUser.id ||
         (Array.isArray(p.memberIds) && p.memberIds.includes(sessionUser.id))
     );
@@ -188,11 +187,29 @@ export const KanbanBoard: React.FC = () => {
     return found || accessibleProjects[0] || null;
   }, [accessibleProjects, activeProjectId]);
 
+  // Auto-ajuste de activeProjectId si el proyecto almacenado deja de pertenecer a los proyectos accesibles del usuario
+  useEffect(() => {
+    if (accessibleProjects.length > 0) {
+      const isCurrentAccessible = accessibleProjects.some((p) => p.id === activeProjectId);
+      if (!isCurrentAccessible) {
+        const fallbackId = accessibleProjects[0].id;
+        setActiveProjectId(fallbackId);
+        setActiveProjectIdState(fallbackId);
+      }
+    }
+  }, [accessibleProjects, activeProjectId]);
+
   // Tareas pertenecientes al proyecto activo (vacío si no hay proyecto activo)
   const projectTasks = useMemo(() => {
     if (!activeProject) return [];
     return tasks.filter((t) => (t.projectId || 'proj-default') === activeProject.id);
   }, [tasks, activeProject]);
+
+  // Tareas pertenecientes únicamente a proyectos accesibles para el usuario actual
+  const accessibleTasks = useMemo(() => {
+    const accessibleProjIds = new Set(accessibleProjects.map((p) => p.id));
+    return tasks.filter((t) => accessibleProjIds.has(t.projectId || 'proj-default'));
+  }, [tasks, accessibleProjects]);
 
   // Miembros del proyecto activo (estrictamente filtrados por pertenencia al proyecto)
   const projectMembers = useMemo(() => {
@@ -229,8 +246,9 @@ export const KanbanBoard: React.FC = () => {
     }
   }, [sessionUser, activeProject, projectTasks]);
 
-  // Control de selección y gestión de proyectos
+  // Control de selección y gestión de proyectos (validando que sea accesible)
   const handleSelectProject = (projId: string) => {
+    if (!accessibleProjects.some((p) => p.id === projId)) return;
     setActiveProjectId(projId);
     setActiveProjectIdState(projId);
     // Si estábamos filtrando por un compañero específico, volver a 'all'
@@ -601,7 +619,7 @@ export const KanbanBoard: React.FC = () => {
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         onOpenPomodoro={() => {
-          const userTask = tasks.find((t) => t.assignedTo === sessionUser?.id && t.status === 'trabajando') || tasks[0];
+          const userTask = projectTasks.find((t) => t.assignedTo === sessionUser?.id && t.status === 'trabajando') || projectTasks[0];
           if (userTask) {
             handleStartFocus(userTask);
           } else {
@@ -618,7 +636,7 @@ export const KanbanBoard: React.FC = () => {
             <CommandCenter
               currentUser={sessionUser}
               users={users}
-              tasks={tasks}
+              tasks={accessibleTasks}
               projectTasks={projectTasks}
               activeProject={activeProject}
               accessibleProjects={accessibleProjects}
@@ -635,7 +653,7 @@ export const KanbanBoard: React.FC = () => {
                 setCurrentView(view);
               }}
               onOpenPomodoro={() => {
-                const userTask = tasks.find((t) => t.assignedTo === sessionUser?.id && t.status === 'trabajando') || tasks[0];
+                const userTask = projectTasks.find((t) => t.assignedTo === sessionUser?.id && t.status === 'trabajando') || projectTasks[0];
                 if (userTask) {
                   handleStartFocus(userTask);
                 } else {
@@ -855,7 +873,7 @@ export const KanbanBoard: React.FC = () => {
                 setCurrentView(sub);
               }}
               users={users}
-              tasks={tasks}
+              tasks={accessibleTasks}
               onOpenNewTaskModal={() => handleOpenAddNew('iniciado')}
               onToggleTaskStatus={async (task) => {
                 const nextStatus: TaskStatus = task.status === 'finalizado' ? 'iniciado' : 'finalizado';

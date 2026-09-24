@@ -59,7 +59,10 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
 
   const canEditActive = Boolean(
     activeProject &&
-      (currentUser.role === 'admin' || activeProject.createdBy === currentUser.id)
+      (activeProject.createdBy === currentUser.id ||
+        (currentUser.role === 'admin' &&
+          Array.isArray(activeProject.memberIds) &&
+          activeProject.memberIds.includes(currentUser.id)))
   );
 
   // Resolve member user objects
@@ -292,7 +295,10 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
                     )}
 
                     {/* Settings icon directly in row if authorized */}
-                    {(currentUser.role === 'admin' || isCreator) && (
+                    {(isCreator ||
+                      (currentUser.role === 'admin' &&
+                        Array.isArray(proj.memberIds) &&
+                        proj.memberIds.includes(currentUser.id))) && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
