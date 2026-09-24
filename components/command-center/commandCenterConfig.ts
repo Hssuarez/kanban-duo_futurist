@@ -198,3 +198,58 @@ export const ORBITAL_TRACKS = [
   { index: 1, radiusX: 375, radiusY: 225, strokeDash: '6 12', opacity: 0.28 },
   { index: 2, radiusX: 450, radiusY: 260, strokeDash: '3 9', opacity: 0.2 },
 ];
+
+export interface ResponsiveOrbitParams {
+  scaleX: number;
+  scaleY: number;
+  planetScale: number;
+  coreScale: number;
+  isMobile: boolean;
+  containerHeightPx: number;
+}
+
+export function getResponsiveOrbitParams(
+  containerWidth: number,
+  containerHeight: number
+): ResponsiveOrbitParams {
+  const isMobile = containerWidth < 640;
+
+  if (isMobile) {
+    // Para móviles (pantallas de 320px a 430px de ancho típico):
+    // El radio horizontal máximo no debe exceder el ancho seguro del viewport
+    const safeW = Math.max(300, containerWidth);
+    const maxRadiusX = Math.min(145, Math.max(115, (safeW - 70) / 2));
+    // En móviles verticales, otorgar un radio vertical proporcionado para usar la altura de pantalla
+    const safeH = Math.max(480, containerHeight);
+    const maxRadiusY = Math.min(175, Math.max(130, (safeH - 170) / 2));
+
+    const scaleX = maxRadiusX / 450;
+    const scaleY = maxRadiusY / 260;
+    const planetScale = Math.min(0.68, Math.max(0.55, safeW / 580));
+    const coreScale = Math.min(0.62, Math.max(0.50, safeW / 580));
+
+    return {
+      scaleX,
+      scaleY,
+      planetScale,
+      coreScale,
+      isMobile: true,
+      containerHeightPx: safeH,
+    };
+  }
+
+  // Tablet & Desktop
+  const isTablet = containerWidth < 1024;
+  const baseScale = isTablet
+    ? Math.min(0.85, Math.max(0.68, (containerWidth - 40) / 1100))
+    : Math.min(1.0, Math.max(0.80, (containerWidth - 60) / 1280));
+
+  return {
+    scaleX: baseScale,
+    scaleY: baseScale,
+    planetScale: isTablet ? Math.max(0.8, baseScale) : baseScale,
+    coreScale: baseScale,
+    isMobile: false,
+    containerHeightPx: Math.max(620, containerHeight),
+  };
+}

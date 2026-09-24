@@ -5,12 +5,26 @@ import { ORBITAL_TRACKS } from './commandCenterConfig';
 
 interface CommandCenterOrbitProps {
   scale?: number;
+  scaleX?: number;
+  scaleY?: number;
 }
 
-export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({ scale = 1 }) => {
+export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
+  scale = 1,
+  scaleX,
+  scaleY,
+}) => {
+  const effectiveScaleX = scaleX !== undefined ? scaleX : scale;
+  const effectiveScaleY = scaleY !== undefined ? scaleY : scale;
+
+  const yFar = Math.round(270 * effectiveScaleY);
+  const yNear = Math.round(240 * effectiveScaleY);
+  const xFar = Math.round(460 * effectiveScaleX);
+  const xNear = Math.round(430 * effectiveScaleX);
+
   return (
     <svg
-      className="absolute inset-0 w-full h-full pointer-events-none select-none z-0 overflow-visible"
+      className="absolute inset-0 w-full h-full pointer-events-none select-none z-0 overflow-hidden"
       aria-hidden="true"
     >
       <defs>
@@ -38,8 +52,8 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({ scale = 
 
       <g transform="translate(0, 0)">
         {ORBITAL_TRACKS.map((track) => {
-          const rx = track.radiusX * scale;
-          const ry = track.radiusY * scale;
+          const rx = track.radiusX * effectiveScaleX;
+          const ry = track.radiusY * effectiveScaleY;
 
           return (
             <g key={track.index} className="opacity-90">
@@ -73,8 +87,8 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({ scale = 
               <ellipse
                 cx="50%"
                 cy="50%"
-                rx={rx + 8 * scale}
-                ry={ry + 6 * scale}
+                rx={rx + 8 * effectiveScaleX}
+                ry={ry + 6 * effectiveScaleY}
                 fill="none"
                 stroke="#06b6d4"
                 strokeWidth="0.5"
@@ -85,12 +99,12 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({ scale = 
           );
         })}
 
-        {/* Marcadores de cuadrante astronómico (ejes cardinales HUD muy sutiles) */}
+        {/* Marcadores de cuadrante astronómico (ejes cardinales HUD muy sutiles y proporcionales) */}
         <line
           x1="50%"
-          y1="calc(50% - 280px)"
+          y1={`calc(50% - ${yFar}px)`}
           x2="50%"
-          y2="calc(50% - 240px)"
+          y2={`calc(50% - ${yNear}px)`}
           stroke="#06b6d4"
           strokeWidth="1"
           strokeDasharray="2 4"
@@ -98,18 +112,18 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({ scale = 
         />
         <line
           x1="50%"
-          y1="calc(50% + 240px)"
+          y1={`calc(50% + ${yNear}px)`}
           x2="50%"
-          y2="calc(50% + 280px)"
+          y2={`calc(50% + ${yFar}px)`}
           stroke="#06b6d4"
           strokeWidth="1"
           strokeDasharray="2 4"
           opacity="0.3"
         />
         <line
-          x1="calc(50% - 470px)"
+          x1={`calc(50% - ${xFar}px)`}
           y1="50%"
-          x2="calc(50% - 430px)"
+          x2={`calc(50% - ${xNear}px)`}
           y2="50%"
           stroke="#06b6d4"
           strokeWidth="1"
@@ -117,9 +131,9 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({ scale = 
           opacity="0.3"
         />
         <line
-          x1="calc(50% + 430px)"
+          x1={`calc(50% + ${xNear}px)`}
           y1="50%"
-          x2="calc(50% + 470px)"
+          x2={`calc(50% + ${xFar}px)`}
           y2="50%"
           stroke="#06b6d4"
           strokeWidth="1"

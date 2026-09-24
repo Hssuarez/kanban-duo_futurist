@@ -6,13 +6,15 @@ import {
   COMMAND_CENTER_MODULES,
   CommandCenterModuleConfig,
   ModuleStatItem,
+  getResponsiveOrbitParams,
+  ResponsiveOrbitParams,
 } from './commandCenterConfig';
 import { CommandCenterOrbit } from './CommandCenterOrbit';
 import { CommandCenterConnections } from './CommandCenterConnections';
 import { CommandCenterPlanet } from './CommandCenterPlanet';
-import { CommandCenterModuleCard } from './CommandCenterModuleCard';
 import { CommandCenterCore } from './CommandCenterCore';
 import { CommandCenterFooter } from './CommandCenterFooter';
+import { X, ArrowRight } from 'lucide-react';
 
 // Data sources
 import { getLocalHabits, getLocalHabitLogs, getLocalGoals } from '@/lib/habitStorage';
@@ -41,7 +43,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     width: 1200,
     height: 750,
   });
-  const [scale, setScale] = useState<number>(1);
+  const [orbitParams, setOrbitParams] = useState<ResponsiveOrbitParams>(() =>
+    getResponsiveOrbitParams(1200, 750)
+  );
   const [hoveredModuleId, setHoveredModuleId] = useState<string | null>(null);
   const [draggingModuleId, setDraggingModuleId] = useState<string | null>(null);
   const [pomodoroState, setPomodoroState] = useState<PomodoroState>(getPomodoroState());
@@ -75,19 +79,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     const w = containerRef.current.clientWidth || window.innerWidth;
     const h = containerRef.current.clientHeight || 750;
     setContainerDimensions({ width: w, height: h });
-
-    // Escala dimensional suave para que nunca se desborde el viewport
-    if (w >= 1280) {
-      setScale(1.0);
-    } else if (w >= 1024) {
-      setScale(0.85);
-    } else if (w >= 768) {
-      setScale(0.72);
-    } else if (w >= 480) {
-      setScale(0.55);
-    } else {
-      setScale(0.46);
-    }
+    setOrbitParams(getResponsiveOrbitParams(w, h));
   }, []);
 
   useEffect(() => {
@@ -216,8 +208,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         }
 
         // Posición elíptica (rx, ry escalados)
-        const rx = m.orbitRadiusX * scale;
-        const ry = m.orbitRadiusY * scale;
+        const rx = m.orbitRadiusX * orbitParams.scaleX;
+        const ry = m.orbitRadiusY * orbitParams.scaleY;
 
         const posX = rx * Math.cos(currentAngle);
         const posY = ry * Math.sin(currentAngle);
@@ -236,7 +228,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
 
     animId = requestAnimationFrame(orbitLoop);
     return () => cancelAnimationFrame(animId);
-  }, [scale, hoveredModuleId, draggingModuleId]);
+  }, [orbitParams, hoveredModuleId, draggingModuleId]);
 
   // Navegación al módulo
   const handleNavigateModule = (moduleConfig: CommandCenterModuleConfig) => {
@@ -255,15 +247,19 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     }
   };
 
+  // Módulo seleccionado para vista móvil
+  const activeMobileModule = COMMAND_CENTER_MODULES.find((m) => m.id === hoveredModuleId);
+  const activeMobileStats = activeMobileModule ? moduleStats[activeMobileModule.id] || [] : [];
+
   return (
     <div className="flex-1 flex flex-col justify-between w-full h-full relative overflow-hidden select-none animate-view-fade min-h-[calc(100vh-4rem)]">
       {/* 1. Canvas Central del Sistema Solar / Command Center */}
       <div
         ref={containerRef}
-        className="relative flex-1 w-full flex items-center justify-center min-h-[580px] sm:min-h-[640px] lg:min-h-[720px] overflow-visible"
+        className="relative flex-1 w-full flex items-center justify-center min-h-[460px] sm:min-h-[580px] lg:min-h-[680px] overflow-hidden"
       >
         {/* Pistas orbitales elípticas de fondo */}
-        <CommandCenterOrbit scale={scale} />
+        <CommandCenterOrbit scaleX={orbitParams.scaleX} scaleY={orbitParams.scaleY} />
 
         {/* Conexiones holográficas SVG con pulsos de energía */}
         <CommandCenterConnections
@@ -274,54 +270,116 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         />
 
         {/* Núcleo Central KANBAN//DUO */}
-        <CommandCenterCore scale={scale} onCoreClick={() => onNavigate('board')} />
+        <CommandCenterCore scale={orbitParams.coreScale} onCoreClick={() => onNavigate('board')} />
 
         {/* Los 7 Mini-Planetas en sus órbitas */}
         {COMMAND_CENTER_MODULES.map((module) => {
           const pos = planetPositions.find((p) => p.id === module.id) || {
-            x: module.orbitRadiusX * scale * Math.cos(module.baseAngleRad),
-            y: module.orbitRadiusY * scale * Math.sin(module.baseAngleRad),
+            x: module.orbitRadiusX * orbitParams.scaleX * Math.cos(module.baseAngleRad),
+            y: module.orbitRadiusY * orbitParams.scaleY * Math.sin(module.baseAngleRad),
           };
 
           const isHovered = hoveredModuleId === module.id;
           const stats = moduleStats[module.id] || [];
 
-          // Decidir la posición de la tarjeta contextual (izquierda o derecha según hemisferio)
-          const positionPref = pos.x >= 0 ? 'right' : 'left';
+          // Decidir la posición de la tarjeta contextual (apuntando siempre hacia el centro abierto)
+          let positionPref: 'top' | 'bottom' | 'left' | 'right';
+          if (pos.x > 35) {
+            positionPref = 'left';
+          } else if (pos.x < -35) {
+            positionPref = 'right';
+          } else {
+            positionPref = pos.y < 0 ? 'bottom' : 'top';
+          }
 
           return (
-            <React.Fragment key={module.id}>
-              {/* Planeta 3D con rotación axial independiente y órbita separada */}
-              <CommandCenterPlanet
-                module={module}
-                stats={stats}
-                x={pos.x}
-                y={pos.y}
-                isHovered={isHovered}
-                onHover={setHoveredModuleId}
-                onNavigate={handleNavigateModule}
-                onDragStateChange={handleDragStateChange}
-              />
-
-              {/* Tarjeta Contextual con KPIs Reales */}
-              <div
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                style={{
-                  transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
-                  zIndex: isHovered ? 50 : 10,
-                }}
-              >
-                <CommandCenterModuleCard
-                  module={module}
-                  stats={stats}
-                  isHovered={isHovered}
-                  onNavigate={() => handleNavigateModule(module)}
-                  positionPreference={positionPref}
-                />
-              </div>
-            </React.Fragment>
+            <CommandCenterPlanet
+              key={module.id}
+              module={module}
+              stats={stats}
+              x={pos.x}
+              y={pos.y}
+              size={Math.round(module.planetSizePx * orbitParams.planetScale)}
+              isHovered={isHovered}
+              onHover={setHoveredModuleId}
+              onNavigate={handleNavigateModule}
+              onDragStateChange={handleDragStateChange}
+              isMobile={orbitParams.isMobile}
+              positionPreference={positionPref}
+            />
           );
         })}
+
+        {/* Tarjeta HUD Móvil (Dock inferior flotante cuando se selecciona un planeta en móvil) */}
+        {orbitParams.isMobile && activeMobileModule && (
+          <div className="absolute bottom-3 left-3 right-3 z-50 animate-modal-enter pointer-events-auto">
+            <div
+              className="rounded-2xl p-3.5 border backdrop-blur-2xl shadow-2xl relative overflow-hidden"
+              style={{
+                backgroundColor: 'rgba(7, 12, 24, 0.95)',
+                borderColor: activeMobileModule.accentHex,
+                boxShadow: `0 0 25px ${activeMobileModule.glowRgba}, 0 10px 40px rgba(0,0,0,0.9)`,
+              }}
+            >
+              {/* Botón cerrar */}
+              <button
+                type="button"
+                onClick={() => setHoveredModuleId(null)}
+                className="absolute top-2.5 right-2.5 text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                title="Cerrar vista previa"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-2 mb-2 pr-6">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: activeMobileModule.accentHex }}
+                />
+                <h3 className="font-mono text-xs font-bold text-white tracking-wide">
+                  {activeMobileModule.title}
+                </h3>
+                <span className="text-[10px] text-zinc-400 font-sans truncate">
+                  {activeMobileModule.subtitle}
+                </span>
+              </div>
+
+              {/* Métricas en chips táctiles */}
+              {activeMobileStats.length > 0 && (
+                <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+                  {activeMobileStats.map((st, idx) => (
+                    <div
+                      key={idx}
+                      className="px-2 py-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] flex flex-col"
+                    >
+                      <span className="text-[9px] text-zinc-400 font-sans">{st.label}</span>
+                      <span
+                        className="font-mono text-xs font-bold"
+                        style={{ color: st.highlight ? activeMobileModule.accentHex : '#ffffff' }}
+                      >
+                        {st.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Botón CTA táctil */}
+              <button
+                type="button"
+                onClick={() => handleNavigateModule(activeMobileModule)}
+                className="w-full py-2 px-3 rounded-xl font-mono text-xs font-bold text-slate-950 flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
+                style={{
+                  backgroundColor: activeMobileModule.accentHex,
+                  boxShadow: `0 0 16px ${activeMobileModule.glowRgba}`,
+                }}
+              >
+                <span>Abrir {activeMobileModule.title}</span>
+                <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 2. Pie de Página HUD Inspiracional */}

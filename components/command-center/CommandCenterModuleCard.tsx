@@ -10,6 +10,8 @@ interface CommandCenterModuleCardProps {
   isHovered: boolean;
   onNavigate: () => void;
   positionPreference?: 'top' | 'bottom' | 'left' | 'right';
+  planetSize?: number;
+  isDragging?: boolean;
 }
 
 export const CommandCenterModuleCard: React.FC<CommandCenterModuleCardProps> = ({
@@ -18,40 +20,47 @@ export const CommandCenterModuleCard: React.FC<CommandCenterModuleCardProps> = (
   isHovered,
   onNavigate,
   positionPreference = 'right',
+  planetSize = 80,
+  isDragging = false,
 }) => {
+  const visible = isHovered && !isDragging;
+  const offset = Math.round(planetSize / 2 + 14);
+
   return (
     <div
       onClick={(e) => {
         e.stopPropagation();
         onNavigate();
       }}
-      className={`absolute z-40 cursor-pointer pointer-events-auto transition-all duration-300 transform select-none ${
-        isHovered
-          ? 'opacity-100 scale-100 translate-y-0 shadow-2xl'
-          : 'opacity-0 scale-95 pointer-events-none translate-y-2'
+      className={`absolute z-40 cursor-pointer transition-all duration-200 select-none ${
+        visible
+          ? 'opacity-100 scale-100 pointer-events-auto shadow-2xl'
+          : 'opacity-0 scale-95 pointer-events-none'
       }`}
       style={{
         width: '230px',
         top:
           positionPreference === 'bottom'
-            ? 'calc(100% + 12px)'
+            ? `calc(50% + ${offset}px)`
             : positionPreference === 'left' || positionPreference === 'right'
             ? '50%'
             : undefined,
-        bottom: positionPreference === 'top' ? 'calc(100% + 12px)' : undefined,
+        bottom: positionPreference === 'top' ? `calc(50% + ${offset}px)` : undefined,
         left:
           positionPreference === 'right'
-            ? 'calc(100% + 16px)'
+            ? `calc(50% + ${offset}px)`
             : positionPreference === 'top' || positionPreference === 'bottom'
             ? '50%'
             : undefined,
-        right: positionPreference === 'left' ? 'calc(100% + 16px)' : undefined,
+        right: positionPreference === 'left' ? `calc(50% + ${offset}px)` : undefined,
         transform:
           positionPreference === 'top' || positionPreference === 'bottom'
-            ? isHovered
+            ? visible
               ? 'translateX(-50%)'
-              : 'translateX(-50%) translateY(8px)'
-            : isHovered
+              : positionPreference === 'bottom'
+              ? 'translateX(-50%) translateY(8px)'
+              : 'translateX(-50%) translateY(-8px)'
+            : visible
             ? 'translateY(-50%)'
             : 'translateY(-45%)',
       }}

@@ -13,16 +13,20 @@ import {
   ChevronRight,
   Sparkles,
 } from 'lucide-react';
+import { CommandCenterModuleCard } from './CommandCenterModuleCard';
 
 interface CommandCenterPlanetProps {
   module: CommandCenterModuleConfig;
   stats: ModuleStatItem[];
   x: number; // Posición orbital X en px relativa al centro
   y: number; // Posición orbital Y en px relativa al centro
+  size?: number; // Diámetro escalado en px
   isHovered: boolean;
   onHover: (id: string | null) => void;
   onNavigate: (module: CommandCenterModuleConfig) => void;
   onDragStateChange: (moduleId: string, isDragging: boolean) => void;
+  isMobile?: boolean;
+  positionPreference?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 // Mapa de iconos según módulo
@@ -41,10 +45,13 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
   stats,
   x,
   y,
+  size: sizeProp,
   isHovered,
   onHover,
   onNavigate,
   onDragStateChange,
+  isMobile = false,
+  positionPreference = 'right',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -287,9 +294,17 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
 
     onDragStateChange(module.id, false);
 
-    // Si fue un click/tap corto sin arrastre, navegar
+    // Si fue un click/tap corto sin arrastre
     if (!hasDraggedRef.current) {
-      onNavigate(module);
+      if (isMobile) {
+        if (isHovered) {
+          onNavigate(module);
+        } else {
+          onHover(module.id);
+        }
+      } else {
+        onNavigate(module);
+      }
     }
   };
 
@@ -300,19 +315,24 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
     }
   };
 
-  const size = module.planetSizePx;
+  const size = sizeProp || module.planetSizePx;
 
   return (
     // Capa 1: Posición orbital (translateX / translateY)
     <div
       ref={containerRef}
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-auto select-none"
+      className="absolute top-1/2 left-1/2 pointer-events-auto select-none"
       style={{
-        transform: `translate3d(${x}px, ${y}px, 0)`,
+        transform: `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0)`,
         willChange: 'transform',
+        zIndex: isHovered ? 50 : 20,
       }}
       onMouseEnter={() => onHover(module.id)}
-      onMouseLeave={() => onHover(null)}
+      onMouseLeave={() => {
+        if (!isDraggingRef.current) {
+          onHover(null);
+        }
+      }}
     >
       {/* Contenedor relativo para el planeta + anillo + etiqueta fija */}
       <div className="relative flex flex-col items-center group">
@@ -376,7 +396,7 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
           {/* Glifo holográfico central del módulo */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div
-              className="p-2 rounded-xl backdrop-blur-sm border transition-all duration-300"
+              className="p-1.5 sm:p-2 rounded-xl backdrop-blur-sm border transition-all duration-300"
               style={{
                 backgroundColor: isHovered
                   ? 'rgba(7, 12, 24, 0.75)'
@@ -386,7 +406,7 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
               }}
             >
               <IconComponent
-                className="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-200"
+                className="w-3.5 h-3.5 sm:w-5 sm:h-5 transition-transform duration-200"
                 style={{
                   color: isHovered ? '#ffffff' : module.accentHex,
                   transform: isHovered ? 'scale(1.1)' : 'scale(1)',
@@ -416,9 +436,9 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
         </div>
 
         {/* Capa 3: Etiqueta y Mini-Badge HUD Fijo (NUNCA rota con el planeta) */}
-        <div className="mt-2.5 flex flex-col items-center pointer-events-none z-30">
+        <div className="mt-1 sm:mt-2.5 flex flex-col items-center pointer-events-none z-30">
           <div
-            className="px-2.5 py-0.5 rounded-full border backdrop-blur-md flex items-center gap-1.5 transition-all duration-200"
+            className="px-2 sm:px-2.5 py-0.5 rounded-full border backdrop-blur-md flex items-center gap-1 sm:gap-1.5 transition-all duration-200"
             style={{
               backgroundColor: isHovered ? 'rgba(7, 12, 24, 0.95)' : 'rgba(7, 12, 24, 0.75)',
               borderColor: isHovered ? module.accentHex : 'rgba(255, 255, 255, 0.12)',
@@ -426,26 +446,39 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
             }}
           >
             <span
-              className="w-1.5 h-1.5 rounded-full"
+              className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{ backgroundColor: module.accentHex }}
             />
             <span
-              className="font-mono text-[11px] font-bold tracking-wider transition-colors"
+              className="font-mono text-[9px] sm:text-[11px] font-bold tracking-wider transition-colors max-w-[80px] sm:max-w-none truncate"
               style={{ color: isHovered ? '#ffffff' : '#e4e4e7' }}
             >
               {module.title}
             </span>
           </div>
 
-          {/* Mini-métrica compacta bajo la etiqueta */}
+          {/* Mini-métrica compacta bajo la etiqueta (solo en pantallas sm o mayores) */}
           {stats.length > 0 && (
-            <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-zinc-400">
+            <div className="hidden sm:flex items-center gap-1.5 mt-1 text-[10px] font-mono text-zinc-400">
               <span>{stats[0].value}</span>
               <span className="text-zinc-500 font-sans text-[9px]">{stats[0].label}</span>
             </div>
           )}
         </div>
       </div>
+
+      {/* Tarjeta Contextual Flotante (Desktop/Tablet) dentro del mismo contenedor de hover */}
+      {!isMobile && (
+        <CommandCenterModuleCard
+          module={module}
+          stats={stats}
+          isHovered={isHovered}
+          isDragging={isDraggingRef.current}
+          onNavigate={() => onNavigate(module)}
+          positionPreference={positionPreference}
+          planetSize={size}
+        />
+      )}
     </div>
   );
 };

@@ -50,7 +50,7 @@ export const CommandCenterCore: React.FC<CommandCenterCoreProps> = ({
 
       {/* 3. Esfera central holográfica del Núcleo KANBAN//DUO */}
       <div
-        className="relative rounded-full border border-cyan-400/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] flex flex-col items-center justify-center text-center p-6 backdrop-blur-xl overflow-hidden transition-transform duration-300 group-hover:scale-[1.02]"
+        className="relative rounded-full border border-cyan-400/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] flex flex-col items-center justify-center text-center p-2 sm:p-4 md:p-6 backdrop-blur-xl overflow-hidden transition-transform duration-300 group-hover:scale-[1.02]"
         style={{
           width: baseSize,
           height: baseSize,
@@ -82,30 +82,49 @@ export const CommandCenterCore: React.FC<CommandCenterCoreProps> = ({
         />
 
         {/* Logotipo KANBAN//DUO Central */}
-        <div className="relative z-10 flex flex-col items-center gap-1.5">
+        <div className="relative z-10 flex flex-col items-center gap-0.5 sm:gap-1.5">
           {/* Icono central de tres barras cyan */}
-          <div className="w-10 h-10 rounded-2xl bg-cyan-950/70 border border-cyan-400/50 flex items-center justify-center text-zinc-100 shadow-[0_0_20px_rgba(6,182,212,0.5)] mb-1">
-            <div className="flex items-end gap-1 h-5" aria-hidden="true">
-              <div className="w-1 h-5 bg-white rounded-full shadow-[0_0_6px_rgba(255,255,255,0.9)]" />
-              <div className="w-1 h-3.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.9)]" />
-              <div className="w-1 h-4 bg-white/80 rounded-full" />
+          <div
+            className="rounded-xl sm:rounded-2xl bg-cyan-950/70 border border-cyan-400/50 flex items-center justify-center text-zinc-100 shadow-[0_0_15px_rgba(6,182,212,0.4)] mb-0.5"
+            style={{
+              width: Math.max(22, Math.round(36 * Math.min(1, scale))),
+              height: Math.max(22, Math.round(36 * Math.min(1, scale))),
+            }}
+          >
+            <div className="flex items-end gap-0.5 h-3 sm:h-4" aria-hidden="true">
+              <div className="w-0.5 h-3 sm:h-4 bg-white rounded-full shadow-[0_0_4px_rgba(255,255,255,0.9)]" />
+              <div className="w-0.5 h-2 sm:h-3 bg-cyan-400 rounded-full shadow-[0_0_6px_rgba(6,182,212,0.9)]" />
+              <div className="w-0.5 h-2.5 sm:h-3.5 bg-white/80 rounded-full" />
             </div>
           </div>
 
           {/* Título de Marca */}
-          <h2 className="font-mono font-black text-sm sm:text-base tracking-wider text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]">
+          <h2
+            className="font-mono font-black tracking-wider text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] leading-none"
+            style={{
+              fontSize: scale < 0.65 ? '10px' : scale < 0.85 ? '12px' : '14px',
+            }}
+          >
             KANBAN<span className="text-cyan-400 font-bold">//DUO</span>
           </h2>
 
           {/* Píldora HUD COMMAND CENTER */}
-          <div className="px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-400/40 text-[10px] font-mono font-bold tracking-widest text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+          <div
+            className="rounded-full bg-cyan-950/80 border border-cyan-400/40 font-mono font-bold tracking-widest text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.3)] mt-0.5"
+            style={{
+              fontSize: scale < 0.65 ? '7px' : '9px',
+              padding: scale < 0.65 ? '1px 6px' : '2px 8px',
+            }}
+          >
             COMMAND CENTER
           </div>
 
           {/* Lema */}
-          <p className="text-[10px] text-zinc-400 font-sans tracking-wide mt-0.5">
-            Organiza · Enfócate · Avanza
-          </p>
+          {scale >= 0.75 && (
+            <p className="text-[9px] text-zinc-400 font-sans tracking-wide mt-0.5">
+              Organiza · Enfócate · Avanza
+            </p>
+          )}
         </div>
       </div>
     </div>
