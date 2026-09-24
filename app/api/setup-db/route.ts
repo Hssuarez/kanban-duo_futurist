@@ -25,12 +25,16 @@ async function handleMigration() {
   const password = process.env.NEXT_PUBLIC_SUPABASE_POSTGRES_PASSWORD || process.env.POSTGRES_PASSWORD;
   const database = process.env.NEXT_PUBLIC_SUPABASE_POSTGRES_DATABASE || process.env.POSTGRES_DATABASE || 'postgres';
 
+  // Permitir certificados autofirmados / cadenas de Supabase en entorno serverless
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
   let pool: Pool;
   if (connString) {
+    const sanitizedConn = connString.replace(/([?&])sslmode=[^&]+/, '$1sslmode=no-verify');
     pool = new Pool({
-      connectionString: connString,
+      connectionString: sanitizedConn,
       ssl: { rejectUnauthorized: false },
-      connectionTimeoutMillis: 10000,
+      connectionTimeoutMillis: 15000,
     });
   } else if (host && user && password) {
     pool = new Pool({
@@ -40,7 +44,7 @@ async function handleMigration() {
       database,
       port: 5432,
       ssl: { rejectUnauthorized: false },
-      connectionTimeoutMillis: 10000,
+      connectionTimeoutMillis: 15000,
     });
   } else {
     return NextResponse.json(
