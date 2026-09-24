@@ -1,18 +1,23 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { User, Task, AppView } from '@/lib/types';
+import { User, Task, Project, AppView } from '@/lib/types';
 import {
   COMMAND_CENTER_MODULES,
+  WORKSPACE_MODULE_CONFIGS,
+  HABIT_MODULE_CONFIGS,
   CommandCenterModuleConfig,
+  CommandCenterPole,
   ModuleStatItem,
-  getResponsiveOrbitParams,
-  ResponsiveOrbitParams,
+  getBinarySystemLayout,
+  BinaryOrbitParams,
 } from './commandCenterConfig';
 import { CommandCenterOrbit } from './CommandCenterOrbit';
 import { CommandCenterConnections } from './CommandCenterConnections';
 import { CommandCenterPlanet } from './CommandCenterPlanet';
-import { CommandCenterCore } from './CommandCenterCore';
+import { CommandCenterProjectCore } from './CommandCenterProjectCore';
+import { CommandCenterUserCore } from './CommandCenterUserCore';
+import { CommandCenterBarycenter } from './CommandCenterBarycenter';
 import { CommandCenterFooter } from './CommandCenterFooter';
 import { X, ArrowRight } from 'lucide-react';
 
@@ -26,6 +31,11 @@ interface CommandCenterProps {
   currentUser: User;
   users: User[];
   tasks: Task[];
+  projectTasks?: Task[];
+  activeProject?: Project | null;
+  accessibleProjects?: Project[];
+  onSelectProject?: (projectId: string) => void;
+  onOpenCreateProject?: () => void;
   onNavigate: (view: AppView, subView?: string) => void;
   onOpenPomodoro: () => void;
   onOpenNewTaskModal?: () => void;
@@ -35,6 +45,11 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
   currentUser,
   users,
   tasks,
+  projectTasks,
+  activeProject = null,
+  accessibleProjects = [],
+  onSelectProject = () => {},
+  onOpenCreateProject,
   onNavigate,
   onOpenPomodoro,
 }) => {
@@ -43,18 +58,26 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     width: 1200,
     height: 750,
   });
-  const [orbitParams, setOrbitParams] = useState<ResponsiveOrbitParams>(() =>
-    getResponsiveOrbitParams(1200, 750)
+
+  // Polo activo para modo móvil / focus
+  const [activePole, setActivePole] = useState<CommandCenterPole>('workspace');
+
+  const [binaryParams, setBinaryParams] = useState<BinaryOrbitParams>(() =>
+    getBinarySystemLayout(1200, 750, 'workspace')
   );
+
   const [hoveredModuleId, setHoveredModuleId] = useState<string | null>(null);
   const [draggingModuleId, setDraggingModuleId] = useState<string | null>(null);
   const [pomodoroState, setPomodoroState] = useState<PomodoroState>(getPomodoroState());
 
-  // Estado angular de cada planeta (independiente de React re-renders)
+  // Estado angular de cada planeta (imperativo en refs para evitar re-renders por frame a 60 FPS)
   const anglesRef = useRef<Record<string, number>>({});
   const [planetPositions, setPlanetPositions] = useState<
-    Array<{ id: string; x: number; y: number; color: string }>
+    Array<{ id: string; x: number; y: number; originX: number; originY: number; color: string }>
   >([]);
+
+  // Detección de gestos Swipe en móvil
+  const touchStartXRef = useRef<number | null>(null);
 
   // 1. Inicializar ángulos orbitales base
   useEffect(() => {
@@ -73,14 +96,14 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     return () => unsub();
   }, []);
 
-  // 3. Medición y escala responsiva de la composición orbital
+  // 3. Medición y escala responsiva de la composición orbital binaria
   const updateDimensions = useCallback(() => {
     if (!containerRef.current) return;
     const w = containerRef.current.clientWidth || window.innerWidth;
     const h = containerRef.current.clientHeight || 750;
     setContainerDimensions({ width: w, height: h });
-    setOrbitParams(getResponsiveOrbitParams(w, h));
-  }, []);
+    setBinaryParams(getBinarySystemLayout(w, h, activePole));
+  }, [activePole]);
 
   useEffect(() => {
     updateDimensions();
@@ -88,29 +111,34 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     return () => window.removeEventListener('resize', updateDimensions);
   }, [updateDimensions]);
 
-  // 4. Extracción de Métricas Reales del Sistema
+  // 4. Extracción de Tareas del Proyecto Activo vs Tareas Generales
+  const effectiveProjectTasks = useMemo(() => {
+    if (projectTasks && projectTasks.length > 0) return projectTasks;
+    if (activeProject) return tasks.filter((t) => t.projectId === activeProject.id);
+    return [];
+  }, [projectTasks, tasks, activeProject]);
+
+  // 5. Extracción de Métricas Reales del Sistema
   const moduleStats = useMemo<Record<string, ModuleStatItem[]>>(() => {
     const todayKey = getBogotaToday();
 
-    // Tablero (Tareas)
-    const totalTasks = tasks.length;
-    const inProgressTasks = tasks.filter((t) => t.status === 'trabajando').length;
-    const pendingTasks = tasks.filter((t) => t.status === 'iniciado').length;
-    const completedTasks = tasks.filter((t) => t.status === 'finalizado').length;
+    // A. Módulos de Proyecto (Workspace)
+    const totalProjTasks = effectiveProjectTasks.length;
+    const inProgressTasks = effectiveProjectTasks.filter((t) => t.status === 'trabajando').length;
+    const pendingTasks = effectiveProjectTasks.filter((t) => t.status === 'iniciado').length;
+    const completedTasks = effectiveProjectTasks.filter((t) => t.status === 'finalizado').length;
 
-    // Calendario (Tareas por vencer)
     const sevenDaysFromNow = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-    const dueThisWeek = tasks.filter(
+    const dueThisWeek = effectiveProjectTasks.filter(
       (t) => t.dueDate && t.dueDate >= todayKey && t.dueDate <= sevenDaysFromNow && t.status !== 'finalizado'
     ).length;
-    const upcomingTasks = tasks.filter(
+    const upcomingTasks = effectiveProjectTasks.filter(
       (t) => t.dueDate && t.dueDate > sevenDaysFromNow && t.status !== 'finalizado'
     ).length;
 
-    // Métricas (Cumplimiento)
-    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    const completionRate = totalProjTasks > 0 ? Math.round((completedTasks / totalProjTasks) * 100) : 0;
 
-    // Mis Hábitos
+    // B. Módulos de Usuario (Habit Core)
     const userHabits = getLocalHabits(currentUser.id).filter((h) => h.isActive);
     const activeHabitsCount = userHabits.length;
     const todayLogs = getLocalHabitLogs(currentUser.id).filter(
@@ -119,7 +147,6 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     const habitCompletionPct =
       activeHabitsCount > 0 ? Math.round((todayLogs.length / activeHabitsCount) * 100) : 0;
 
-    // Retos Compartidos
     const allChallenges = getLocalChallenges().filter((c) => c.status === 'active');
     const allMembers = getLocalChallengeMembers();
     const accessibleChallenges = allChallenges.filter(
@@ -129,12 +156,10 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         allMembers.some((m) => m.challengeId === c.id && m.userId === currentUser.id)
     );
 
-    // Objetivos
     const allGoals = getLocalGoals(currentUser.id);
     const activeGoalsCount = allGoals.filter((g) => !g.isCompleted).length;
     const completedGoalsCount = allGoals.filter((g) => g.isCompleted).length;
 
-    // Pomodoro
     const minutes = Math.floor(pomodoroState.remainingSeconds / 60);
     const seconds = pomodoroState.remainingSeconds % 60;
     const timerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
@@ -146,7 +171,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
 
     return {
       board: [
-        { label: 'Totales', value: totalTasks, highlight: true },
+        { label: 'Totales', value: totalProjTasks, highlight: true },
         { label: 'En proceso', value: inProgressTasks },
         { label: 'Pendientes', value: pendingTasks },
       ],
@@ -176,9 +201,27 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         { label: 'Estado', value: pomodoroStatusText },
       ],
     };
-  }, [tasks, currentUser, pomodoroState]);
+  }, [effectiveProjectTasks, currentUser, pomodoroState]);
 
-  // 5. Bucle de Traslación Orbital Ambiental (MUY LENTO, SEPARADO DEL DRAG)
+  // Constancia personal general del usuario (%)
+  const userConsistencyPct = useMemo(() => {
+    const userHabits = getLocalHabits(currentUser.id).filter((h) => h.isActive);
+    if (userHabits.length === 0) return 85;
+    const todayLogs = getLocalHabitLogs(currentUser.id).filter(
+      (l) => l.dateKey === getBogotaToday() && l.status === 'completed'
+    );
+    return Math.round((todayLogs.length / userHabits.length) * 100);
+  }, [currentUser.id]);
+
+  // Módulos visibles según el modo de diseño
+  const visibleModules = useMemo(() => {
+    if (binaryParams.layoutMode === 'panoramic') {
+      return COMMAND_CENTER_MODULES;
+    }
+    return activePole === 'workspace' ? WORKSPACE_MODULE_CONFIGS : HABIT_MODULE_CONFIGS;
+  }, [binaryParams.layoutMode, activePole]);
+
+  // 6. Bucle de Traslación Orbital Ambiental (60 FPS, imperativo)
   useEffect(() => {
     let animId: number;
     let lastTime = performance.now();
@@ -191,33 +234,48 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
       const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
       lastTime = currentTime;
 
-      const positions: Array<{ id: string; x: number; y: number; color: string }> = [];
+      const positions: Array<{
+        id: string;
+        x: number;
+        y: number;
+        originX: number;
+        originY: number;
+        color: string;
+      }> = [];
 
-      COMMAND_CENTER_MODULES.forEach((m) => {
+      visibleModules.forEach((m) => {
         let currentAngle = anglesRef.current[m.id] ?? m.baseAngleRad;
 
-        // Si este planeta está siendo arrastrado por el usuario, PAUSAR su órbita
         const isDraggingThis = draggingModuleId === m.id;
         const isHoveringThis = hoveredModuleId === m.id;
 
         if (!prefersReducedMotion && !isDraggingThis) {
-          // Si está en hover, la órbita se desacelera suavemente un 75%
           const speedMultiplier = isHoveringThis ? 0.25 : 1.0;
           currentAngle += m.orbitSpeedRadPerSec * speedMultiplier * dt;
           anglesRef.current[m.id] = currentAngle;
         }
 
-        // Posición elíptica (rx, ry escalados)
-        const rx = m.orbitRadiusX * orbitParams.scaleX;
-        const ry = m.orbitRadiusY * orbitParams.scaleY;
+        // Obtener el centro orbital del polo y radio
+        const isWorkspace = m.pole === 'workspace';
+        const center =
+          binaryParams.layoutMode === 'panoramic'
+            ? isWorkspace
+              ? binaryParams.workspaceCenter
+              : binaryParams.habitsCenter
+            : { x: 0, y: 0 };
 
-        const posX = rx * Math.cos(currentAngle);
-        const posY = ry * Math.sin(currentAngle);
+        const rx = isWorkspace ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX;
+        const ry = isWorkspace ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY;
+
+        const posX = center.x + rx * Math.cos(currentAngle);
+        const posY = center.y + ry * Math.sin(currentAngle);
 
         positions.push({
           id: m.id,
           x: posX,
           y: posY,
+          originX: center.x,
+          originY: center.y,
           color: m.accentHex,
         });
       });
@@ -228,7 +286,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
 
     animId = requestAnimationFrame(orbitLoop);
     return () => cancelAnimationFrame(animId);
-  }, [orbitParams, hoveredModuleId, draggingModuleId]);
+  }, [binaryParams, visibleModules, hoveredModuleId, draggingModuleId]);
 
   // Navegación al módulo
   const handleNavigateModule = (moduleConfig: CommandCenterModuleConfig) => {
@@ -248,20 +306,78 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
   };
 
   // Módulo seleccionado para vista móvil
-  const activeMobileModule = COMMAND_CENTER_MODULES.find((m) => m.id === hoveredModuleId);
+  const activeMobileModule = hoveredModuleId
+    ? COMMAND_CENTER_MODULES.find((m) => m.id === hoveredModuleId) || null
+    : null;
   const activeMobileStats = activeMobileModule ? moduleStats[activeMobileModule.id] || [] : [];
 
-  return (
-    <div className="flex-1 flex flex-col justify-between w-full h-full relative overflow-hidden select-none animate-view-fade min-h-[calc(100vh-4rem)]">
-      {/* 1. Canvas Central del Sistema Solar / Command Center */}
-      <div
-        ref={containerRef}
-        className="relative flex-1 w-full flex items-center justify-center min-h-[460px] sm:min-h-[580px] lg:min-h-[680px] overflow-hidden"
-      >
-        {/* Pistas orbitales elípticas de fondo */}
-        <CommandCenterOrbit scaleX={orbitParams.scaleX} scaleY={orbitParams.scaleY} />
+  // Soporte de Swipe en Pantallas Táctiles
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
 
-        {/* Conexiones holográficas SVG con pulsos de energía */}
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchEndX - touchStartXRef.current;
+    touchStartXRef.current = null;
+
+    // Deslizar izquierda -> ir a Hábitos
+    if (diff < -50 && activePole === 'workspace') {
+      setActivePole('habits');
+      setHoveredModuleId(null);
+    }
+    // Deslizar derecha -> ir a Workspace
+    else if (diff > 50 && activePole === 'habits') {
+      setActivePole('workspace');
+      setHoveredModuleId(null);
+    }
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="relative w-full rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#020617] via-[#050b14] to-[#020617] overflow-hidden select-none shadow-[0_0_50px_rgba(6,182,212,0.12)] flex flex-col justify-between"
+      style={{ minHeight: binaryParams.containerHeight, height: 'calc(100vh - 120px)' }}
+    >
+      {/* 1. Malla estelar de fondo ambiental */}
+      <div
+        className="absolute inset-0 opacity-20 pointer-events-none"
+        style={{
+          backgroundImage:
+            'radial-gradient(#38bdf8 0.75px, transparent 0.75px), radial-gradient(#10b981 0.75px, transparent 0.75px)',
+          backgroundSize: '32px 32px',
+          backgroundPosition: '0 0, 16px 16px',
+        }}
+      />
+
+      {/* 2. Selector HUD Superior / Baricentro de Conexión */}
+      <CommandCenterBarycenter
+        activeProject={activeProject}
+        currentUser={currentUser}
+        projectTaskCount={effectiveProjectTasks.length}
+        consistencyPct={userConsistencyPct}
+        activePole={activePole}
+        onSelectPole={(pole) => {
+          setActivePole(pole);
+          setHoveredModuleId(null);
+        }}
+        isMobile={binaryParams.isMobile}
+        layoutMode={binaryParams.layoutMode}
+      />
+
+      {/* 3. Escenario Orbital Central */}
+      <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden">
+        {/* Pistas orbitales elípticas */}
+        <CommandCenterOrbit
+          binaryParams={binaryParams}
+          activePole={activePole}
+          activeProjectColor={activeProject?.color || '#06b6d4'}
+        />
+
+        {/* Haces de conexión holográficos hacia cada polo */}
         <CommandCenterConnections
           planetPositions={planetPositions}
           hoveredModuleId={hoveredModuleId}
@@ -269,24 +385,95 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
           containerHeight={containerDimensions.height}
         />
 
-        {/* Núcleo Central KANBAN//DUO */}
-        <CommandCenterCore scale={orbitParams.coreScale} onCoreClick={() => onNavigate('board')} />
+        {/* NÚCLEOS CENTRALES */}
+        {binaryParams.layoutMode === 'panoramic' ? (
+          <>
+            {/* Polo WORKSPACE (Izquierda) */}
+            <div
+              className="absolute top-1/2 left-1/2"
+              style={{
+                transform: `translate(calc(-50% + ${binaryParams.workspaceCenter.x}px), -50%)`,
+              }}
+            >
+              <CommandCenterProjectCore
+                activeProject={activeProject}
+                accessibleProjects={accessibleProjects}
+                taskCount={effectiveProjectTasks.length}
+                onSelectProject={onSelectProject}
+                onOpenCreateProject={onOpenCreateProject}
+                scale={binaryParams.coreScale}
+                onCoreClick={() => onNavigate('board')}
+              />
+            </div>
 
-        {/* Los 7 Mini-Planetas en sus órbitas */}
-        {COMMAND_CENTER_MODULES.map((module) => {
+            {/* Polo HABIT CORE (Derecha) */}
+            <div
+              className="absolute top-1/2 left-1/2"
+              style={{
+                transform: `translate(calc(-50% + ${binaryParams.habitsCenter.x}px), -50%)`,
+              }}
+            >
+              <CommandCenterUserCore
+                currentUser={currentUser}
+                consistencyPct={userConsistencyPct}
+                activeHabitsCount={getLocalHabits(currentUser.id).filter((h) => h.isActive).length}
+                scale={binaryParams.coreScale}
+                onCoreClick={() => onNavigate('habits')}
+              />
+            </div>
+          </>
+        ) : (
+          /* MODO FOCUS / MÓVIL (Centrado al 100% en el polo activo) */
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            {activePole === 'workspace' ? (
+              <CommandCenterProjectCore
+                activeProject={activeProject}
+                accessibleProjects={accessibleProjects}
+                taskCount={effectiveProjectTasks.length}
+                onSelectProject={onSelectProject}
+                onOpenCreateProject={onOpenCreateProject}
+                scale={binaryParams.coreScale}
+                onCoreClick={() => onNavigate('board')}
+              />
+            ) : (
+              <CommandCenterUserCore
+                currentUser={currentUser}
+                consistencyPct={userConsistencyPct}
+                activeHabitsCount={getLocalHabits(currentUser.id).filter((h) => h.isActive).length}
+                scale={binaryParams.coreScale}
+                onCoreClick={() => onNavigate('habits')}
+              />
+            )}
+          </div>
+        )}
+
+        {/* PLANETAS EN ÓRBITA */}
+        {visibleModules.map((module) => {
+          const isWs = module.pole === 'workspace';
+          const center =
+            binaryParams.layoutMode === 'panoramic'
+              ? isWs
+                ? binaryParams.workspaceCenter
+                : binaryParams.habitsCenter
+              : { x: 0, y: 0 };
+
+          const rx = isWs ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX;
+          const ry = isWs ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY;
+
           const pos = planetPositions.find((p) => p.id === module.id) || {
-            x: module.orbitRadiusX * orbitParams.scaleX * Math.cos(module.baseAngleRad),
-            y: module.orbitRadiusY * orbitParams.scaleY * Math.sin(module.baseAngleRad),
+            x: center.x + rx * Math.cos(module.baseAngleRad),
+            y: center.y + ry * Math.sin(module.baseAngleRad),
           };
 
           const isHovered = hoveredModuleId === module.id;
           const stats = moduleStats[module.id] || [];
 
-          // Decidir la posición de la tarjeta contextual (apuntando siempre hacia el centro abierto)
+          // Decidir posición de la tarjeta: apunta hacia el núcleo de su propio polo
+          const relX = pos.x - center.x;
           let positionPref: 'top' | 'bottom' | 'left' | 'right';
-          if (pos.x > 35) {
+          if (relX > 25) {
             positionPref = 'left';
-          } else if (pos.x < -35) {
+          } else if (relX < -25) {
             positionPref = 'right';
           } else {
             positionPref = pos.y < 0 ? 'bottom' : 'top';
@@ -299,19 +486,19 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
               stats={stats}
               x={pos.x}
               y={pos.y}
-              size={Math.round(module.planetSizePx * orbitParams.planetScale)}
+              size={Math.round(module.planetSizePx * binaryParams.planetScale)}
               isHovered={isHovered}
               onHover={setHoveredModuleId}
               onNavigate={handleNavigateModule}
               onDragStateChange={handleDragStateChange}
-              isMobile={orbitParams.isMobile}
+              isMobile={binaryParams.isMobile}
               positionPreference={positionPref}
             />
           );
         })}
 
-        {/* Tarjeta HUD Móvil (Dock inferior flotante cuando se selecciona un planeta en móvil) */}
-        {orbitParams.isMobile && activeMobileModule && (
+        {/* Tarjeta HUD Móvil (Dock inferior cuando se selecciona un planeta en móvil) */}
+        {binaryParams.isMobile && activeMobileModule && (
           <div className="absolute bottom-3 left-3 right-3 z-50 animate-modal-enter pointer-events-auto">
             <div
               className="rounded-2xl p-3.5 border backdrop-blur-2xl shadow-2xl relative overflow-hidden"
@@ -382,7 +569,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         )}
       </div>
 
-      {/* 2. Pie de Página HUD Inspiracional */}
+      {/* 4. Pie de Página HUD Inspiracional */}
       <CommandCenterFooter />
     </div>
   );

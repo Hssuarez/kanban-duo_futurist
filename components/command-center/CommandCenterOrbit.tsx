@@ -1,26 +1,21 @@
 'use client';
 
 import React from 'react';
-import { ORBITAL_TRACKS } from './commandCenterConfig';
+import { BinaryOrbitParams, CommandCenterPole, POLE_ORBITAL_TRACKS } from './commandCenterConfig';
 
 interface CommandCenterOrbitProps {
-  scale?: number;
-  scaleX?: number;
-  scaleY?: number;
+  binaryParams: BinaryOrbitParams;
+  activePole: CommandCenterPole;
+  activeProjectColor?: string;
 }
 
 export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
-  scale = 1,
-  scaleX,
-  scaleY,
+  binaryParams,
+  activePole,
+  activeProjectColor = '#06b6d4',
 }) => {
-  const effectiveScaleX = scaleX !== undefined ? scaleX : scale;
-  const effectiveScaleY = scaleY !== undefined ? scaleY : scale;
-
-  const yFar = Math.round(270 * effectiveScaleY);
-  const yNear = Math.round(240 * effectiveScaleY);
-  const xFar = Math.round(460 * effectiveScaleX);
-  const xNear = Math.round(430 * effectiveScaleX);
+  const { layoutMode, workspaceCenter, habitsCenter, workspaceRadiusX, workspaceRadiusY, habitsRadiusX, habitsRadiusY } =
+    binaryParams;
 
   return (
     <svg
@@ -28,19 +23,28 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
       aria-hidden="true"
     >
       <defs>
-        {/* Gradiente radial para difuminar los bordes de las órbitas */}
-        <linearGradient id="orbit-grad-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.4" />
-          <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="#6366f1" stopOpacity="0.35" />
+        {/* Gradiente para polo Workspace (Cyan / Proyecto) */}
+        <linearGradient id="orbit-grad-workspace" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={activeProjectColor} stopOpacity="0.45" />
+          <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.35" />
         </linearGradient>
 
-        <linearGradient id="orbit-grad-subtle" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#818cf8" stopOpacity="0.1" />
+        {/* Gradiente para polo Habit Core (Esmeralda / Violeta) */}
+        <linearGradient id="orbit-grad-habits" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#10b981" stopOpacity="0.45" />
+          <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.35" />
         </linearGradient>
 
-        {/* Filtro de resplandor para nodos orbitales */}
+        {/* Gradiente para el puente cósmico */}
+        <linearGradient id="bridge-grad" x1="0%" y1="50%" x2="100%" y2="50%">
+          <stop offset="0%" stopColor={activeProjectColor} stopOpacity="0.3" />
+          <stop offset="50%" stopColor="#38bdf8" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#10b981" stopOpacity="0.3" />
+        </linearGradient>
+
+        {/* Filtro de resplandor */}
         <filter id="orbit-glow" x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="3" result="blur" />
           <feMerge>
@@ -50,97 +54,136 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
         </filter>
       </defs>
 
-      <g transform="translate(0, 0)">
-        {ORBITAL_TRACKS.map((track) => {
-          const rx = track.radiusX * effectiveScaleX;
-          const ry = track.radiusY * effectiveScaleY;
+      {/* 1. MODO PANORÁMICO: Renderiza ambos polos en simultáneo */}
+      {layoutMode === 'panoramic' ? (
+        <g>
+          {/* Puente Gravitacional (Línea cósmica ondulada entre los dos polos) */}
+          <path
+            d={`M calc(50% + ${workspaceCenter.x}px) 50% Q 50% calc(50% - 25px) calc(50% + ${habitsCenter.x}px) 50%`}
+            fill="none"
+            stroke="url(#bridge-grad)"
+            strokeWidth="1.5"
+            strokeDasharray="4 6"
+            className="animate-pulse opacity-60"
+          />
+          <path
+            d={`M calc(50% + ${workspaceCenter.x}px) 50% Q 50% calc(50% + 25px) calc(50% + ${habitsCenter.x}px) 50%`}
+            fill="none"
+            stroke="url(#bridge-grad)"
+            strokeWidth="1"
+            strokeDasharray="2 8"
+            className="opacity-40"
+          />
 
-          return (
-            <g key={track.index} className="opacity-90">
-              {/* Anillo de brillo difuso de fondo */}
-              <ellipse
-                cx="50%"
-                cy="50%"
-                rx={rx}
-                ry={ry}
-                fill="none"
-                stroke="url(#orbit-grad-cyan)"
-                strokeWidth="1.5"
-                opacity={track.opacity * 0.7}
-                filter="url(#orbit-glow)"
-              />
+          {/* Órbitas del Polo WORKSPACE (Izquierda) */}
+          <g transform={`translate(0, 0)`}>
+            {POLE_ORBITAL_TRACKS.map((track) => {
+              const rx = (workspaceRadiusX * track.radiusX) / 200;
+              const ry = (workspaceRadiusY * track.radiusY) / 135;
+              return (
+                <g key={`ws-${track.index}`}>
+                  <ellipse
+                    cx={`calc(50% + ${workspaceCenter.x}px)`}
+                    cy="50%"
+                    rx={rx}
+                    ry={ry}
+                    fill="none"
+                    stroke="url(#orbit-grad-workspace)"
+                    strokeWidth="1.2"
+                    opacity={track.opacity * 0.8}
+                    filter="url(#orbit-glow)"
+                  />
+                  <ellipse
+                    cx={`calc(50% + ${workspaceCenter.x}px)`}
+                    cy="50%"
+                    rx={rx}
+                    ry={ry}
+                    fill="none"
+                    stroke="#38bdf8"
+                    strokeWidth="1"
+                    strokeDasharray={track.strokeDash}
+                    opacity={track.opacity}
+                  />
+                </g>
+              );
+            })}
+          </g>
 
-              {/* Pista orbital punteada de precisión tecnológica */}
-              <ellipse
-                cx="50%"
-                cy="50%"
-                rx={rx}
-                ry={ry}
-                fill="none"
-                stroke="#38bdf8"
-                strokeWidth="1"
-                strokeDasharray={track.strokeDash}
-                opacity={track.opacity}
-              />
+          {/* Órbitas del Polo HABIT CORE (Derecha) */}
+          <g transform={`translate(0, 0)`}>
+            {POLE_ORBITAL_TRACKS.map((track) => {
+              const rx = (habitsRadiusX * track.radiusX) / 200;
+              const ry = (habitsRadiusY * track.radiusY) / 135;
+              return (
+                <g key={`hb-${track.index}`}>
+                  <ellipse
+                    cx={`calc(50% + ${habitsCenter.x}px)`}
+                    cy="50%"
+                    rx={rx}
+                    ry={ry}
+                    fill="none"
+                    stroke="url(#orbit-grad-habits)"
+                    strokeWidth="1.2"
+                    opacity={track.opacity * 0.8}
+                    filter="url(#orbit-glow)"
+                  />
+                  <ellipse
+                    cx={`calc(50% + ${habitsCenter.x}px)`}
+                    cy="50%"
+                    rx={rx}
+                    ry={ry}
+                    fill="none"
+                    stroke="#34d399"
+                    strokeWidth="1"
+                    strokeDasharray={track.strokeDash}
+                    opacity={track.opacity}
+                  />
+                </g>
+              );
+            })}
+          </g>
+        </g>
+      ) : (
+        /* 2. MODO FOCUS / MÓVIL: Renderiza las órbitas del polo activo centrado al 100% */
+        <g>
+          {POLE_ORBITAL_TRACKS.map((track) => {
+            const isWs = activePole === 'workspace';
+            const baseRx = isWs ? workspaceRadiusX : habitsRadiusX;
+            const baseRy = isWs ? workspaceRadiusY : habitsRadiusY;
+            const rx = (baseRx * track.radiusX) / 200;
+            const ry = (baseRy * track.radiusY) / 135;
+            const gradId = isWs ? 'url(#orbit-grad-workspace)' : 'url(#orbit-grad-habits)';
+            const strokeColor = isWs ? '#38bdf8' : '#34d399';
 
-              {/* Anillo exterior ultra-fino para sensación de radar HUD */}
-              <ellipse
-                cx="50%"
-                cy="50%"
-                rx={rx + 8 * effectiveScaleX}
-                ry={ry + 6 * effectiveScaleY}
-                fill="none"
-                stroke="#06b6d4"
-                strokeWidth="0.5"
-                strokeDasharray="2 18"
-                opacity={track.opacity * 0.5}
-              />
-            </g>
-          );
-        })}
-
-        {/* Marcadores de cuadrante astronómico (ejes cardinales HUD muy sutiles y proporcionales) */}
-        <line
-          x1="50%"
-          y1={`calc(50% - ${yFar}px)`}
-          x2="50%"
-          y2={`calc(50% - ${yNear}px)`}
-          stroke="#06b6d4"
-          strokeWidth="1"
-          strokeDasharray="2 4"
-          opacity="0.3"
-        />
-        <line
-          x1="50%"
-          y1={`calc(50% + ${yNear}px)`}
-          x2="50%"
-          y2={`calc(50% + ${yFar}px)`}
-          stroke="#06b6d4"
-          strokeWidth="1"
-          strokeDasharray="2 4"
-          opacity="0.3"
-        />
-        <line
-          x1={`calc(50% - ${xFar}px)`}
-          y1="50%"
-          x2={`calc(50% - ${xNear}px)`}
-          y2="50%"
-          stroke="#06b6d4"
-          strokeWidth="1"
-          strokeDasharray="2 4"
-          opacity="0.3"
-        />
-        <line
-          x1={`calc(50% + ${xNear}px)`}
-          y1="50%"
-          x2={`calc(50% + ${xFar}px)`}
-          y2="50%"
-          stroke="#06b6d4"
-          strokeWidth="1"
-          strokeDasharray="2 4"
-          opacity="0.3"
-        />
-      </g>
+            return (
+              <g key={`focus-${track.index}`}>
+                <ellipse
+                  cx="50%"
+                  cy="50%"
+                  rx={rx}
+                  ry={ry}
+                  fill="none"
+                  stroke={gradId}
+                  strokeWidth="1.2"
+                  opacity={track.opacity * 0.85}
+                  filter="url(#orbit-glow)"
+                />
+                <ellipse
+                  cx="50%"
+                  cy="50%"
+                  rx={rx}
+                  ry={ry}
+                  fill="none"
+                  stroke={strokeColor}
+                  strokeWidth="1"
+                  strokeDasharray={track.strokeDash}
+                  opacity={track.opacity}
+                />
+              </g>
+            );
+          })}
+        </g>
+      )}
     </svg>
   );
 };

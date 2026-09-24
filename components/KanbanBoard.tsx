@@ -619,6 +619,11 @@ export const KanbanBoard: React.FC = () => {
               currentUser={sessionUser}
               users={users}
               tasks={tasks}
+              projectTasks={projectTasks}
+              activeProject={activeProject}
+              accessibleProjects={accessibleProjects}
+              onSelectProject={handleSelectProject}
+              onOpenCreateProject={handleOpenCreateProject}
               onNavigate={(view: AppView, subView?: string) => {
                 if (view === 'habits' || view === 'challenges' || view === 'goals' || view === 'progress') {
                   if (subView) {
@@ -637,6 +642,7 @@ export const KanbanBoard: React.FC = () => {
                   startPomodoro('pomodoro-general', 'Enfoque General', 25);
                 }
               }}
+              onOpenNewTaskModal={() => handleOpenAddNew('iniciado')}
             />
           </div>
         )}

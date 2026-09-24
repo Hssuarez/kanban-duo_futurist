@@ -1,6 +1,6 @@
 // ========================================================
-// KANBAN//DUO — COMMAND CENTER CONFIGURATION & ARCHITECTURE
-// Declarative definitions for orbits, planets, colors & metrics
+// KANBAN//DUO — COMMAND CENTER BINARY SYSTEM CONFIGURATION
+// Dual-Core Architecture: Workspace (Project) // Habit Core (User)
 // ========================================================
 
 import { AppView } from '@/lib/types';
@@ -13,6 +13,8 @@ export type CommandCenterModuleId =
   | 'challenges'
   | 'goals'
   | 'pomodoro';
+
+export type CommandCenterPole = 'workspace' | 'habits';
 
 export interface ModuleStatItem {
   label: string;
@@ -28,13 +30,13 @@ export interface CommandCenterModuleConfig {
   subtitle: string;
   targetView: AppView | 'pomodoro_action';
   targetSubView?: string;
-  category: 'workspace' | 'habits' | 'tools';
+  pole: CommandCenterPole;
   color: string;
   secondaryColor: string;
   glowRgba: string;
   accentHex: string;
   // Geometría orbital elíptica
-  orbitTrackIndex: 0 | 1 | 2; // 0 = interior, 1 = medio, 2 = exterior
+  orbitTrackIndex: 0 | 1 | 2;
   orbitRadiusX: number; // Radio horizontal en px (desktop base)
   orbitRadiusY: number; // Radio vertical en px (desktop base)
   baseAngleRad: number; // Posición angular inicial en radianes
@@ -45,107 +47,94 @@ export interface CommandCenterModuleConfig {
   description: string;
 }
 
-// Configuración de los 7 planetas / módulos del sistema
-export const COMMAND_CENTER_MODULES: CommandCenterModuleConfig[] = [
+// --------------------------------------------------------
+// 1. POLO WORKSPACE: 3 Módulos subordinados al Proyecto Activo
+// --------------------------------------------------------
+export const WORKSPACE_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
   {
     id: 'board',
     title: 'TABLERO',
     subtitle: 'Gestión ágil de tareas',
     targetView: 'board',
-    category: 'workspace',
+    pole: 'workspace',
     color: '#06b6d4', // Cyan Neón
     secondaryColor: '#3b82f6',
     glowRgba: 'rgba(6, 182, 212, 0.45)',
     accentHex: '#22d3ee',
     orbitTrackIndex: 0,
-    orbitRadiusX: 300,
-    orbitRadiusY: 185,
-    baseAngleRad: -Math.PI / 2, // 270° (Arriba centrado)
+    orbitRadiusX: 195,
+    orbitRadiusY: 130,
+    baseAngleRad: -Math.PI / 2, // 270° (Arriba centrado, ~12h)
     orbitSpeedRadPerSec: 0.007,
-    planetSizePx: 84,
+    planetSizePx: 82,
     ringTiltDeg: 22,
     axialSpinSpeedDegPerSec: 18,
-    description: 'Visualiza columnas Iniciado, Trabajando y Finalizado con fluidez.',
+    description: 'Visualiza columnas Iniciado, Trabajando y Finalizado de este proyecto.',
   },
   {
     id: 'calendar',
     title: 'CALENDARIO',
-    subtitle: 'Visualiza tu tiempo',
+    subtitle: 'Cronograma del proyecto',
     targetView: 'calendar',
-    category: 'workspace',
+    pole: 'workspace',
     color: '#a855f7', // Violeta / Púrpura
     secondaryColor: '#c084fc',
     glowRgba: 'rgba(168, 85, 247, 0.45)',
     accentHex: '#d8b4fe',
     orbitTrackIndex: 1,
-    orbitRadiusX: 375,
-    orbitRadiusY: 225,
-    baseAngleRad: (215 * Math.PI) / 180, // Superior izquierda (~10h)
+    orbitRadiusX: 215,
+    orbitRadiusY: 145,
+    baseAngleRad: (150 * Math.PI) / 180, // Inferior izquierda (~7:30h)
     orbitSpeedRadPerSec: 0.0055,
-    planetSizePx: 80,
+    planetSizePx: 78,
     ringTiltDeg: -28,
     axialSpinSpeedDegPerSec: 14,
-    description: 'Planificación temporal, fechas límite e hitos organizados.',
+    description: 'Planificación temporal, fechas límite e hitos del proyecto.',
   },
   {
     id: 'dashboard',
     title: 'MÉTRICAS',
-    subtitle: 'Analiza tu progreso',
+    subtitle: 'Rendimiento y velocidad',
     targetView: 'dashboard',
-    category: 'workspace',
+    pole: 'workspace',
     color: '#3b82f6', // Azul Eléctrico
     secondaryColor: '#60a5fa',
     glowRgba: 'rgba(59, 130, 246, 0.45)',
     accentHex: '#93c5fd',
     orbitTrackIndex: 1,
-    orbitRadiusX: 375,
-    orbitRadiusY: 225,
-    baseAngleRad: (325 * Math.PI) / 180, // Superior derecha (~2h)
+    orbitRadiusX: 215,
+    orbitRadiusY: 145,
+    baseAngleRad: (30 * Math.PI) / 180, // Inferior derecha (~4:30h)
     orbitSpeedRadPerSec: 0.0055,
-    planetSizePx: 80,
+    planetSizePx: 78,
     ringTiltDeg: 26,
     axialSpinSpeedDegPerSec: 16,
-    description: 'Estadísticas de rendimiento, velocidad y cumplimiento del equipo.',
+    description: 'Estadísticas de velocidad y porcentaje de avance de este proyecto.',
   },
-  {
-    id: 'goals',
-    title: 'OBJETIVOS',
-    subtitle: 'Convierte planes en resultados',
-    targetView: 'goals',
-    targetSubView: 'goals',
-    category: 'habits',
-    color: '#f97316', // Ámbar / Cobre
-    secondaryColor: '#fb923c',
-    glowRgba: 'rgba(249, 115, 22, 0.45)',
-    accentHex: '#fdba74',
-    orbitTrackIndex: 2,
-    orbitRadiusX: 450,
-    orbitRadiusY: 260,
-    baseAngleRad: (175 * Math.PI) / 180, // Centro izquierda (~8:30h)
-    orbitSpeedRadPerSec: 0.004,
-    planetSizePx: 82,
-    ringTiltDeg: -20,
-    axialSpinSpeedDegPerSec: 12,
-    description: 'Metas mensuales medibles y progreso cuantitativo.',
-  },
+];
+
+// --------------------------------------------------------
+// 2. POLO HABIT CORE: 4 Módulos vinculados a la Disciplina Personal
+// --------------------------------------------------------
+export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
   {
     id: 'habits',
     title: 'MIS HÁBITOS',
     subtitle: 'Construye tu mejor versión',
     targetView: 'habits',
     targetSubView: 'habits',
-    category: 'habits',
+    pole: 'habits',
     color: '#10b981', // Esmeralda Matrix
     secondaryColor: '#06b6d4',
     glowRgba: 'rgba(16, 185, 129, 0.45)',
     accentHex: '#34d399',
-    orbitTrackIndex: 2,
-    orbitRadiusX: 450,
-    orbitRadiusY: 260,
-    baseAngleRad: (5 * Math.PI) / 180, // Centro derecha (~3:30h)
-    orbitSpeedRadPerSec: 0.004,
-    planetSizePx: 86,
-    ringTiltDeg: 30, // Anillo prominente estilo Saturno
+    orbitTrackIndex: 0,
+    orbitRadiusX: 215,
+    orbitRadiusY: 145,
+    baseAngleRad: 0, // Derecha (~3h)
+    orbitSpeedRadPerSec: 0.005,
+    planetSizePx: 82,
+    ringTiltDeg: 30,
     axialSpinSpeedDegPerSec: 15,
     description: 'Matriz de consistencia mensual, rachas e indicadores personales.',
   },
@@ -155,101 +144,159 @@ export const COMMAND_CENTER_MODULES: CommandCenterModuleConfig[] = [
     subtitle: 'Desafíos en equipo',
     targetView: 'challenges',
     targetSubView: 'challenges',
-    category: 'habits',
+    pole: 'habits',
     color: '#eab308', // Dorado / Oro
     secondaryColor: '#f59e0b',
     glowRgba: 'rgba(234, 179, 8, 0.45)',
     accentHex: '#fde047',
-    orbitTrackIndex: 0,
-    orbitRadiusX: 320,
-    orbitRadiusY: 195,
-    baseAngleRad: (125 * Math.PI) / 180, // Inferior izquierda (~7h)
+    orbitTrackIndex: 1,
+    orbitRadiusX: 195,
+    orbitRadiusY: 130,
+    baseAngleRad: Math.PI / 2, // Abajo (~6h)
     orbitSpeedRadPerSec: 0.0065,
-    planetSizePx: 82,
+    planetSizePx: 78,
     ringTiltDeg: -24,
     axialSpinSpeedDegPerSec: 14,
     description: 'Retos compartidos con tabla de posiciones y constancia grupal.',
+  },
+  {
+    id: 'goals',
+    title: 'OBJETIVOS',
+    subtitle: 'Convierte planes en resultados',
+    targetView: 'goals',
+    targetSubView: 'goals',
+    pole: 'habits',
+    color: '#f97316', // Ámbar / Cobre
+    secondaryColor: '#fb923c',
+    glowRgba: 'rgba(249, 115, 22, 0.45)',
+    accentHex: '#fdba74',
+    orbitTrackIndex: 1,
+    orbitRadiusX: 215,
+    orbitRadiusY: 145,
+    baseAngleRad: Math.PI, // Izquierda (~9h)
+    orbitSpeedRadPerSec: 0.004,
+    planetSizePx: 78,
+    ringTiltDeg: -20,
+    axialSpinSpeedDegPerSec: 12,
+    description: 'Metas mensuales medibles y progreso cuantitativo personal.',
   },
   {
     id: 'pomodoro',
     title: 'POMODORO',
     subtitle: 'Enfócate y avanza',
     targetView: 'pomodoro_action',
-    category: 'tools',
+    pole: 'habits',
     color: '#f43f5e', // Carmesí / Coral
     secondaryColor: '#fb7185',
     glowRgba: 'rgba(244, 63, 94, 0.45)',
     accentHex: '#fda4af',
     orbitTrackIndex: 0,
-    orbitRadiusX: 320,
-    orbitRadiusY: 195,
-    baseAngleRad: (55 * Math.PI) / 180, // Inferior derecha (~5h)
-    orbitSpeedRadPerSec: 0.0065,
-    planetSizePx: 80,
-    ringTiltDeg: 25,
+    orbitRadiusX: 195,
+    orbitRadiusY: 130,
+    baseAngleRad: -Math.PI / 2, // Arriba (~12h)
+    orbitSpeedRadPerSec: 0.008,
+    planetSizePx: 76,
+    ringTiltDeg: 18,
     axialSpinSpeedDegPerSec: 20,
     description: 'Bloques de concentración profunda con temporizador inteligente.',
   },
 ];
 
-// Pistas orbitales elípticas de fondo
-export const ORBITAL_TRACKS = [
-  { index: 0, radiusX: 310, radiusY: 190, strokeDash: '4 8', opacity: 0.22 },
-  { index: 1, radiusX: 375, radiusY: 225, strokeDash: '6 12', opacity: 0.28 },
-  { index: 2, radiusX: 450, radiusY: 260, strokeDash: '3 9', opacity: 0.2 },
+// Los 7 módulos unificados
+export const COMMAND_CENTER_MODULES: CommandCenterModuleConfig[] = [
+  ...WORKSPACE_MODULE_CONFIGS,
+  ...HABIT_MODULE_CONFIGS,
 ];
 
-export interface ResponsiveOrbitParams {
-  scaleX: number;
-  scaleY: number;
+// Pistas orbitales elípticas locales para cada polo
+export const POLE_ORBITAL_TRACKS = [
+  { index: 0, radiusX: 195, radiusY: 130, strokeDash: '4 8', opacity: 0.25 },
+  { index: 1, radiusX: 220, radiusY: 145, strokeDash: '6 12', opacity: 0.2 },
+];
+
+export interface BinaryOrbitParams {
+  isMobile: boolean;
+  layoutMode: 'panoramic' | 'focus';
+  containerWidth: number;
+  containerHeight: number;
+  // Centros orbitales para cada polo relativos al centro del canvas (0,0)
+  workspaceCenter: { x: number; y: number };
+  habitsCenter: { x: number; y: number };
+  // Radios orbitales elípticos escalados para cada polo
+  workspaceRadiusX: number;
+  workspaceRadiusY: number;
+  habitsRadiusX: number;
+  habitsRadiusY: number;
+  // Escalas visuales
   planetScale: number;
   coreScale: number;
-  isMobile: boolean;
-  containerHeightPx: number;
 }
 
-export function getResponsiveOrbitParams(
+export function getBinarySystemLayout(
   containerWidth: number,
-  containerHeight: number
-): ResponsiveOrbitParams {
-  const isMobile = containerWidth < 640;
+  containerHeight: number,
+  activePole: CommandCenterPole = 'workspace'
+): BinaryOrbitParams {
+  // En pantallas con ancho menor a 1024px, activamos el modo Focus (un polo a la vez, 100% centrado y legible)
+  const isMobile = containerWidth < 1024;
+  const isSmallPhone = containerWidth < 640;
 
   if (isMobile) {
-    // Para móviles (pantallas de 320px a 430px de ancho típico):
-    // El radio horizontal máximo no debe exceder el ancho seguro del viewport
     const safeW = Math.max(300, containerWidth);
-    const maxRadiusX = Math.min(145, Math.max(115, (safeW - 70) / 2));
-    // En móviles verticales, otorgar un radio vertical proporcionado para usar la altura de pantalla
-    const safeH = Math.max(480, containerHeight);
-    const maxRadiusY = Math.min(175, Math.max(130, (safeH - 170) / 2));
+    const safeH = Math.max(500, containerHeight);
 
-    const scaleX = maxRadiusX / 450;
-    const scaleY = maxRadiusY / 260;
-    const planetScale = Math.min(0.68, Math.max(0.55, safeW / 580));
-    const coreScale = Math.min(0.62, Math.max(0.50, safeW / 580));
+    // Radios seguros para móvil (ej. 375px de iPhone)
+    const maxRadiusX = Math.min(140, Math.max(110, (safeW - 75) / 2));
+    const maxRadiusY = Math.min(165, Math.max(120, (safeH - 180) / 2));
+
+    const planetScale = isSmallPhone
+      ? Math.min(0.68, Math.max(0.58, safeW / 580))
+      : 0.78;
+    const coreScale = isSmallPhone ? 0.65 : 0.8;
 
     return {
-      scaleX,
-      scaleY,
+      isMobile: true,
+      layoutMode: 'focus',
+      containerWidth: safeW,
+      containerHeight: safeH,
+      // En modo Focus, el polo seleccionado se coloca exactamente en el centro (0,0)
+      workspaceCenter: { x: 0, y: 0 },
+      habitsCenter: { x: 0, y: 0 },
+      workspaceRadiusX: maxRadiusX,
+      workspaceRadiusY: maxRadiusY,
+      habitsRadiusX: maxRadiusX,
+      habitsRadiusY: maxRadiusY,
       planetScale,
       coreScale,
-      isMobile: true,
-      containerHeightPx: safeH,
     };
   }
 
-  // Tablet & Desktop
-  const isTablet = containerWidth < 1024;
-  const baseScale = isTablet
-    ? Math.min(0.85, Math.max(0.68, (containerWidth - 40) / 1100))
-    : Math.min(1.0, Math.max(0.80, (containerWidth - 60) / 1280));
+  // Modo Panorámico Binario (Desktop >= 1024px)
+  const safeW = Math.max(1024, containerWidth);
+  const safeH = Math.max(620, containerHeight);
+
+  // Distancia del centro a cada polo (entre 270px y 330px)
+  const poleOffset = Math.min(330, Math.max(260, safeW * 0.25));
+
+  const baseScale = Math.min(1.0, Math.max(0.85, safeW / 1300));
+  const planetScale = baseScale * 0.92;
+  const coreScale = baseScale * 0.88;
+
+  const radiusX = Math.round(200 * baseScale);
+  const radiusY = Math.round(135 * baseScale);
 
   return {
-    scaleX: baseScale,
-    scaleY: baseScale,
-    planetScale: isTablet ? Math.max(0.8, baseScale) : baseScale,
-    coreScale: baseScale,
     isMobile: false,
-    containerHeightPx: Math.max(620, containerHeight),
+    layoutMode: 'panoramic',
+    containerWidth: safeW,
+    containerHeight: safeH,
+    workspaceCenter: { x: -poleOffset, y: 0 },
+    habitsCenter: { x: poleOffset, y: 0 },
+    workspaceRadiusX: radiusX,
+    workspaceRadiusY: radiusY,
+    habitsRadiusX: radiusX,
+    habitsRadiusY: radiusY,
+    planetScale,
+    coreScale,
   };
 }
