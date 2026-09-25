@@ -649,16 +649,59 @@ function buildShipSpeechText(
   }
 }
 
-let currentAdjutantAudio: HTMLAudioElement | null = null;
+let currentSessionId = 0;
+let activeAudioElement: HTMLAudioElement | null = null;
+let activeAbortController: AbortController | null = null;
+let registeredAudioTimers: NodeJS.Timeout[] = [];
+let voiceStatusListeners: ((isPlaying: boolean) => void)[] = [];
+
+export function registerVoiceStatusListener(listener: (isPlaying: boolean) => void): () => void {
+  voiceStatusListeners.push(listener);
+  return () => {
+    voiceStatusListeners = voiceStatusListeners.filter((l) => l !== listener);
+  };
+}
+
+function notifyVoiceStatus(isPlaying: boolean) {
+  voiceStatusListeners.forEach((fn) => {
+    try {
+      fn(isPlaying);
+    } catch {}
+  });
+}
+
+export function registerAudioTimer(timer: NodeJS.Timeout): void {
+  registeredAudioTimers.push(timer);
+}
 
 export function stopAdjutantAudio(): void {
-  if (currentAdjutantAudio) {
+  // 1. Invalidar cualquier sesión asíncrona en curso (fetch, decode, timeouts)
+  currentSessionId++;
+
+  // 2. Limpiar todos los temporizadores pendientes de audio
+  registeredAudioTimers.forEach((timer) => clearTimeout(timer));
+  registeredAudioTimers = [];
+
+  // 3. Cancelar cualquier petición de red en curso
+  if (activeAbortController) {
     try {
-      currentAdjutantAudio.pause();
-      currentAdjutantAudio.currentTime = 0;
+      activeAbortController.abort();
     } catch {}
-    currentAdjutantAudio = null;
+    activeAbortController = null;
   }
+
+  // 4. Detener y desechar cualquier elemento de audio HTML activo de inmediato
+  if (activeAudioElement) {
+    try {
+      activeAudioElement.pause();
+      activeAudioElement.currentTime = 0;
+      activeAudioElement.src = '';
+      activeAudioElement.load();
+    } catch {}
+    activeAudioElement = null;
+  }
+
+  // 5. Cancelar síntesis de voz del navegador
   stopServoRumble();
   activeUtterance = null;
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -666,12 +709,16 @@ export function stopAdjutantAudio(): void {
       window.speechSynthesis.cancel();
     } catch {}
   }
+
+  // 6. Notificar al HUD que la voz se ha detenido
+  notifyVoiceStatus(false);
 }
 
 /**
  * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
  * Genera dinámicamente el audio con el nombre del usuario, tareas y proyectos
  * procesado en tiempo real con la cadena DSP de StarCraft 2: Terran Adjutant
+ * Garantiza CERO solapamientos y cancelación inmediata ante nuevos clics.
  */
 export function playShipWelcomeVoice(
   userName: string,
@@ -682,68 +729,80 @@ export function playShipWelcomeVoice(
   if (typeof window === 'undefined') return;
 
   try {
+    // 1. Detener de forma sincrónica cualquier audio previo
     stopAdjutantAudio();
 
+    const thisSessionId = currentSessionId;
     const lang = customLang || getSoundLanguage();
-    const firstName = userName ? userName.trim().split(' ')[0] : (lang === 'es' ? 'Comandante' : 'Commander');
+
+    // 2. Limpieza fonética del nombre: si es correo electrónico o nombre largo, extraer solo el primer nombre
+    let cleanName = userName ? userName.trim() : '';
+    if (cleanName.includes('@')) {
+      cleanName = cleanName.split('@')[0].replace(/[._-]/g, ' ');
+    }
+    const firstName = cleanName
+      ? sanitizeVoiceText(cleanName.split(' ')[0], 25)
+      : lang === 'es' ? 'Comandante' : 'Commander';
+
     const text = buildShipSpeechText(firstName, lang, briefing);
 
-    // Chime inicial inmediato de intercomunicador
+    // 3. Chime inicial inmediato de intercomunicador espacial
     playSpaceshipEchoChime();
+    notifyVoiceStatus(true);
 
-    // Llamada dinámica a la API con Blizzard DSP que pronuncia el nombre exacto del usuario y las tareas
+    const abortController = new AbortController();
+    activeAbortController = abortController;
+
     const dynamicUrl = `/api/adjutant-voice?lang=${lang}&text=${encodeURIComponent(text)}`;
-    const audio = new Audio(dynamicUrl);
-    currentAdjutantAudio = audio;
-    audio.volume = 1.0;
 
-    audio.onended = () => {
-      if (currentAdjutantAudio === audio) {
-        currentAdjutantAudio = null;
-      }
-    };
+    // Petición Blob: pre-carga el audio en memoria antes de reproducir para evitar cortes o fallbacks prematuros
+    fetch(dynamicUrl, { signal: abortController.signal })
+      .then(async (response) => {
+        if (thisSessionId !== currentSessionId) return;
+        if (!response.ok) {
+          throw new Error(`Server returned status ${response.status}`);
+        }
+        const blob = await response.blob();
+        if (thisSessionId !== currentSessionId) return;
 
-    audio.onerror = () => {
-      // Fallback si la API dinámica no responde
-      playStaticOrSynthesisFallback(lang, briefing, userName);
-    };
+        const objectUrl = URL.createObjectURL(blob);
+        const audio = new Audio(objectUrl);
+        activeAudioElement = audio;
+        audio.volume = 1.0;
 
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        playStaticOrSynthesisFallback(lang, briefing, userName);
+        audio.onended = () => {
+          if (thisSessionId === currentSessionId) {
+            activeAudioElement = null;
+            notifyVoiceStatus(false);
+            URL.revokeObjectURL(objectUrl);
+          }
+        };
+
+        audio.onerror = () => {
+          if (thisSessionId === currentSessionId) {
+            URL.revokeObjectURL(objectUrl);
+            playShipWelcomeVoiceSynthesisFallback(firstName, lang, briefing);
+          }
+        };
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            if (thisSessionId === currentSessionId) {
+              URL.revokeObjectURL(objectUrl);
+              playShipWelcomeVoiceSynthesisFallback(firstName, lang, briefing);
+            }
+          });
+        }
+      })
+      .catch((err) => {
+        if (thisSessionId !== currentSessionId) return;
+        if (err.name === 'AbortError') return;
+        // Si la API falla o no hay conexión, usar síntesis Web Speech personalizada con nombre y proyecto
+        playShipWelcomeVoiceSynthesisFallback(firstName, lang, briefing);
       });
-    }
   } catch {
-    playStaticOrSynthesisFallback(customLang || 'es', briefing, userName);
-  }
-}
-
-/**
- * Fallback a clips estáticos o síntesis si la generación dinámica falla
- */
-function playStaticOrSynthesisFallback(
-  lang: 'es' | 'en',
-  briefing?: ShipVoiceBriefingOptions,
-  userName: string = ''
-) {
-  try {
-    const count = briefing?.totalPendingCount ?? (briefing?.pendingTasks?.length ?? 0);
-    let clipFile = `adjutant_generic_${lang}.wav`;
-    if (briefing && briefing.pendingTasks) {
-      if (count === 0) clipFile = `adjutant_ready_${lang}.wav`;
-      else if (count === 1) clipFile = `adjutant_single_${lang}.wav`;
-      else clipFile = `adjutant_multi_${lang}.wav`;
-    }
-
-    const staticAudio = new Audio(`/sounds/adjutant/${clipFile}`);
-    currentAdjutantAudio = staticAudio;
-    staticAudio.volume = 1.0;
-    staticAudio.play().catch(() => {
-      playShipWelcomeVoiceSynthesisFallback(userName, lang, briefing);
-    });
-  } catch {
-    playShipWelcomeVoiceSynthesisFallback(userName, lang, briefing);
+    playShipWelcomeVoiceSynthesisFallback(userName, customLang || 'es', briefing);
   }
 }
 
@@ -855,6 +914,7 @@ function playShipWelcomeVoiceSynthesisFallback(
     playSpaceshipEchoChime();
 
     utterance.onstart = () => {
+      notifyVoiceStatus(true);
       const ctx = getAudioContext();
       if (ctx) startServoRumble(ctx);
     };
@@ -869,23 +929,27 @@ function playShipWelcomeVoiceSynthesisFallback(
     utterance.onend = () => {
       stopServoRumble();
       activeUtterance = null;
+      notifyVoiceStatus(false);
       playSpaceshipEchoRoger();
     };
 
     utterance.onerror = () => {
       stopServoRumble();
       activeUtterance = null;
+      notifyVoiceStatus(false);
     };
 
     // Retardo de 260ms para permitir que el squelch inicial resuene antes de la primera palabra
-    setTimeout(() => {
+    const synthTimer = setTimeout(() => {
       try {
         window.speechSynthesis.speak(utterance);
       } catch {
         stopServoRumble();
         activeUtterance = null;
+        notifyVoiceStatus(false);
       }
     }, 260);
+    registerAudioTimer(synthTimer);
   } catch {}
 }
 

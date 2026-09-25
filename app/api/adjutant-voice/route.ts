@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { execSync } from 'child_process';
+import { exec } from 'child_process';
 
 export const dynamic = 'force-dynamic';
 
@@ -134,27 +134,44 @@ export async function GET(req: NextRequest) {
     // 2. Generar con SAPI + Blizzard DSP
     const voice = lang === 'en' ? 'Microsoft Zira Desktop' : 'Microsoft Helena Desktop';
     const tempRawPath = path.join(tempDir, `raw_${hash}.wav`);
-    const textB64 = Buffer.from(cleanText, 'utf-8').toString('base64');
+    const cleanTextSafe = cleanText.replace(/'/g, "''");
 
-    const psCommand = `
-      Add-Type -AssemblyName System.Speech;
-      $s = New-Object System.Speech.Synthesis.SpeechSynthesizer;
-      try { $s.SelectVoice('${voice}'); } catch {}
-      $s.Rate = -1;
-      $s.SetOutputToWaveFile('${tempRawPath.replace(/\\/g, '/')}');
-      $bytes = [System.Convert]::FromBase64String('${textB64}');
-      $text = [System.Text.Encoding]::UTF8.GetString($bytes);
-      $s.Speak($text);
-      $s.Dispose();
-    `.trim().replace(/\n\s+/g, ' ');
+    const psScript = `
+Add-Type -AssemblyName System.Speech
+$s = New-Object System.Speech.Synthesis.SpeechSynthesizer
+$targetVoice = '${voice}'
+try { $s.SelectVoice($targetVoice) } catch {
+  $v = $s.GetInstalledVoices() | Where-Object { $_.VoiceInfo.Name -match 'Helena|Sabina|Laura|Zira|Desktop' } | Select-Object -First 1
+  if ($v) { $s.SelectVoice($v.VoiceInfo.Name) }
+}
+$s.Rate = -1
+$s.SetOutputToWaveFile('${tempRawPath.replace(/\\/g, '/')}')
+$s.Speak('${cleanTextSafe}')
+$s.Dispose()
+`;
 
-    execSync(`powershell -ExecutionPolicy Bypass -Command "${psCommand}"`);
+    // Utilizar -EncodedCommand en Base64 UTF-16LE para máxima estabilidad y evitar cualquier conflicto de comillas
+    const encodedCommand = Buffer.from(psScript, 'utf16le').toString('base64');
+
+    await new Promise<void>((resolve, reject) => {
+      exec(
+        `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`,
+        { timeout: 8000 },
+        (err, _stdout, stderr) => {
+          if (err) return reject(new Error(stderr || err.message));
+          if (!fs.existsSync(tempRawPath)) return reject(new Error('SAPI output file was not created'));
+          resolve();
+        }
+      );
+    });
 
     // 3. Aplicar Blizzard DSP y guardar en caché
     const dspBuf = applyBlizzardDSP(tempRawPath, cachedFilePath);
 
     // Limpiar archivo temporal sin procesar
-    try { fs.unlinkSync(tempRawPath); } catch {}
+    try {
+      fs.unlinkSync(tempRawPath);
+    } catch {}
 
     return new Response(new Uint8Array(dspBuf), {
       status: 200,

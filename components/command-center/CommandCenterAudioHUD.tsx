@@ -11,6 +11,9 @@ import {
   playSciFiBootSequence,
   startAmbientWarpDrone,
   stopAmbientWarpDrone,
+  stopAdjutantAudio,
+  registerVoiceStatusListener,
+  registerAudioTimer,
   ShipVoiceBriefingOptions,
 } from '@/lib/soundEffects';
 
@@ -32,6 +35,11 @@ export const CommandCenterAudioHUD: React.FC<CommandCenterAudioHUDProps> = ({
   useEffect(() => {
     setEnabled(isSoundEnabled());
     setLang(getSoundLanguage());
+
+    const unsub = registerVoiceStatusListener((playing) => {
+      setIsPlayingGreeting(playing);
+    });
+    return () => unsub();
   }, []);
 
   const handleToggleSound = () => {
@@ -42,6 +50,7 @@ export const CommandCenterAudioHUD: React.FC<CommandCenterAudioHUDProps> = ({
       startAmbientWarpDrone();
     } else {
       stopAmbientWarpDrone();
+      stopAdjutantAudio();
     }
   };
 
@@ -54,17 +63,30 @@ export const CommandCenterAudioHUD: React.FC<CommandCenterAudioHUDProps> = ({
 
   const handleReplayGreeting = (e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Si ya está sonando, un clic adicional detiene la transmisión limpiamente (función interruptor/silenciar)
+    if (isPlayingGreeting) {
+      stopAdjutantAudio();
+      setIsPlayingGreeting(false);
+      return;
+    }
+
     if (!enabled) {
       setEnabled(true);
       setSoundEnabled(true);
     }
+
+    // Detener cualquier sonido previo de forma inmediata
+    stopAdjutantAudio();
     setIsPlayingGreeting(true);
     playSciFiBootSequence();
-    setTimeout(() => {
+
+    const timer = setTimeout(() => {
       playShipWelcomeVoice(currentUserName, lang, briefing);
       startAmbientWarpDrone();
-      setIsPlayingGreeting(false);
     }, 450);
+
+    registerAudioTimer(timer);
   };
 
   const hasPendingTasks = (briefing?.totalPendingCount ?? 0) > 0;
@@ -118,20 +140,21 @@ export const CommandCenterAudioHUD: React.FC<CommandCenterAudioHUDProps> = ({
         <span className={lang === 'en' ? 'text-cyan-300' : 'text-zinc-500'}>EN</span>
       </button>
 
-      {/* Boton Com-Link: Reproducir saludo o informe táctico de nave bajo demanda */}
+      {/* Boton Com-Link: Reproducir o detener saludo e informe táctico de nave */}
       <button
         type="button"
         onClick={handleReplayGreeting}
-        disabled={isPlayingGreeting}
         className={`relative p-1 rounded-lg text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950/30 transition-all duration-300 ${
-          isPlayingGreeting ? 'animate-pulse text-cyan-400' : ''
+          isPlayingGreeting ? 'animate-pulse text-cyan-400 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.4)]' : ''
         }`}
         title={
-          hasPendingTasks
+          isPlayingGreeting
+            ? 'Enlace táctico activo (Transmitiendo) · Clic para silenciar / detener'
+            : hasPendingTasks
             ? `Enlace táctico (Com-Link) · ${briefing?.totalPendingCount} tarea(s) pendiente(s). Clic para informe por voz`
             : 'Enlace táctico (Com-Link) · Clic para informe de sistemas por voz'
         }
-        aria-label="Repetir informe de cabina por voz"
+        aria-label={isPlayingGreeting ? 'Detener transmisión táctica' : 'Repetir informe de cabina por voz'}
       >
         <Radio className="w-3 h-3" />
         {hasPendingTasks && (

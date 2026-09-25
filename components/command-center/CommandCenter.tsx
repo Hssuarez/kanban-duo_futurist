@@ -34,6 +34,8 @@ import {
   playShipWelcomeVoice,
   startAmbientWarpDrone,
   stopAmbientWarpDrone,
+  stopAdjutantAudio,
+  registerAudioTimer,
   playPlanetTelemetrySound,
   playGiroDriftSound,
   playWarpJumpSound,
@@ -128,11 +130,13 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
       bootTimer = setTimeout(() => {
         playSciFiBootSequence();
       }, 400);
+      registerAudioTimer(bootTimer);
 
       voiceTimer = setTimeout(() => {
         playShipWelcomeVoice(currentUser.name, undefined, voiceBriefingRef.current);
         markWelcomedThisSession();
       }, 950);
+      registerAudioTimer(voiceTimer);
 
       droneTimer = setTimeout(() => {
         startAmbientWarpDrone();
@@ -148,9 +152,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     const handleVisibilityChange = () => {
       if (document.hidden) {
         stopAmbientWarpDrone();
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-        }
+        stopAdjutantAudio();
       } else if (isSoundEnabled()) {
         startAmbientWarpDrone();
       }
@@ -164,9 +166,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
       if (droneTimer) clearTimeout(droneTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       stopAmbientWarpDrone();
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopAdjutantAudio();
     };
   }, [currentUser.name]);
 
@@ -273,6 +273,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
       totalPendingCount,
     };
   }, [tasks, effectiveProjectTasks, accessibleProjects, activeProject, currentUser.id]);
+  voiceBriefingRef.current = voiceBriefing;
 
   // Sincronizar referencia inmediata para la ejecución del temporizador de audio de cabina
   useEffect(() => {
