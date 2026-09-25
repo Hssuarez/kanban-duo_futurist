@@ -480,11 +480,11 @@ function startServoRumble(ctx: AudioContext) {
     osc.start(now);
     activeServo = { osc, gain };
 
-    // Temporizador de seguridad de 8s para garantizar que nunca quede sonando
+    // Temporizador de seguridad de 24s para garantizar que nunca quede sonando incluso en discursos largos
     if (servoSafetyTimer) clearTimeout(servoSafetyTimer);
     servoSafetyTimer = setTimeout(() => {
       stopServoRumble();
-    }, 8000);
+    }, 24000);
   } catch {}
 }
 
@@ -515,11 +515,119 @@ function stopServoRumble() {
   }
 }
 
+export interface PendingTaskVoiceItem {
+  id?: string;
+  title: string;
+  projectName: string;
+  priority?: 'alta' | 'media' | 'baja' | string;
+  status?: 'iniciado' | 'trabajando' | 'finalizado' | string;
+}
+
+export interface ShipVoiceBriefingOptions {
+  pendingTasks?: PendingTaskVoiceItem[];
+  totalPendingCount?: number;
+}
+
+/**
+ * Limpieza fonética de texto para síntesis de voz espacial (elimina URLs, markdown y símbolos)
+ */
+export function sanitizeVoiceText(input: string, maxChars: number = 45): string {
+  if (!input) return '';
+  // Eliminar URLs
+  let text = input.replace(/https?:\/\/\S+/gi, '');
+  // Eliminar markdown y caracteres de puntuación conflictivos
+  text = text.replace(/[*_#~`\\/|{}[\]<>@$%^&=+]/g, ' ');
+  // Colapsar espacios múltiples
+  text = text.trim().replace(/\s+/g, ' ');
+  if (text.length <= maxChars) return text;
+  // Truncar limpiamente sin cortar palabras si es posible
+  const truncated = text.slice(0, maxChars);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return (lastSpace > 15 ? truncated.slice(0, lastSpace) : truncated).trim();
+}
+
+/**
+ * Genera el guión táctico de voz para la IA según tareas pendientes y lenguaje
+ */
+function buildShipSpeechText(
+  firstName: string,
+  lang: 'es' | 'en',
+  briefing?: ShipVoiceBriefingOptions
+): string {
+  const intro =
+    lang === 'es'
+      ? `INICIANDO PROTOCOLO. Identificación biométrica... confirmada. Comandante ${firstName}...`
+      : `PROTOCOL INITIATED. Biometric authorization... confirmed. Commander ${firstName}...`;
+
+  // Sin informe de tareas provisto: saludo estándar
+  if (!briefing || !briefing.pendingTasks) {
+    return lang === 'es'
+      ? `${intro} Núcleo orbital... en línea. Inteligencia Artificial... a su servicio.`
+      : `${intro} Orbital core... online. Artificial Intelligence... standing by.`;
+  }
+
+  const count = briefing.totalPendingCount ?? briefing.pendingTasks.length;
+
+  // Cero tareas pendientes
+  if (count === 0 || briefing.pendingTasks.length === 0) {
+    return lang === 'es'
+      ? `${intro} Núcleo orbital sincronizado. No se detectan tareas pendientes en el registro táctico. Todos los sistemas... operativos.`
+      : `${intro} Orbital core synchronized. No pending tasks detected in tactical logs. All systems... operational.`;
+  }
+
+  // 1 tarea pendiente
+  if (count === 1 || briefing.pendingTasks.length === 1) {
+    const task = briefing.pendingTasks[0];
+    const title = sanitizeVoiceText(task.title, 45);
+    const project = sanitizeVoiceText(task.projectName, 30);
+    const isWorking = task.status === 'trabajando';
+
+    if (lang === 'es') {
+      const statusPhrase = isWorking ? 'una tarea en curso' : 'una tarea pendiente';
+      return `${intro} Alerta táctica: Tienes ${statusPhrase}: ${title}... en el proyecto... ${project}. Sistemas de abordo... en línea.`;
+    } else {
+      const statusPhrase = isWorking ? 'one active mission in progress' : 'one pending task';
+      return `${intro} Tactical alert: You have ${statusPhrase}: ${title}... in project... ${project}. Ship systems... online.`;
+    }
+  }
+
+  // 2 tareas pendientes
+  if (count === 2 || briefing.pendingTasks.length === 2) {
+    const t1 = briefing.pendingTasks[0];
+    const t2 = briefing.pendingTasks[1];
+    const title1 = sanitizeVoiceText(t1.title, 40);
+    const proj1 = sanitizeVoiceText(t1.projectName, 26);
+    const title2 = sanitizeVoiceText(t2.title, 40);
+    const proj2 = sanitizeVoiceText(t2.projectName, 26);
+
+    if (lang === 'es') {
+      return `${intro} Informe táctico: Tienes dos tareas activas. Misión prioritaria: ${title1}... en el proyecto... ${proj1}... y tarea secundaria: ${title2}... en... ${proj2}. Sistemas listos.`;
+    } else {
+      return `${intro} Tactical report: You have two active missions. Priority: ${title1}... in project... ${proj1}... and secondary: ${title2}... in... ${proj2}. Systems ready.`;
+    }
+  }
+
+  // 3 o más tareas pendientes
+  const primaryTask = briefing.pendingTasks[0];
+  const primaryTitle = sanitizeVoiceText(primaryTask.title, 45);
+  const primaryProject = sanitizeVoiceText(primaryTask.projectName, 28);
+
+  if (lang === 'es') {
+    return `${intro} Informe táctico: Tienes ${count} tareas pendientes. Misión prioritaria: ${primaryTitle}... en el proyecto... ${primaryProject}. Inteligencia Artificial... a su servicio.`;
+  } else {
+    return `${intro} Tactical report: You have ${count} pending tasks. Priority mission: ${primaryTitle}... in project... ${primaryProject}. Artificial Intelligence... standing by.`;
+  }
+}
+
 /**
  * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
- * Configurado con voz profundamente robotizada, metálica y eco acústico de puente de nave
+ * Configurado con voz profundamente robotizada, metálica, escaneo de tareas pendientes y eco acústico
  */
-export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en') {
+export function playShipWelcomeVoice(
+  userName: string,
+  customLang?: 'es' | 'en',
+  briefing?: ShipVoiceBriefingOptions
+) {
   if (!isSoundEnabled()) return;
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
@@ -531,11 +639,8 @@ export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en')
     const lang = customLang || getSoundLanguage();
     const firstName = userName ? userName.trim().split(' ')[0] : (lang === 'es' ? 'Comandante' : 'Commander');
 
-    // Guión estructurado con sintaxis puramente de máquina militar
-    const text =
-      lang === 'es'
-        ? `INICIANDO PROTOCOLO. Identificación biométrica... confirmada. Núcleo orbital... en línea. Comandante ${firstName}... Inteligencia Artificial... a su servicio.`
-        : `PROTOCOL INITIATED. Biometric authorization... confirmed. Orbital core... online. Commander ${firstName}... Artificial Intelligence... standing by.`;
+    // Generar guión dinámico con inspección de misiones tácticas
+    const text = buildShipSpeechText(firstName, lang, briefing);
 
     const utterance = new SpeechSynthesisUtterance(text);
     activeUtterance = utterance; // Retener referencia para evitar recolección de basura de Chromium

@@ -11,16 +11,19 @@ import {
   playSciFiBootSequence,
   startAmbientWarpDrone,
   stopAmbientWarpDrone,
+  ShipVoiceBriefingOptions,
 } from '@/lib/soundEffects';
 
 interface CommandCenterAudioHUDProps {
   currentUserName: string;
   isMobile?: boolean;
+  briefing?: ShipVoiceBriefingOptions;
 }
 
 export const CommandCenterAudioHUD: React.FC<CommandCenterAudioHUDProps> = ({
   currentUserName,
   isMobile = false,
+  briefing,
 }) => {
   const [enabled, setEnabled] = useState(true);
   const [lang, setLang] = useState<'es' | 'en'>('es');
@@ -58,11 +61,13 @@ export const CommandCenterAudioHUD: React.FC<CommandCenterAudioHUDProps> = ({
     setIsPlayingGreeting(true);
     playSciFiBootSequence();
     setTimeout(() => {
-      playShipWelcomeVoice(currentUserName, lang);
+      playShipWelcomeVoice(currentUserName, lang, briefing);
       startAmbientWarpDrone();
       setIsPlayingGreeting(false);
     }, 450);
   };
+
+  const hasPendingTasks = (briefing?.totalPendingCount ?? 0) > 0;
 
   return (
     <div
@@ -113,18 +118,25 @@ export const CommandCenterAudioHUD: React.FC<CommandCenterAudioHUDProps> = ({
         <span className={lang === 'en' ? 'text-cyan-300' : 'text-zinc-500'}>EN</span>
       </button>
 
-      {/* Boton Com-Link: Reproducir saludo de nave bajo demanda */}
+      {/* Boton Com-Link: Reproducir saludo o informe táctico de nave bajo demanda */}
       <button
         type="button"
         onClick={handleReplayGreeting}
         disabled={isPlayingGreeting}
-        className={`p-1 rounded-lg text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950/30 transition-all duration-300 ${
+        className={`relative p-1 rounded-lg text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950/30 transition-all duration-300 ${
           isPlayingGreeting ? 'animate-pulse text-cyan-400' : ''
         }`}
-        title="Enlace de cabina (Com-Link) / Repetir saludo de la nave"
-        aria-label="Repetir saludo de cabina"
+        title={
+          hasPendingTasks
+            ? `Enlace táctico (Com-Link) · ${briefing?.totalPendingCount} tarea(s) pendiente(s). Clic para informe por voz`
+            : 'Enlace táctico (Com-Link) · Clic para informe de sistemas por voz'
+        }
+        aria-label="Repetir informe de cabina por voz"
       >
         <Radio className="w-3 h-3" />
+        {hasPendingTasks && (
+          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.9)] animate-pulse" />
+        )}
       </button>
     </div>
   );

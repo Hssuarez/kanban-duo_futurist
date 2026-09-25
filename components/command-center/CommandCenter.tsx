@@ -37,6 +37,8 @@ import {
   playPlanetTelemetrySound,
   playGiroDriftSound,
   playWarpJumpSound,
+  ShipVoiceBriefingOptions,
+  PendingTaskVoiceItem,
 } from '@/lib/soundEffects';
 
 // Data sources
@@ -102,6 +104,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
   // Detección de gestos Swipe en móvil
   const touchStartXRef = useRef<number | null>(null);
 
+  // Ref táctico para la voz de cabina con informe de tareas
+  const voiceBriefingRef = useRef<ShipVoiceBriefingOptions | undefined>(undefined);
+
   // 2. Suscribirse a Pomodoro
   useEffect(() => {
     const unsub = subscribePomodoro((state) => {
@@ -125,7 +130,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
       }, 400);
 
       voiceTimer = setTimeout(() => {
-        playShipWelcomeVoice(currentUser.name);
+        playShipWelcomeVoice(currentUser.name, undefined, voiceBriefingRef.current);
         markWelcomedThisSession();
       }, 950);
 
@@ -186,6 +191,93 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     if (activeProject) return tasks.filter((t) => t.projectId === activeProject.id);
     return [];
   }, [projectTasks, tasks, activeProject]);
+
+  // 4b. Diagnóstico Táctico de Tareas para la Voz de la IA de a Bordo
+  const voiceBriefing = useMemo<ShipVoiceBriefingOptions>(() => {
+    // 1. Recolectar tareas pendientes (status !== 'finalizado')
+    // Prioridad 1: Tareas asignadas directamente al usuario actual
+    const userPending = tasks.filter(
+      (t) => t.assignedTo === currentUser.id && t.status !== 'finalizado'
+    );
+
+    // Prioridad 2: Tareas del proyecto activo si el usuario no tiene tareas asignadas
+    const projectPending = effectiveProjectTasks.filter(
+      (t) => t.status !== 'finalizado'
+    );
+
+    // Prioridad 3: Cualquier tarea accesible pendiente
+    const allPending = tasks.filter((t) => t.status !== 'finalizado');
+
+    // Selección de conjunto base para el informe
+    const targetList =
+      userPending.length > 0
+        ? userPending
+        : projectPending.length > 0
+        ? projectPending
+        : allPending;
+
+    const totalPendingCount = targetList.length;
+
+    // 2. Ordenamiento táctico:
+    // - Primero 'trabajando' (en curso), luego 'iniciado'
+    // - Prioridad 'alta' > 'media' > 'baja'
+    // - Fechas de vencimiento más próximas primero
+    const priorityWeight: Record<string, number> = {
+      alta: 3,
+      media: 2,
+      baja: 1,
+    };
+    const statusWeight: Record<string, number> = {
+      trabajando: 2,
+      iniciado: 1,
+      finalizado: 0,
+    };
+
+    const sortedTasks = [...targetList].sort((a, b) => {
+      const swA = statusWeight[a.status] || 0;
+      const swB = statusWeight[b.status] || 0;
+      if (swA !== swB) return swB - swA;
+
+      const pwA = priorityWeight[a.priority] || 1;
+      const pwB = priorityWeight[b.priority] || 1;
+      if (pwA !== pwB) return pwB - pwA;
+
+      if (a.dueDate && b.dueDate) {
+        return a.dueDate.localeCompare(b.dueDate);
+      }
+      if (a.dueDate) return -1;
+      if (b.dueDate) return 1;
+
+      return 0;
+    });
+
+    // 3. Mapear a formato de voz con resolución precisa de nombre de proyecto
+    const pendingVoiceItems: PendingTaskVoiceItem[] = sortedTasks.slice(0, 3).map((t) => {
+      const proj =
+        accessibleProjects.find((p) => p.id === (t.projectId || 'proj-default')) ||
+        (activeProject && (!t.projectId || t.projectId === activeProject.id) ? activeProject : null);
+
+      const projectName = proj?.name || activeProject?.name || 'Misión Principal';
+
+      return {
+        id: t.id,
+        title: t.title,
+        projectName,
+        priority: t.priority,
+        status: t.status,
+      };
+    });
+
+    return {
+      pendingTasks: pendingVoiceItems,
+      totalPendingCount,
+    };
+  }, [tasks, effectiveProjectTasks, accessibleProjects, activeProject, currentUser.id]);
+
+  // Sincronizar referencia inmediata para la ejecución del temporizador de audio de cabina
+  useEffect(() => {
+    voiceBriefingRef.current = voiceBriefing;
+  }, [voiceBriefing]);
 
   // 5. Extracción de Métricas Reales del Sistema
   const moduleStats = useMemo<Record<string, ModuleStatItem[]>>(() => {
@@ -544,6 +636,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
             <CommandCenterAudioHUD
               currentUserName={currentUser.name}
               isMobile={true}
+              briefing={voiceBriefing}
             />
           </div>
         </header>
@@ -554,6 +647,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
             <CommandCenterAudioHUD
               currentUserName={currentUser.name}
               isMobile={false}
+              briefing={voiceBriefing}
             />
           </div>
 
