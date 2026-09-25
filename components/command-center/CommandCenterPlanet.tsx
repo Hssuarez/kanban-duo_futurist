@@ -41,21 +41,34 @@ const MODULE_ICONS: Record<string, React.ElementType> = {
   pomodoro: Timer,
 };
 
-export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
-  module,
-  stats,
-  x,
-  y,
-  size: sizeProp,
-  isHovered,
-  onHover,
-  onNavigate,
-  onDragStateChange,
-  isMobile = false,
-  positionPreference = 'right',
-  zIndex,
-}) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+export const CommandCenterPlanet = React.forwardRef<HTMLDivElement, CommandCenterPlanetProps>(
+  (
+    {
+      module,
+      stats,
+      x,
+      y,
+      size: sizeProp,
+      isHovered,
+      onHover,
+      onNavigate,
+      onDragStateChange,
+      isMobile = false,
+      positionPreference = 'right',
+      zIndex,
+    },
+    forwardedRef
+  ) => {
+    const containerRef = useRef<HTMLDivElement | null>(null);
+
+    const setContainerRef = (node: HTMLDivElement | null) => {
+      containerRef.current = node;
+      if (typeof forwardedRef === 'function') {
+        forwardedRef(node);
+      } else if (forwardedRef) {
+        (forwardedRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }
+    };
 
   // Estado de rotación axial (imperativo en refs para máximo rendimiento 60 FPS sin re-renders)
   const rotationYawRef = useRef<number>(Math.random() * 360);
@@ -159,7 +172,7 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
   return (
     // Capa 1: Posición orbital (translateX / translateY)
     <div
-      ref={containerRef}
+      ref={setContainerRef}
       className="absolute top-1/2 left-1/2 pointer-events-auto select-none"
       style={{
         transform: `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0)`,
@@ -336,4 +349,6 @@ export const CommandCenterPlanet: React.FC<CommandCenterPlanetProps> = ({
       )}
     </div>
   );
-};
+});
+
+CommandCenterPlanet.displayName = 'CommandCenterPlanet';

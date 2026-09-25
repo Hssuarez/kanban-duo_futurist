@@ -1,15 +1,22 @@
 'use client';
 
-import React from 'react';
-import { CommandCenterModuleConfig } from './commandCenterConfig';
+import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 
-interface PlanetPosition {
+export interface PlanetPosition {
   id: string;
   x: number; // Coordenada x relativa al centro (0 = centro)
   y: number; // Coordenada y relativa al centro (0 = centro)
   originX?: number; // Centro del polo emisor
   originY?: number;
   color: string;
+}
+
+export interface CommandCenterConnectionsHandle {
+  updatePositions: (
+    positions: PlanetPosition[],
+    containerWidth: number,
+    containerHeight: number
+  ) => void;
 }
 
 interface CommandCenterConnectionsProps {
@@ -19,12 +26,87 @@ interface CommandCenterConnectionsProps {
   containerHeight: number;
 }
 
-export const CommandCenterConnections: React.FC<CommandCenterConnectionsProps> = ({
-  planetPositions,
-  hoveredModuleId,
-  containerWidth,
-  containerHeight,
-}) => {
+function computeBeamD(
+  origX: number,
+  origY: number,
+  targetX: number,
+  targetY: number,
+  posX: number,
+  posY: number
+) {
+  const midX = (origX + targetX) / 2;
+  const midY = (origY + targetY) / 2;
+  const curveOffset = Math.sin((posX + posY) * 0.01) * 16;
+  const ctrlX = midX - (targetY - origY) * 0.05 + curveOffset;
+  const ctrlY = midY + (targetX - origX) * 0.05;
+
+  const dx = targetX - ctrlX;
+  const dy = targetY - ctrlY;
+  const dist = Math.hypot(dx, dy) || 1;
+  const planetRimOffset = 38;
+  const endX = targetX - (dx / dist) * planetRimOffset;
+  const endY = targetY - (dy / dist) * planetRimOffset;
+
+  return {
+    pathD: `M ${origX} ${origY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`,
+    endX,
+    endY,
+  };
+}
+
+export const CommandCenterConnections = forwardRef<
+  CommandCenterConnectionsHandle,
+  CommandCenterConnectionsProps
+>(({ planetPositions, hoveredModuleId, containerWidth, containerHeight }, ref) => {
+  const beamPathRefs = useRef<Record<string, SVGPathElement | null>>({});
+  const beamPulseRefs = useRef<Record<string, SVGPathElement | null>>({});
+  const beamCircleRefs = useRef<Record<string, SVGCircleElement | null>>({});
+  const gradRefs = useRef<Record<string, SVGLinearGradientElement | null>>({});
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      updatePositions: (positions, cw, ch) => {
+        const cx = cw / 2;
+        const cy = ch / 2;
+        for (const pos of positions) {
+          const origX = cx + (pos.originX || 0);
+          const origY = cy + (pos.originY || 0);
+          const targetX = cx + pos.x;
+          const targetY = cy + pos.y;
+
+          const { pathD, endX, endY } = computeBeamD(
+            origX,
+            origY,
+            targetX,
+            targetY,
+            pos.x,
+            pos.y
+          );
+
+          const pathEl = beamPathRefs.current[pos.id];
+          if (pathEl) pathEl.setAttribute('d', pathD);
+
+          const pulseEl = beamPulseRefs.current[pos.id];
+          if (pulseEl) pulseEl.setAttribute('d', pathD);
+
+          const circleEl = beamCircleRefs.current[pos.id];
+          if (circleEl) {
+            circleEl.setAttribute('cx', `${endX}`);
+            circleEl.setAttribute('cy', `${endY}`);
+          }
+
+          const gradEl = gradRefs.current[pos.id];
+          if (gradEl) {
+            gradEl.setAttribute('x2', `${targetX}`);
+            gradEl.setAttribute('y2', `${targetY}`);
+          }
+        }
+      },
+    }),
+    []
+  );
+
   const cx = containerWidth / 2;
   const cy = containerHeight / 2;
 
@@ -43,6 +125,9 @@ export const CommandCenterConnections: React.FC<CommandCenterConnectionsProps> =
             <linearGradient
               key={`grad-${pos.id}`}
               id={`beam-${pos.id}`}
+              ref={(el) => {
+                gradRefs.current[pos.id] = el;
+              }}
               x1={origX}
               y1={origY}
               x2={cx + pos.x}
@@ -64,27 +149,22 @@ export const CommandCenterConnections: React.FC<CommandCenterConnectionsProps> =
         const targetY = cy + pos.y;
         const isHovered = hoveredModuleId === pos.id;
 
-        // Punto de control intermedio para curva suave tecnológica
-        const midX = (origX + targetX) / 2;
-        const midY = (origY + targetY) / 2;
-        const curveOffset = Math.sin((pos.x + pos.y) * 0.01) * 16;
-        const ctrlX = midX - (targetY - origY) * 0.05 + curveOffset;
-        const ctrlY = midY + (targetX - origX) * 0.05;
-
-        // Detener el haz en el borde perimetral del planeta (~38px) para jamás atravesar su cuerpo esférico
-        const dx = targetX - ctrlX;
-        const dy = targetY - ctrlY;
-        const dist = Math.hypot(dx, dy) || 1;
-        const planetRimOffset = 38;
-        const endX = targetX - (dx / dist) * planetRimOffset;
-        const endY = targetY - (dy / dist) * planetRimOffset;
-
-        const pathD = `M ${origX} ${origY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`;
+        const { pathD, endX, endY } = computeBeamD(
+          origX,
+          origY,
+          targetX,
+          targetY,
+          pos.x,
+          pos.y
+        );
 
         return (
           <g key={pos.id} className="transition-all duration-300">
             {/* Trayectoria base tenue */}
             <path
+              ref={(el) => {
+                beamPathRefs.current[pos.id] = el;
+              }}
               d={pathD}
               fill="none"
               stroke={`url(#beam-${pos.id})`}
@@ -96,6 +176,9 @@ export const CommandCenterConnections: React.FC<CommandCenterConnectionsProps> =
             {/* Pulso de energía viajero cuando está en hover */}
             {isHovered && (
               <path
+                ref={(el) => {
+                  beamPulseRefs.current[pos.id] = el;
+                }}
                 d={pathD}
                 fill="none"
                 stroke={pos.color}
@@ -109,6 +192,9 @@ export const CommandCenterConnections: React.FC<CommandCenterConnectionsProps> =
 
             {/* Nodo luminoso en el punto perimetral de contacto exterior del planeta */}
             <circle
+              ref={(el) => {
+                beamCircleRefs.current[pos.id] = el;
+              }}
               cx={endX}
               cy={endY}
               r={isHovered ? 3.5 : 2}
@@ -121,4 +207,6 @@ export const CommandCenterConnections: React.FC<CommandCenterConnectionsProps> =
       })}
     </svg>
   );
-};
+});
+
+CommandCenterConnections.displayName = 'CommandCenterConnections';

@@ -70,7 +70,7 @@ export const WORKSPACE_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitRadiusY: 130,
     baseAngleRad: -Math.PI / 2, // 270° (Arriba centrado, ~12h)
     orbitSpeedRadPerSec: 0.006,
-    speedModAmp: 0.14,
+    speedModAmp: 0.05,
     speedModPhase: 0,
     planetSizePx: 82,
     ringTiltDeg: 22,
@@ -93,7 +93,7 @@ export const WORKSPACE_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitRadiusY: 145,
     baseAngleRad: (30 * Math.PI) / 180, // Inferior derecha (~4:30h)
     orbitSpeedRadPerSec: 0.006,
-    speedModAmp: 0.16,
+    speedModAmp: 0.06,
     speedModPhase: 2.1,
     planetSizePx: 78,
     ringTiltDeg: 26,
@@ -116,7 +116,7 @@ export const WORKSPACE_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitRadiusY: 145,
     baseAngleRad: (150 * Math.PI) / 180, // Inferior izquierda (~7:30h)
     orbitSpeedRadPerSec: 0.006,
-    speedModAmp: 0.13,
+    speedModAmp: 0.05,
     speedModPhase: 4.2,
     planetSizePx: 78,
     ringTiltDeg: -28,
@@ -145,7 +145,7 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitRadiusY: 130,
     baseAngleRad: -Math.PI / 2, // Arriba (~12h)
     orbitSpeedRadPerSec: 0.0055,
-    speedModAmp: 0.14,
+    speedModAmp: 0.05,
     speedModPhase: 0.5,
     planetSizePx: 76,
     ringTiltDeg: 18,
@@ -169,7 +169,7 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitRadiusY: 145,
     baseAngleRad: 0, // Derecha (~3h)
     orbitSpeedRadPerSec: 0.0055,
-    speedModAmp: 0.16,
+    speedModAmp: 0.06,
     speedModPhase: 2.0,
     planetSizePx: 82,
     ringTiltDeg: 30,
@@ -187,13 +187,13 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     secondaryColor: '#f59e0b',
     glowRgba: 'rgba(234, 179, 8, 0.45)',
     accentHex: '#fde047',
-    orbitTrackIndex: 1,
-    laneScale: 1.10,
+    orbitTrackIndex: 0,
+    laneScale: 0.975,
     orbitRadiusX: 195,
     orbitRadiusY: 130,
     baseAngleRad: Math.PI / 2, // Abajo (~6h)
     orbitSpeedRadPerSec: 0.0055,
-    speedModAmp: 0.13,
+    speedModAmp: 0.05,
     speedModPhase: 3.5,
     planetSizePx: 78,
     ringTiltDeg: -24,
@@ -217,7 +217,7 @@ export const HABIT_MODULE_CONFIGS: CommandCenterModuleConfig[] = [
     orbitRadiusY: 145,
     baseAngleRad: Math.PI, // Izquierda (~9h)
     orbitSpeedRadPerSec: 0.0055,
-    speedModAmp: 0.15,
+    speedModAmp: 0.06,
     speedModPhase: 5.0,
     planetSizePx: 78,
     ringTiltDeg: -20,

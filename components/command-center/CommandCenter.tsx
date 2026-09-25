@@ -13,7 +13,11 @@ import {
   BinaryOrbitParams,
 } from './commandCenterConfig';
 import { CommandCenterOrbit } from './CommandCenterOrbit';
-import { CommandCenterConnections } from './CommandCenterConnections';
+import {
+  CommandCenterConnections,
+  CommandCenterConnectionsHandle,
+  PlanetPosition,
+} from './CommandCenterConnections';
 import { CommandCenterPlanet } from './CommandCenterPlanet';
 import { CommandCenterProjectCore } from './CommandCenterProjectCore';
 import { CommandCenterUserCore } from './CommandCenterUserCore';
@@ -71,23 +75,18 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
   const [pomodoroState, setPomodoroState] = useState<PomodoroState>(getPomodoroState());
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
 
-  // Estado angular de cada planeta (imperativo en refs para evitar re-renders por frame a 60 FPS)
-  const anglesRef = useRef<Record<string, number>>({});
-  const [planetPositions, setPlanetPositions] = useState<
-    Array<{ id: string; x: number; y: number; originX: number; originY: number; color: string }>
-  >([]);
+  // Relojes maestros armónicos de cada polo (invarianza de período y cero drift acumulativo)
+  const workspaceClockRef = useRef<number>(0);
+  const habitsClockRef = useRef<number>(0);
+  const workspaceSpeedModRef = useRef<number>(1.0);
+  const habitsSpeedModRef = useRef<number>(1.0);
+
+  // Refs directos al DOM para animación a 60 FPS con CERO re-renders de React
+  const planetContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const connectionsRef = useRef<CommandCenterConnectionsHandle>(null);
 
   // Detección de gestos Swipe en móvil
   const touchStartXRef = useRef<number | null>(null);
-
-  // 1. Inicializar ángulos orbitales base
-  useEffect(() => {
-    const initialAngles: Record<string, number> = {};
-    COMMAND_CENTER_MODULES.forEach((m) => {
-      initialAngles[m.id] = m.baseAngleRad;
-    });
-    anglesRef.current = initialAngles;
-  }, []);
 
   // 2. Suscribirse a Pomodoro
   useEffect(() => {
@@ -222,7 +221,53 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     return activePole === 'workspace' ? WORKSPACE_MODULE_CONFIGS : HABIT_MODULE_CONFIGS;
   }, [binaryParams.layoutMode, activePole]);
 
-  // 6. Bucle de Traslación Orbital Ambiental (60 FPS, imperativo)
+  // 6. Cálculo posicional determinístico y armónico por módulo
+  const computeModulePos = useCallback(
+    (module: CommandCenterModuleConfig) => {
+      const isWs = module.pole === 'workspace';
+      const center =
+        binaryParams.layoutMode === 'panoramic'
+          ? isWs
+            ? binaryParams.workspaceCenter
+            : binaryParams.habitsCenter
+          : { x: 0, y: 0 };
+
+      const baseRx = isWs ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX;
+      const baseRy = isWs ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY;
+      const lane = module.laneScale ?? 1.0;
+      const rx = baseRx * lane;
+      const ry = baseRy * lane;
+
+      const clock = isWs ? workspaceClockRef.current : habitsClockRef.current;
+      const amp = module.speedModAmp ?? 0.05;
+      const phase = module.speedModPhase ?? 0;
+      const nominalAngle = clock + module.baseAngleRad;
+      const currentAngle = nominalAngle + amp * Math.sin(nominalAngle + phase);
+
+      const posX = center.x + rx * Math.cos(currentAngle);
+      const posY = center.y + ry * Math.sin(currentAngle);
+      const depthFactor = Math.max(-1, Math.min(1, (posY - center.y) / (ry || 1)));
+      const dynamicZIndex = hoveredModuleId === module.id ? 60 : 26 + Math.round(depthFactor * 8);
+
+      return {
+        id: module.id,
+        x: posX,
+        y: posY,
+        originX: center.x,
+        originY: center.y,
+        color: module.accentHex,
+        zIndex: dynamicZIndex,
+      };
+    },
+    [binaryParams, hoveredModuleId]
+  );
+
+  const initialPlanetPositions = useMemo(
+    () => visibleModules.map(computeModulePos),
+    [visibleModules, computeModulePos]
+  );
+
+  // 7. Bucle de Traslación Orbital Armónica (60 FPS, imperativo sin React re-renders)
   useEffect(() => {
     let animId: number;
     let lastTime = performance.now();
@@ -235,137 +280,60 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
       const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
       lastTime = currentTime;
 
-      const positions: Array<{
-        id: string;
-        x: number;
-        y: number;
-        originX: number;
-        originY: number;
-        color: string;
-      }> = [];
+      // 1. Moduladores de velocidad según hover y drag
+      let targetWsSpeed = 1.0;
+      let targetHbSpeed = 1.0;
 
-      // 1. Distancias de seguridad adaptativas según escala de planetas
-      const safeDMin = Math.round(112 * binaryParams.planetScale);
-      const safeDWarn = Math.round(155 * binaryParams.planetScale);
+      if (draggingModuleId) {
+        const mod = visibleModules.find((m) => m.id === draggingModuleId);
+        if (mod?.pole === 'workspace') targetWsSpeed = 0.0;
+        if (mod?.pole === 'habits') targetHbSpeed = 0.0;
+      } else if (hoveredModuleId) {
+        const mod = visibleModules.find((m) => m.id === hoveredModuleId);
+        if (mod?.pole === 'workspace') targetWsSpeed = 0.35;
+        if (mod?.pole === 'habits') targetHbSpeed = 0.35;
+      }
 
-      // 2. Modificadores de velocidad para amortiguación suave de proximidad
-      const proximityModifiers: Record<string, number> = {};
-      visibleModules.forEach((m) => {
-        proximityModifiers[m.id] = 1.0;
-      });
+      // Transición suave (lerp) para evitar tirones
+      const lerpFactor = Math.min(1.0, dt * 5.0);
+      workspaceSpeedModRef.current += (targetWsSpeed - workspaceSpeedModRef.current) * lerpFactor;
+      habitsSpeedModRef.current += (targetHbSpeed - habitsSpeedModRef.current) * lerpFactor;
 
-      // Cálculo de distancias visuales entre pares del mismo polo
-      for (let i = 0; i < visibleModules.length; i++) {
-        for (let j = i + 1; j < visibleModules.length; j++) {
-          const modA = visibleModules[i];
-          const modB = visibleModules[j];
-          if (modA.pole !== modB.pole) continue;
+      // 2. Avance de relojes maestros orbitales
+      if (!prefersReducedMotion) {
+        workspaceClockRef.current += 0.006 * workspaceSpeedModRef.current * dt;
+        habitsClockRef.current += 0.0055 * habitsSpeedModRef.current * dt;
+      }
 
-          const angleA = anglesRef.current[modA.id] ?? modA.baseAngleRad;
-          const angleB = anglesRef.current[modB.id] ?? modB.baseAngleRad;
+      // 3. Actualización directa de coordenadas DOM a 60 FPS (cero React setState)
+      const positions: PlanetPosition[] = [];
 
-          const isWs = modA.pole === 'workspace';
-          const bRx = isWs ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX;
-          const bRy = isWs ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY;
+      for (const m of visibleModules) {
+        const pos = computeModulePos(m);
+        positions.push(pos);
 
-          const laneA = modA.laneScale ?? 1.0;
-          const laneB = modB.laneScale ?? 1.0;
-
-          const xA = bRx * laneA * Math.cos(angleA);
-          const yA = bRy * laneA * Math.sin(angleA);
-          const xB = bRx * laneB * Math.cos(angleB);
-          const yB = bRy * laneB * Math.sin(angleB);
-
-          const dist = Math.hypot(xA - xB, yA - yB);
-
-          if (dist < safeDWarn) {
-            // Intensidad de proximidad normalizada [0 = en safeDWarn, 1 = en safeDMin]
-            const prox = Math.max(0, Math.min(1, 1 - (dist - safeDMin) / (safeDWarn - safeDMin)));
-
-            // Calcular quién viene detrás en el sentido orbital
-            let diff = (angleB - angleA) % (Math.PI * 2);
-            if (diff < 0) diff += Math.PI * 2;
-
-            if (diff < Math.PI) {
-              // ModA se aproxima a ModB por detrás -> desaceleración suave para ModA
-              proximityModifiers[modA.id] = Math.min(
-                proximityModifiers[modA.id],
-                Math.max(0.70, 1 - 0.25 * prox)
-              );
-              proximityModifiers[modB.id] = Math.max(
-                proximityModifiers[modB.id],
-                1 + 0.10 * prox
-              );
-            } else {
-              // ModB se aproxima a ModA por detrás -> desaceleración suave para ModB
-              proximityModifiers[modB.id] = Math.min(
-                proximityModifiers[modB.id],
-                Math.max(0.70, 1 - 0.25 * prox)
-              );
-              proximityModifiers[modA.id] = Math.max(
-                proximityModifiers[modA.id],
-                1 + 0.10 * prox
-              );
-            }
+        const el = planetContainerRefs.current[m.id];
+        if (el) {
+          el.style.transform = `translate(-50%, -50%) translate3d(${pos.x.toFixed(1)}px, ${pos.y.toFixed(1)}px, 0)`;
+          if (hoveredModuleId !== m.id) {
+            el.style.zIndex = `${pos.zIndex}`;
           }
         }
       }
 
-      // 3. Avance cinético determinístico y suave
-      visibleModules.forEach((m) => {
-        let currentAngle = anglesRef.current[m.id] ?? m.baseAngleRad;
+      // 4. Actualización imperativa de los haces de conexión SVG
+      connectionsRef.current?.updatePositions(
+        positions,
+        containerRef.current?.clientWidth || window.innerWidth,
+        containerRef.current?.clientHeight || 750
+      );
 
-        const isDraggingThis = draggingModuleId === m.id;
-        const isHoveringThis = hoveredModuleId === m.id;
-
-        if (!prefersReducedMotion && !isDraggingThis) {
-          // Desaceleración suave en hover (0.45x) sin frenar en seco
-          const hoverMultiplier = isHoveringThis ? 0.45 : 1.0;
-          // Modulación armónica Kepleriana (media = 1.0 sobre revolución completa)
-          const amp = m.speedModAmp ?? 0.15;
-          const phase = m.speedModPhase ?? 0;
-          const organicWave = 1 + amp * Math.sin(currentAngle + phase);
-          const proxMod = proximityModifiers[m.id] ?? 1.0;
-
-          currentAngle += m.orbitSpeedRadPerSec * organicWave * hoverMultiplier * proxMod * dt;
-          anglesRef.current[m.id] = currentAngle;
-        }
-
-        // Obtener el centro orbital del polo y radio con carril específico
-        const isWorkspace = m.pole === 'workspace';
-        const center =
-          binaryParams.layoutMode === 'panoramic'
-            ? isWorkspace
-              ? binaryParams.workspaceCenter
-              : binaryParams.habitsCenter
-            : { x: 0, y: 0 };
-
-        const baseRx = isWorkspace ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX;
-        const baseRy = isWorkspace ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY;
-        const lane = m.laneScale ?? 1.0;
-        const rx = baseRx * lane;
-        const ry = baseRy * lane;
-
-        const posX = center.x + rx * Math.cos(currentAngle);
-        const posY = center.y + ry * Math.sin(currentAngle);
-
-        positions.push({
-          id: m.id,
-          x: posX,
-          y: posY,
-          originX: center.x,
-          originY: center.y,
-          color: m.accentHex,
-        });
-      });
-
-      setPlanetPositions(positions);
       animId = requestAnimationFrame(orbitLoop);
     };
 
     animId = requestAnimationFrame(orbitLoop);
     return () => cancelAnimationFrame(animId);
-  }, [binaryParams, visibleModules, hoveredModuleId, draggingModuleId]);
+  }, [visibleModules, hoveredModuleId, draggingModuleId, computeModulePos]);
 
   // Navegación al módulo
   const handleNavigateModule = (moduleConfig: CommandCenterModuleConfig) => {
@@ -516,7 +484,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         {/* Haces de conexión holográficos hacia cada polo */}
         <div className="absolute inset-0 z-[7] pointer-events-none">
           <CommandCenterConnections
-            planetPositions={planetPositions}
+            ref={connectionsRef}
+            planetPositions={initialPlanetPositions}
             hoveredModuleId={hoveredModuleId}
             containerWidth={containerDimensions.width}
             containerHeight={containerDimensions.height}
@@ -610,6 +579,11 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
 
         {/* PLANETAS EN ÓRBITA */}
         {visibleModules.map((module) => {
+          const pos = computeModulePos(module);
+          const isHovered = hoveredModuleId === module.id;
+          const stats = moduleStats[module.id] || [];
+
+          // Decidir posición de la tarjeta: apunta hacia el núcleo de su propio polo
           const isWs = module.pole === 'workspace';
           const center =
             binaryParams.layoutMode === 'panoramic'
@@ -618,19 +592,6 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
                 : binaryParams.habitsCenter
               : { x: 0, y: 0 };
 
-          const lane = module.laneScale ?? 1.0;
-          const rx = (isWs ? binaryParams.workspaceRadiusX : binaryParams.habitsRadiusX) * lane;
-          const ry = (isWs ? binaryParams.workspaceRadiusY : binaryParams.habitsRadiusY) * lane;
-
-          const pos = planetPositions.find((p) => p.id === module.id) || {
-            x: center.x + rx * Math.cos(module.baseAngleRad),
-            y: center.y + ry * Math.sin(module.baseAngleRad),
-          };
-
-          const isHovered = hoveredModuleId === module.id;
-          const stats = moduleStats[module.id] || [];
-
-          // Decidir posición de la tarjeta: apunta hacia el núcleo de su propio polo
           const relX = pos.x - center.x;
           let positionPref: 'top' | 'bottom' | 'left' | 'right';
           if (relX > 25) {
@@ -641,16 +602,12 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
             positionPref = pos.y < 0 ? 'bottom' : 'top';
           }
 
-          // Factor de profundidad en el eje vertical Y:
-          // pos.y < center.y (arriba/fondo): depthFactor < 0
-          // pos.y > center.y (abajo/primer plano): depthFactor > 0
-          const depthFactor = Math.max(-1, Math.min(1, (pos.y - center.y) / (ry || 1)));
-          // zIndex entre 26 y 36 cuando no hay hover, 60 en hover
-          const dynamicZIndex = isHovered ? 60 : 26 + Math.round(depthFactor * 8);
-
           return (
             <CommandCenterPlanet
               key={module.id}
+              ref={(el) => {
+                planetContainerRefs.current[module.id] = el;
+              }}
               module={module}
               stats={stats}
               x={pos.x}
@@ -662,7 +619,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
               onDragStateChange={handleDragStateChange}
               isMobile={binaryParams.isMobile}
               positionPreference={positionPref}
-              zIndex={dynamicZIndex}
+              zIndex={pos.zIndex}
             />
           );
         })}
