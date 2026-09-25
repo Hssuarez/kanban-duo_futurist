@@ -331,8 +331,41 @@ export function playSciFiBootSequence() {
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 
 /**
- * Chime arpegiado con reverberación y eco espacial multi-tap de mamparos metálicos
- * Simula el sonido expandiéndose y rebotando en el puente de mando de una nave estelar
+ * Genera una ráfaga de squelch de radio militar (ruido filtrado pasobanda)
+ * Característico de la activación y corte de transceptores en StarCraft Terran
+ */
+function playCommsSquelchBurst(ctx: AudioContext, time: number, duration: number = 0.032, gainLevel: number = 0.016) {
+  try {
+    const sampleRate = ctx.sampleRate;
+    const frameCount = Math.floor(sampleRate * duration);
+    const buffer = ctx.createBuffer(1, frameCount, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frameCount; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (frameCount * 0.35));
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2600, time);
+    filter.Q.setValueAtTime(1.8, time);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(gainLevel, time);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    noise.start(time);
+  } catch {}
+}
+
+/**
+ * Chime de enlace de comunicaciones militares estilo StarCraft Terran Adjutant
+ * Combina micro-squelch de radiofrecuencia + chirp digital dual de cabina + eco de mamparo
  */
 export function playSpaceshipEchoChime() {
   if (!isSoundEnabled()) return;
@@ -341,85 +374,69 @@ export function playSpaceshipEchoChime() {
     if (!ctx) return;
     const now = ctx.currentTime;
 
-    // 1. Tono principal de intercomunicador (D5 587.33Hz -> A5 880Hz)
+    // 1. Squelch de apertura de radio militar ("kzz-click")
+    playCommsSquelchBurst(ctx, now, 0.028, 0.02);
+
+    // 2. Tono digital táctico StarCraft (987.77Hz B5 -> 1567.98Hz G6 en arpegio militar ultrarrápido)
     const tones = [
-      { freq: 587.33, time: now },
-      { freq: 880.00, time: now + 0.09 },
+      { freq: 987.77, time: now + 0.022 },
+      { freq: 1567.98, time: now + 0.065 },
     ];
 
     tones.forEach(({ freq, time }) => {
-      // Onda directa
+      // Onda directa sintetizada
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, time);
 
       gain.gain.setValueAtTime(0.001, time);
-      gain.gain.exponentialRampToValueAtTime(0.05, time + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.32);
+      gain.gain.exponentialRampToValueAtTime(0.045, time + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.28);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(time);
-      osc.stop(time + 0.35);
+      osc.stop(time + 0.3);
 
-      // Eco 1: Rebote en mamparo lateral (+85ms, amortiguado)
-      const echo1Osc = ctx.createOscillator();
-      const echo1Gain = ctx.createGain();
-      const echo1Filter = ctx.createBiquadFilter();
-      echo1Filter.type = 'lowpass';
-      echo1Filter.frequency.setValueAtTime(700, time);
+      // Eco de mamparo táctico (+80ms)
+      const echoOsc = ctx.createOscillator();
+      const echoGain = ctx.createGain();
+      const echoFilter = ctx.createBiquadFilter();
+      echoFilter.type = 'lowpass';
+      echoFilter.frequency.setValueAtTime(800, time);
 
-      echo1Osc.type = 'sine';
-      echo1Osc.frequency.setValueAtTime(freq, time + 0.085);
-      echo1Gain.gain.setValueAtTime(0.0001, time + 0.085);
-      echo1Gain.gain.exponentialRampToValueAtTime(0.022, time + 0.095);
-      echo1Gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.42);
+      echoOsc.type = 'sine';
+      echoOsc.frequency.setValueAtTime(freq, time + 0.08);
+      echoGain.gain.setValueAtTime(0.0001, time + 0.08);
+      echoGain.gain.exponentialRampToValueAtTime(0.018, time + 0.09);
+      echoGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.38);
 
-      echo1Osc.connect(echo1Filter);
-      echo1Filter.connect(echo1Gain);
-      echo1Gain.connect(ctx.destination);
-      echo1Osc.start(time + 0.085);
-      echo1Osc.stop(time + 0.45);
-
-      // Eco 2: Rebote lejano de la bahía de mando (+180ms, más grave)
-      const echo2Osc = ctx.createOscillator();
-      const echo2Gain = ctx.createGain();
-      const echo2Filter = ctx.createBiquadFilter();
-      echo2Filter.type = 'lowpass';
-      echo2Filter.frequency.setValueAtTime(450, time);
-
-      echo2Osc.type = 'sine';
-      echo2Osc.frequency.setValueAtTime(freq, time + 0.18);
-      echo2Gain.gain.setValueAtTime(0.0001, time + 0.18);
-      echo2Gain.gain.exponentialRampToValueAtTime(0.012, time + 0.195);
-      echo2Gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.55);
-
-      echo2Osc.connect(echo2Filter);
-      echo2Filter.connect(echo2Gain);
-      echo2Gain.connect(ctx.destination);
-      echo2Osc.start(time + 0.18);
-      echo2Osc.stop(time + 0.58);
+      echoOsc.connect(echoFilter);
+      echoFilter.connect(echoGain);
+      echoGain.connect(ctx.destination);
+      echoOsc.start(time + 0.08);
+      echoOsc.stop(time + 0.4);
     });
 
-    // 2. Resonancia sub-grave de presurización de la sala (36Hz, 1.2s de cola acústica)
+    // 3. Resonancia sub-grave de presurización de la nave (42Hz)
     const roomSub = ctx.createOscillator();
     const roomGain = ctx.createGain();
     roomSub.type = 'sine';
-    roomSub.frequency.setValueAtTime(36, now);
+    roomSub.frequency.setValueAtTime(42, now);
     roomGain.gain.setValueAtTime(0.001, now);
-    roomGain.gain.exponentialRampToValueAtTime(0.028, now + 0.04);
-    roomGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+    roomGain.gain.exponentialRampToValueAtTime(0.025, now + 0.03);
+    roomGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
 
     roomSub.connect(roomGain);
     roomGain.connect(ctx.destination);
     roomSub.start(now);
-    roomSub.stop(now + 1.25);
+    roomSub.stop(now + 1.0);
   } catch {}
 }
 
 /**
- * Acuse de recibo de canal cerrado (Roger Beep) con eco espacial en descenso
+ * Cierre de transmisión militar StarCraft (Roger Beep descendente + corte de squelch)
  */
 export function playSpaceshipEchoRoger() {
   if (!isSoundEnabled()) return;
@@ -428,42 +445,30 @@ export function playSpaceshipEchoRoger() {
     if (!ctx) return;
     const now = ctx.currentTime;
 
+    // Doble tono descendente militar StarCraft (1400Hz -> 880Hz)
     const tones = [
-      { freq: 880.00, time: now },
-      { freq: 1174.66, time: now + 0.055 },
+      { freq: 1396.91, time: now },
+      { freq: 880.00, time: now + 0.045 },
     ];
 
     tones.forEach(({ freq, time }) => {
-      // Onda directa
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, time);
 
       gain.gain.setValueAtTime(0.001, time);
-      gain.gain.exponentialRampToValueAtTime(0.035, time + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.038, time + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.12);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(time);
-      osc.stop(time + 0.15);
-
-      // Eco de mamparo (+95ms)
-      const echoOsc = ctx.createOscillator();
-      const echoGain = ctx.createGain();
-      echoOsc.type = 'sine';
-      echoOsc.frequency.setValueAtTime(freq, time + 0.095);
-
-      echoGain.gain.setValueAtTime(0.0001, time + 0.095);
-      echoGain.gain.exponentialRampToValueAtTime(0.014, time + 0.105);
-      echoGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.28);
-
-      echoOsc.connect(echoGain);
-      echoGain.connect(ctx.destination);
-      echoOsc.start(time + 0.095);
-      echoOsc.stop(time + 0.3);
+      osc.stop(time + 0.13);
     });
+
+    // Squelch final de corte de micrófono militar ("ksssh-click")
+    playCommsSquelchBurst(ctx, now + 0.09, 0.04, 0.018);
   } catch {}
 }
 
@@ -552,7 +557,7 @@ export function sanitizeVoiceText(input: string, maxChars: number = 45): string 
 }
 
 /**
- * Genera el guión táctico de voz para la IA según tareas pendientes y lenguaje
+ * Genera el guión táctico de voz estilo Terran Adjutant de StarCraft
  */
 function buildShipSpeechText(
   firstName: string,
@@ -561,14 +566,14 @@ function buildShipSpeechText(
 ): string {
   const intro =
     lang === 'es'
-      ? `INICIANDO PROTOCOLO. Identificación biométrica... confirmada. Comandante ${firstName}...`
-      : `PROTOCOL INITIATED. Biometric authorization... confirmed. Commander ${firstName}...`;
+      ? `Centro de mando en línea... Enlace táctico establecido. Comandante ${firstName}.`
+      : `Command center online... Tactical link established. Commander ${firstName}.`;
 
   // Sin informe de tareas provisto: saludo estándar
   if (!briefing || !briefing.pendingTasks) {
     return lang === 'es'
-      ? `${intro} Núcleo orbital... en línea. Inteligencia Artificial... a su servicio.`
-      : `${intro} Orbital core... online. Artificial Intelligence... standing by.`;
+      ? `${intro} Telemetría sincronizada. Adjutor de operaciones... a su servicio.`
+      : `${intro} Telemetry synchronized. Operations Adjutant... standing by.`;
   }
 
   const count = briefing.totalPendingCount ?? briefing.pendingTasks.length;
@@ -576,8 +581,8 @@ function buildShipSpeechText(
   // Cero tareas pendientes
   if (count === 0 || briefing.pendingTasks.length === 0) {
     return lang === 'es'
-      ? `${intro} Núcleo orbital sincronizado. No se detectan tareas pendientes en el registro táctico. Todos los sistemas... operativos.`
-      : `${intro} Orbital core synchronized. No pending tasks detected in tactical logs. All systems... operational.`;
+      ? `${intro} Cuadrante pacificado. Sin directivas prioritarias en el registro de operaciones. Todos los sistemas en línea... Esperando órdenes.`
+      : `${intro} Sector secure. No pending directives in operational logs. All systems online... Standing by for orders.`;
   }
 
   // 1 tarea pendiente
@@ -588,11 +593,11 @@ function buildShipSpeechText(
     const isWorking = task.status === 'trabajando';
 
     if (lang === 'es') {
-      const statusPhrase = isWorking ? 'una tarea en curso' : 'una tarea pendiente';
-      return `${intro} Alerta táctica: Tienes ${statusPhrase}: ${title}... en el proyecto... ${project}. Sistemas de abordo... en línea.`;
+      const statusPhrase = isWorking ? 'Directiva prioritaria en curso' : 'Directiva pendiente asignada';
+      return `${intro} Alerta táctica. ${statusPhrase}: ${title}... en el sector ${project}. Telemetría operativa.`;
     } else {
-      const statusPhrase = isWorking ? 'one active mission in progress' : 'one pending task';
-      return `${intro} Tactical alert: You have ${statusPhrase}: ${title}... in project... ${project}. Ship systems... online.`;
+      const statusPhrase = isWorking ? 'Priority directive in progress' : 'Pending directive assigned';
+      return `${intro} Tactical alert. ${statusPhrase}: ${title}... in sector ${project}. Telemetry operational.`;
     }
   }
 
@@ -606,9 +611,9 @@ function buildShipSpeechText(
     const proj2 = sanitizeVoiceText(t2.projectName, 26);
 
     if (lang === 'es') {
-      return `${intro} Informe táctico: Tienes dos tareas activas. Misión prioritaria: ${title1}... en el proyecto... ${proj1}... y tarea secundaria: ${title2}... en... ${proj2}. Sistemas listos.`;
+      return `${intro} Informe de operaciones: Dos directivas activas. Objetivo prioritario: ${title1}... en el sector ${proj1}... y directiva secundaria: ${title2}... en ${proj2}. Esperando órdenes.`;
     } else {
-      return `${intro} Tactical report: You have two active missions. Priority: ${title1}... in project... ${proj1}... and secondary: ${title2}... in... ${proj2}. Systems ready.`;
+      return `${intro} Operations report: Two active directives. Primary objective: ${title1}... in sector ${proj1}... and secondary directive: ${title2}... in ${proj2}. Standing by for orders.`;
     }
   }
 
@@ -618,15 +623,15 @@ function buildShipSpeechText(
   const primaryProject = sanitizeVoiceText(primaryTask.projectName, 28);
 
   if (lang === 'es') {
-    return `${intro} Informe táctico: Tienes ${count} tareas pendientes. Misión prioritaria: ${primaryTitle}... en el proyecto... ${primaryProject}. Inteligencia Artificial... a su servicio.`;
+    return `${intro} Alerta operacional: ${count} directivas en la cola táctica. Objetivo prioritario: ${primaryTitle}... en el sector ${primaryProject}. Adjutor... esperando instrucciones.`;
   } else {
-    return `${intro} Tactical report: You have ${count} pending tasks. Priority mission: ${primaryTitle}... in project... ${primaryProject}. Artificial Intelligence... standing by.`;
+    return `${intro} Operational alert: ${count} directives in tactical queue. Primary objective: ${primaryTitle}... in sector ${primaryProject}. Adjutant... standing by.`;
   }
 }
 
 /**
  * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
- * Configurado con voz profundamente robotizada, metálica, escaneo de tareas pendientes y eco acústico
+ * Configurado al estilo del Terran Adjutant de StarCraft (comms chirps, squelch y modulación de androide militar)
  */
 export function playShipWelcomeVoice(
   userName: string,
@@ -644,20 +649,20 @@ export function playShipWelcomeVoice(
     const lang = customLang || getSoundLanguage();
     const firstName = userName ? userName.trim().split(' ')[0] : (lang === 'es' ? 'Comandante' : 'Commander');
 
-    // Generar guión dinámico con inspección de misiones tácticas
+    // Generar guión dinámico militar StarCraft
     const text = buildShipSpeechText(firstName, lang, briefing);
 
     const utterance = new SpeechSynthesisUtterance(text);
     activeUtterance = utterance; // Retener referencia para evitar recolección de basura de Chromium
     utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
-    utterance.pitch = 0.65; // Tonalidad baja, fría, sintética y puramente metalizada
-    utterance.rate = 0.84;  // Cadencia lenta, analítica y mecánica
-    utterance.volume = 0.98;
+    utterance.pitch = 0.78; // Tonalidad sintética precisa de androide militar StarCraft
+    utterance.rate = 0.90;  // Cadencia militar, medida, rítmica y autoritaria
+    utterance.volume = 1.0;
 
-    // Disparar chime de intercomunicador con eco espacial multi-tap
+    // Disparar chime de intercomunicador con squelch de radio StarCraft
     playSpaceshipEchoChime();
 
-    // Priorización de voces robóticas / sintéticas en el sistema operativo (EXCLUYENDO voces neurales humanas)
+    // Priorización de voces estilo StarCraft Adjutant (sintética femenina / androide militar)
     const selectBestVoice = () => {
       const voices = window.speechSynthesis.getVoices();
       if (voices.length === 0) return;
@@ -666,7 +671,7 @@ export function playShipWelcomeVoice(
       const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(langCode));
 
       if (langVoices.length > 0) {
-        // Excluir voces "naturales" o "neurales" que suenan a persona humana
+        // Excluir voces naturales orgánicas que rompen la estética de IA cibernética
         const nonNeuralVoices = langVoices.filter((v) => {
           const n = v.name.toLowerCase();
           return !n.includes('natural') && !n.includes('neural') && !n.includes('online');
@@ -674,7 +679,23 @@ export function playShipWelcomeVoice(
 
         const pool = nonNeuralVoices.length > 0 ? nonNeuralVoices : langVoices;
 
+        // Prioridad 1: Androide femenina sintetizada (Zira en inglés es la voz exacta del Adjutant en Windows; Helena/Sabina/Laura en español)
         const preferredVoice =
+          pool.find((v) => {
+            const n = v.name.toLowerCase();
+            return (
+              n.includes('zira') ||
+              n.includes('helena') ||
+              n.includes('sabina') ||
+              n.includes('laura') ||
+              n.includes('monica') ||
+              n.includes('paulina') ||
+              n.includes('hazel') ||
+              n.includes('susan') ||
+              n.includes('elena') ||
+              n.includes('lucia')
+            );
+          }) ||
           pool.find((v) => {
             const n = v.name.toLowerCase();
             return (
@@ -683,9 +704,6 @@ export function playShipWelcomeVoice(
               n.includes('pablo') ||
               n.includes('mark') ||
               n.includes('george') ||
-              n.includes('sabina') ||
-              n.includes('helena') ||
-              n.includes('zira') ||
               n.includes('google')
             );
           }) || pool[0];
@@ -703,7 +721,7 @@ export function playShipWelcomeVoice(
       if (ctx) startServoRumble(ctx);
     };
 
-    // Al finalizar la voz: apagar servo y emitir blip de canal cerrado con eco
+    // Al finalizar la voz: apagar servo y emitir corte de squelch militar StarCraft
     utterance.onend = () => {
       stopServoRumble();
       activeUtterance = null;
@@ -715,7 +733,7 @@ export function playShipWelcomeVoice(
       activeUtterance = null;
     };
 
-    // Retardo de 260ms para permitir que el eco inicial resuene antes de la primera palabra
+    // Retardo de 260ms para permitir que el squelch inicial resuene antes de la primera palabra
     setTimeout(() => {
       try {
         window.speechSynthesis.speak(utterance);
