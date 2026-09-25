@@ -308,14 +308,19 @@ export function getBinarySystemLayout(
     const safeW = Math.max(300, containerWidth);
     const safeH = Math.max(500, containerHeight);
 
-    // Radios seguros para móvil (ej. 375px de iPhone)
-    const maxRadiusX = Math.min(140, Math.max(110, (safeW - 75) / 2));
-    const maxRadiusY = Math.min(165, Math.max(120, (safeH - 180) / 2));
+    // Radios seguros para móvil (considerando laneScale hasta 1.225 y diámetro de planetas de ~48px)
+    // Dejamos un margen garantizado de al menos 52px en cada lateral para que NUNCA toquen ni salgan de la pantalla
+    const availableHalfW = (safeW / 2) - 52;
+    const maxRadiusX = Math.min(104, Math.max(76, Math.floor(availableHalfW / 1.225)));
+
+    // En vertical, consideramos la cabecera HUD superior (~75px) y el footer (~40px)
+    const availableHalfH = (safeH - 220) / 2;
+    const maxRadiusY = Math.min(140, Math.max(95, Math.floor(availableHalfH / 1.225)));
 
     const planetScale = isSmallPhone
-      ? Math.min(0.68, Math.max(0.58, safeW / 580))
-      : 0.78;
-    const coreScale = isSmallPhone ? 0.65 : 0.8;
+      ? Math.min(0.62, Math.max(0.52, safeW / 620))
+      : 0.72;
+    const coreScale = isSmallPhone ? 0.60 : 0.74;
 
     return {
       isMobile: true,

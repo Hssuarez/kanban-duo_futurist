@@ -462,9 +462,62 @@ export function playSpaceshipEchoRoger() {
   } catch {}
 }
 
+let activeServo: { osc: OscillatorNode; gain: GainNode } | null = null;
+let servoSafetyTimer: NodeJS.Timeout | null = null;
+
+function startServoRumble(ctx: AudioContext) {
+  if (activeServo) return;
+  try {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(58, now); // 58Hz sub-grave de servo mecánico (CERO pitos)
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.014, now + 0.2);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    activeServo = { osc, gain };
+
+    // Temporizador de seguridad de 8s para garantizar que nunca quede sonando
+    if (servoSafetyTimer) clearTimeout(servoSafetyTimer);
+    servoSafetyTimer = setTimeout(() => {
+      stopServoRumble();
+    }, 8000);
+  } catch {}
+}
+
+function stopServoRumble() {
+  if (servoSafetyTimer) {
+    clearTimeout(servoSafetyTimer);
+    servoSafetyTimer = null;
+  }
+  if (!activeServo) return;
+  try {
+    const { osc, gain } = activeServo;
+    const ctx = getAudioContext();
+    if (ctx) {
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      setTimeout(() => {
+        try {
+          osc.stop();
+          osc.disconnect();
+          gain.disconnect();
+        } catch {}
+      }, 250);
+    }
+    activeServo = null;
+  } catch {
+    activeServo = null;
+  }
+}
+
 /**
  * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
- * Configurado con voz profundamente robotizada y eco acústico de puente de nave
+ * Configurado con voz profundamente robotizada, metálica y eco acústico de puente de nave
  */
 export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en') {
   if (!isSoundEnabled()) return;
@@ -472,28 +525,29 @@ export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en')
 
   try {
     window.speechSynthesis.cancel();
+    stopServoRumble();
     activeUtterance = null;
 
     const lang = customLang || getSoundLanguage();
     const firstName = userName ? userName.trim().split(' ')[0] : (lang === 'es' ? 'Comandante' : 'Commander');
 
-    // Guión estructurado con pausas mecánicas para forzar cadencia puramente robótica
+    // Guión estructurado con sintaxis puramente de máquina militar
     const text =
       lang === 'es'
-        ? `Atención... Identificación biométrica confirmada... Unidad orbital sincronizada... Comandante ${firstName}... Inteligencia de abordo a su servicio.`
-        : `Attention... Biometric authorization confirmed... Orbital core synchronized... Commander ${firstName}... Ship artificial intelligence standing by.`;
+        ? `INICIANDO PROTOCOLO. Identificación biométrica... confirmada. Núcleo orbital... en línea. Comandante ${firstName}... Inteligencia Artificial... a su servicio.`
+        : `PROTOCOL INITIATED. Biometric authorization... confirmed. Orbital core... online. Commander ${firstName}... Artificial Intelligence... standing by.`;
 
     const utterance = new SpeechSynthesisUtterance(text);
     activeUtterance = utterance; // Retener referencia para evitar recolección de basura de Chromium
     utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
-    utterance.pitch = 0.80; // Tonalidad baja, fría, sintética y altamente robotizada
-    utterance.rate = 0.88;  // Cadencia lenta, calculada y puramente mecánica
-    utterance.volume = 0.95;
+    utterance.pitch = 0.65; // Tonalidad baja, fría, sintética y puramente metalizada
+    utterance.rate = 0.84;  // Cadencia lenta, analítica y mecánica
+    utterance.volume = 0.98;
 
     // Disparar chime de intercomunicador con eco espacial multi-tap
     playSpaceshipEchoChime();
 
-    // Priorización de voces robóticas / sintéticas en el sistema operativo
+    // Priorización de voces robóticas / sintéticas en el sistema operativo (EXCLUYENDO voces neurales humanas)
     const selectBestVoice = () => {
       const voices = window.speechSynthesis.getVoices();
       if (voices.length === 0) return;
@@ -502,9 +556,16 @@ export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en')
       const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(langCode));
 
       if (langVoices.length > 0) {
-        // Priorizar voces masculinas o sintéticas de tono plano que a pitch 0.80 suenan exactamente como robots
+        // Excluir voces "naturales" o "neurales" que suenan a persona humana
+        const nonNeuralVoices = langVoices.filter((v) => {
+          const n = v.name.toLowerCase();
+          return !n.includes('natural') && !n.includes('neural') && !n.includes('online');
+        });
+
+        const pool = nonNeuralVoices.length > 0 ? nonNeuralVoices : langVoices;
+
         const preferredVoice =
-          langVoices.find((v) => {
+          pool.find((v) => {
             const n = v.name.toLowerCase();
             return (
               n.includes('david') ||
@@ -517,7 +578,7 @@ export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en')
               n.includes('zira') ||
               n.includes('google')
             );
-          }) || langVoices[0];
+          }) || pool[0];
 
         if (preferredVoice) {
           utterance.voice = preferredVoice;
@@ -527,13 +588,20 @@ export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en')
 
     selectBestVoice();
 
-    // Al finalizar la voz: emitir blip de canal cerrado con eco
+    utterance.onstart = () => {
+      const ctx = getAudioContext();
+      if (ctx) startServoRumble(ctx);
+    };
+
+    // Al finalizar la voz: apagar servo y emitir blip de canal cerrado con eco
     utterance.onend = () => {
+      stopServoRumble();
       activeUtterance = null;
       playSpaceshipEchoRoger();
     };
 
     utterance.onerror = () => {
+      stopServoRumble();
       activeUtterance = null;
     };
 
@@ -542,6 +610,7 @@ export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en')
       try {
         window.speechSynthesis.speak(utterance);
       } catch {
+        stopServoRumble();
         activeUtterance = null;
       }
     }, 260);
