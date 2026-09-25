@@ -374,32 +374,69 @@ export function playSpaceshipEchoChime() {
     if (!ctx) return;
     const now = ctx.currentTime;
 
-    // Chime digital neural de estudio (987.77Hz B5 -> 1567.98Hz G6 limpio y cristalino, CERO ruido de fondo)
+    // 1. Squelch de apertura de radio militar ("kzz-click")
+    playCommsSquelchBurst(ctx, now, 0.028, 0.02);
+
+    // 2. Tono digital táctico StarCraft (987.77Hz B5 -> 1567.98Hz G6 en arpegio militar ultrarrápido)
     const tones = [
-      { freq: 987.77, time: now },
-      { freq: 1567.98, time: now + 0.045 },
+      { freq: 987.77, time: now + 0.022 },
+      { freq: 1567.98, time: now + 0.065 },
     ];
 
     tones.forEach(({ freq, time }) => {
+      // Onda directa sintetizada
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, time);
 
       gain.gain.setValueAtTime(0.001, time);
-      gain.gain.exponentialRampToValueAtTime(0.038, time + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.22);
+      gain.gain.exponentialRampToValueAtTime(0.045, time + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.28);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(time);
-      osc.stop(time + 0.25);
+      osc.stop(time + 0.3);
+
+      // Eco de mamparo táctico (+80ms)
+      const echoOsc = ctx.createOscillator();
+      const echoGain = ctx.createGain();
+      const echoFilter = ctx.createBiquadFilter();
+      echoFilter.type = 'lowpass';
+      echoFilter.frequency.setValueAtTime(800, time);
+
+      echoOsc.type = 'sine';
+      echoOsc.frequency.setValueAtTime(freq, time + 0.08);
+      echoGain.gain.setValueAtTime(0.0001, time + 0.08);
+      echoGain.gain.exponentialRampToValueAtTime(0.018, time + 0.09);
+      echoGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.38);
+
+      echoOsc.connect(echoFilter);
+      echoFilter.connect(echoGain);
+      echoGain.connect(ctx.destination);
+      echoOsc.start(time + 0.08);
+      echoOsc.stop(time + 0.4);
     });
+
+    // 3. Resonancia sub-grave de presurización de la nave (42Hz)
+    const roomSub = ctx.createOscillator();
+    const roomGain = ctx.createGain();
+    roomSub.type = 'sine';
+    roomSub.frequency.setValueAtTime(42, now);
+    roomGain.gain.setValueAtTime(0.001, now);
+    roomGain.gain.exponentialRampToValueAtTime(0.025, now + 0.03);
+    roomGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+
+    roomSub.connect(roomGain);
+    roomGain.connect(ctx.destination);
+    roomSub.start(now);
+    roomSub.stop(now + 1.0);
   } catch {}
 }
 
 /**
- * Cierre de transmisión limpio y nítido de estudio (Roger tone sintético descendente, CERO ruidos)
+ * Cierre de transmisión militar StarCraft (Roger Beep descendente + corte de squelch)
  */
 export function playSpaceshipEchoRoger() {
   if (!isSoundEnabled()) return;
@@ -408,9 +445,10 @@ export function playSpaceshipEchoRoger() {
     if (!ctx) return;
     const now = ctx.currentTime;
 
+    // Doble tono descendente militar StarCraft (1400Hz -> 880Hz)
     const tones = [
       { freq: 1396.91, time: now },
-      { freq: 880.00, time: now + 0.04 },
+      { freq: 880.00, time: now + 0.045 },
     ];
 
     tones.forEach(({ freq, time }) => {
@@ -420,7 +458,7 @@ export function playSpaceshipEchoRoger() {
       osc.frequency.setValueAtTime(freq, time);
 
       gain.gain.setValueAtTime(0.001, time);
-      gain.gain.exponentialRampToValueAtTime(0.032, time + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.038, time + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.12);
 
       osc.connect(gain);
@@ -428,37 +466,175 @@ export function playSpaceshipEchoRoger() {
       osc.start(time);
       osc.stop(time + 0.13);
     });
+
+    // Squelch final de corte de micrófono militar ("ksssh-click")
+    playCommsSquelchBurst(ctx, now + 0.09, 0.04, 0.018);
   } catch {}
 }
 
 /* ========================================================
-   RESONANCIA DIGITAL SUTIL DE ACTIVACIÓN NEURAL (CALIDAD DE ESTUDIO)
-   Cero ruidos graves continuos, cero zumbidos pesados.
+   CHASIS ACÚSTICO ANDROIDE / VOCODER RING-MODULATOR STARCRAFT
+   Emula la resonancia electromecánica y flutter del Terran Adjutant
    ======================================================== */
 
+interface AndroidVocoderChassis {
+  carrierOsc: OscillatorNode;
+  carrierFilter: BiquadFilterNode;
+  carrierGain: GainNode;
+  lfoOsc: OscillatorNode;
+  lfoGain: GainNode;
+  subOsc: OscillatorNode;
+  subGain: GainNode;
+  telemetryTimer: NodeJS.Timeout | null;
+}
+
+let activeAndroidChassis: AndroidVocoderChassis | null = null;
+let androidSafetyTimer: NodeJS.Timeout | null = null;
+
 function startServoRumble(ctx: AudioContext) {
+  if (activeAndroidChassis) return;
   try {
     const now = ctx.currentTime;
-    // Resonancia digital cristalina ultra-sutil de inicialización (1760 Hz / 2640 Hz durante 120ms)
-    const tones = [1760, 2640];
-    tones.forEach((freq) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now);
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.0045, now + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.13);
-    });
+
+    // 1. Portadora metálica vocoder (Onda diente de sierra a 175 Hz - frecuencia fundamental de chasis androide)
+    const carrierOsc = ctx.createOscillator();
+    carrierOsc.type = 'sawtooth';
+    carrierOsc.frequency.setValueAtTime(175, now);
+
+    // Filtro pasa banda resonante centrado en formantes mecánicos (1250 Hz, Q: 3.2)
+    const carrierFilter = ctx.createBiquadFilter();
+    carrierFilter.type = 'bandpass';
+    carrierFilter.frequency.setValueAtTime(1250, now);
+    carrierFilter.Q.setValueAtTime(3.2, now);
+
+    // Ganancia de la portadora con modulación
+    const carrierGain = ctx.createGain();
+    carrierGain.gain.setValueAtTime(0.0001, now);
+    carrierGain.gain.exponentialRampToValueAtTime(0.0075, now + 0.15);
+
+    // 2. LFO de Ring-Modulation a 28 Hz (el clásico flutter androide de StarCraft / Dalek)
+    const lfoOsc = ctx.createOscillator();
+    lfoOsc.type = 'sine';
+    lfoOsc.frequency.setValueAtTime(28, now);
+
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.setValueAtTime(0.004, now);
+
+    // Conectar modulación LFO a la ganancia de la portadora
+    lfoOsc.connect(lfoGain);
+    lfoGain.connect(carrierGain.gain);
+
+    carrierOsc.connect(carrierFilter);
+    carrierFilter.connect(carrierGain);
+    carrierGain.connect(ctx.destination);
+
+    carrierOsc.start(now);
+    lfoOsc.start(now);
+
+    // 3. Sub-chasis de servo electromecánico (64 Hz con atenuación de pitos)
+    const subOsc = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(64, now);
+    subGain.gain.setValueAtTime(0.0001, now);
+    subGain.gain.exponentialRampToValueAtTime(0.015, now + 0.2);
+
+    subOsc.connect(subGain);
+    subGain.connect(ctx.destination);
+    subOsc.start(now);
+
+    // 4. Servo lock micro-chirp al inicio de la transmisión (290Hz -> 175Hz en 80ms)
+    const servoLockOsc = ctx.createOscillator();
+    const servoLockGain = ctx.createGain();
+    servoLockOsc.type = 'sine';
+    servoLockOsc.frequency.setValueAtTime(290, now);
+    servoLockOsc.frequency.exponentialRampToValueAtTime(175, now + 0.08);
+    servoLockGain.gain.setValueAtTime(0.009, now);
+    servoLockGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.085);
+    servoLockOsc.connect(servoLockGain);
+    servoLockGain.connect(ctx.destination);
+    servoLockOsc.start(now);
+    servoLockOsc.stop(now + 0.09);
+
+    // 5. Pulsos sutiles de telemetría de procesamiento neural mientras la IA habla
+    const telemetryTimer = setInterval(() => {
+      try {
+        const audioCtx = getAudioContext();
+        if (!audioCtx || audioCtx.state === 'closed') return;
+        const t = audioCtx.currentTime;
+        const blipOsc = audioCtx.createOscillator();
+        const blipGain = audioCtx.createGain();
+        blipOsc.type = 'sine';
+        blipOsc.frequency.setValueAtTime(Math.random() > 0.5 ? 1950 : 2350, t);
+        blipGain.gain.setValueAtTime(0.002, t);
+        blipGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.012);
+        blipOsc.connect(blipGain);
+        blipGain.connect(audioCtx.destination);
+        blipOsc.start(t);
+        blipOsc.stop(t + 0.015);
+      } catch {}
+    }, 320);
+
+    activeAndroidChassis = {
+      carrierOsc,
+      carrierFilter,
+      carrierGain,
+      lfoOsc,
+      lfoGain,
+      subOsc,
+      subGain,
+      telemetryTimer,
+    };
+
+    // Temporizador de seguridad de 24s para garantizar que nunca quede sonando
+    if (androidSafetyTimer) clearTimeout(androidSafetyTimer);
+    androidSafetyTimer = setTimeout(() => {
+      stopServoRumble();
+    }, 24000);
   } catch {}
 }
 
 function stopServoRumble() {
-  // Cero ruido continuo que detener
+  if (androidSafetyTimer) {
+    clearTimeout(androidSafetyTimer);
+    androidSafetyTimer = null;
+  }
+  if (!activeAndroidChassis) return;
+  try {
+    const { carrierOsc, carrierFilter, carrierGain, lfoOsc, lfoGain, subOsc, subGain, telemetryTimer } =
+      activeAndroidChassis;
+
+    if (telemetryTimer) {
+      clearInterval(telemetryTimer);
+    }
+
+    const ctx = getAudioContext();
+    if (ctx) {
+      const now = ctx.currentTime;
+      carrierGain.gain.setValueAtTime(carrierGain.gain.value, now);
+      carrierGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      subGain.gain.setValueAtTime(subGain.gain.value, now);
+      subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+      setTimeout(() => {
+        try {
+          carrierOsc.stop();
+          lfoOsc.stop();
+          subOsc.stop();
+          carrierOsc.disconnect();
+          carrierFilter.disconnect();
+          carrierGain.disconnect();
+          lfoOsc.disconnect();
+          lfoGain.disconnect();
+          subOsc.disconnect();
+          subGain.disconnect();
+        } catch {}
+      }, 220);
+    }
+    activeAndroidChassis = null;
+  } catch {
+    activeAndroidChassis = null;
+  }
 }
 
 export interface PendingTaskVoiceItem {
@@ -502,8 +678,8 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 }
 
 /**
- * Genera el guión táctico para IA androide masculina
- * Cadencia controlada, pausas precisas entre frases sin cortes antinaturales palabra por palabra
+ * Genera el guión táctico de voz con puntuación staccato androide
+ * Rompe las curvas de entonación humanas para forzar una cadencia clínica, plana y robótica
  */
 function buildShipSpeechText(
   firstName: string,
@@ -512,14 +688,14 @@ function buildShipSpeechText(
 ): string {
   const intro =
     lang === 'es'
-      ? `INICIANDO PROTOCOLO... Identificación biométrica confirmada... Comandante ${firstName}...`
-      : `PROTOCOL INITIATED... Biometric authorization confirmed... Commander ${firstName}...`;
+      ? `INICIANDO PROTOCOLO. Identificación. Biométrica. Confirmada. Comandante: ${firstName}.`
+      : `PROTOCOL INITIATED. Biometric. Authorization. Confirmed. Commander: ${firstName}.`;
 
   // Sin informe de tareas provisto: saludo estándar
   if (!briefing || !briefing.pendingTasks) {
     return lang === 'es'
-      ? `${intro} Núcleo orbital en línea... Inteligencia Artificial a su servicio.`
-      : `${intro} Orbital core online... Artificial Intelligence standing by.`;
+      ? `${intro} Núcleo orbital... en línea. Inteligencia Artificial... a su servicio.`
+      : `${intro} Orbital core... online. Artificial Intelligence... standing by.`;
   }
 
   const count = briefing.totalPendingCount ?? briefing.pendingTasks.length;
@@ -527,8 +703,8 @@ function buildShipSpeechText(
   // Cero tareas pendientes
   if (count === 0 || briefing.pendingTasks.length === 0) {
     return lang === 'es'
-      ? `${intro} Núcleo orbital sincronizado... Cero anomalías en el registro táctico... Todos los sistemas operativos.`
-      : `${intro} Orbital core synchronized... Zero pending directives in tactical logs... All systems operational.`;
+      ? `${intro} Núcleo orbital sincronizado. Cero tareas pendientes en registro táctico. Todos los sistemas... operativos.`
+      : `${intro} Orbital core synchronized. Zero pending directives in tactical logs. All systems... operational.`;
   }
 
   // 1 tarea pendiente
@@ -539,11 +715,11 @@ function buildShipSpeechText(
     const isWorking = task.status === 'trabajando';
 
     if (lang === 'es') {
-      const statusPhrase = isWorking ? 'en curso' : 'pendiente';
-      return `${intro} Alerta táctica: Tienes una directiva ${statusPhrase}: ${title}... en el proyecto ${project}... Sistemas de a bordo en línea.`;
+      const statusPhrase = isWorking ? 'una tarea en curso' : 'una directiva pendiente';
+      return `${intro} Alerta táctica. Tienes ${statusPhrase}: ${title}... en proyecto: ${project}. Sistemas de a bordo... en línea.`;
     } else {
-      const statusPhrase = isWorking ? 'in progress' : 'pending';
-      return `${intro} Tactical alert: You have one directive ${statusPhrase}: ${title}... in project ${project}... Ship systems online.`;
+      const statusPhrase = isWorking ? 'one active mission in progress' : 'one pending directive';
+      return `${intro} Tactical alert. You have ${statusPhrase}: ${title}... in project: ${project}. Ship systems... online.`;
     }
   }
 
@@ -557,9 +733,9 @@ function buildShipSpeechText(
     const proj2 = sanitizeVoiceText(t2.projectName, 26);
 
     if (lang === 'es') {
-      return `${intro} Informe táctico: Tienes dos tareas activas... Misión prioritaria: ${title1}... en el proyecto ${proj1}... Tarea secundaria: ${title2}... en ${proj2}... Sistemas listos.`;
+      return `${intro} Informe táctico. Dos tareas activas en registro. Misión prioritaria: ${title1}... en proyecto: ${proj1}. Tarea secundaria: ${title2}... en: ${proj2}. Sistemas listos.`;
     } else {
-      return `${intro} Tactical report: You have two active missions... Priority mission: ${title1}... in project ${proj1}... Secondary task: ${title2}... in ${proj2}... Systems ready.`;
+      return `${intro} Tactical report. Two active missions in logs. Priority mission: ${title1}... in project: ${proj1}. Secondary task: ${title2}... in: ${proj2}. Systems ready.`;
     }
   }
 
@@ -569,15 +745,15 @@ function buildShipSpeechText(
   const primaryProject = sanitizeVoiceText(primaryTask.projectName, 28);
 
   if (lang === 'es') {
-    return `${intro} Informe táctico: Tienes ${count} directivas en registro... Misión prioritaria: ${primaryTitle}... en el proyecto ${primaryProject}... Inteligencia Artificial en espera.`;
+    return `${intro} Informe táctico. Tienes ${count} directivas en registro. Misión prioritaria: ${primaryTitle}... en proyecto: ${primaryProject}. Inteligencia Artificial... a su servicio.`;
   } else {
-    return `${intro} Tactical report: You have ${count} pending directives... Priority mission: ${primaryTitle}... in project ${primaryProject}... Artificial Intelligence standing by.`;
+    return `${intro} Tactical report. You have ${count} pending directives. Priority mission: ${primaryTitle}... in project: ${primaryProject}. Artificial Intelligence... standing by.`;
   }
 }
 
 /**
- * Saludo protocolario por voz de la Inteligencia Artificial androide masculina
- * Configuración: voz masculina sintética adulta, registro medio-grave, articulación controlada y limpia
+ * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
+ * Calibrado fielmente al Terran Adjutant de StarCraft 2 (voz androide clínica, fría y sintetizada)
  */
 export function playShipWelcomeVoice(
   userName: string,
@@ -595,66 +771,14 @@ export function playShipWelcomeVoice(
     const lang = customLang || getSoundLanguage();
     const firstName = userName ? userName.trim().split(' ')[0] : (lang === 'es' ? 'Comandante' : 'Commander');
 
-    // Generar guión táctico estructurado con pausas controladas
+    // Generar guión táctico estructurado con puntuación androide staccato
     const text = buildShipSpeechText(firstName, lang, briefing);
 
     const utterance = new SpeechSynthesisUtterance(text);
     activeUtterance = utterance; // Retener referencia para evitar recolección de basura de Chromium
     utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
 
-    // Función auxiliar para identificar y excluir voces femeninas
-    const isFemaleVoice = (name: string): boolean => {
-      const n = name.toLowerCase();
-      return (
-        n.includes('helena') ||
-        n.includes('sabina') ||
-        n.includes('laura') ||
-        n.includes('zira') ||
-        n.includes('hazel') ||
-        n.includes('susan') ||
-        n.includes('monica') ||
-        n.includes('paulina') ||
-        n.includes('elena') ||
-        n.includes('lucia') ||
-        n.includes('hilda') ||
-        n.includes('maria') ||
-        n.includes('carmen') ||
-        n.includes('rosa') ||
-        n.includes('penelope') ||
-        n.includes('conchita') ||
-        n.includes('lupe') ||
-        n.includes('mia') ||
-        n.includes('female') ||
-        n.includes('woman') ||
-        n.includes('girl')
-      );
-    };
-
-    // Función auxiliar para detectar voces masculinas
-    const isMaleVoice = (name: string): boolean => {
-      const n = name.toLowerCase();
-      return (
-        n.includes('pablo') ||
-        n.includes('raul') ||
-        n.includes('jorge') ||
-        n.includes('alonso') ||
-        n.includes('mateo') ||
-        n.includes('tomas') ||
-        n.includes('diego') ||
-        n.includes('carlos') ||
-        n.includes('david') ||
-        n.includes('mark') ||
-        n.includes('george') ||
-        n.includes('guy') ||
-        n.includes('brian') ||
-        n.includes('richard') ||
-        n.includes('james') ||
-        n.includes('male') ||
-        n.includes('hombre')
-      );
-    };
-
-    // Selección de voz: Androide masculino sintético sofisticado
+    // Priorización de voces estilo StarCraft 2 Terran Adjutant (androide sintetizada clínica y limpia)
     const selectBestVoice = () => {
       let voices = window.speechSynthesis.getVoices();
       if ((!voices || voices.length === 0) && cachedVoices.length > 0) {
@@ -666,42 +790,75 @@ export function playShipWelcomeVoice(
       const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(langCode));
 
       if (langVoices.length > 0) {
-        // 1. Filtrar solo voces que no sean femeninas
-        const nonFemaleVoices = langVoices.filter((v) => !isFemaleVoice(v.name));
-        const pool = nonFemaleVoices.length > 0 ? nonFemaleVoices : langVoices;
-
-        // Prioridad 1: Voces masculinas sintéticas de escritorio (Microsoft Pablo, Microsoft Raul, Microsoft David, etc.)
-        const desktopMale = pool.find((v) => {
+        // Excluir voces naturales "Neural" excesivamente emocionales y humanas
+        const nonNeuralVoices = langVoices.filter((v) => {
           const n = v.name.toLowerCase();
-          return isMaleVoice(n) && (n.includes('desktop') || !n.includes('online'));
+          return !n.includes('natural') && !n.includes('neural') && !n.includes('online');
         });
 
-        // Prioridad 2: Cualquier voz explícitamente masculina
-        const anyMale = desktopMale || pool.find((v) => isMaleVoice(v.name));
+        const pool = nonNeuralVoices.length > 0 ? nonNeuralVoices : langVoices;
 
-        // Prioridad 3: Voces de motor Google no femeninas o de sistema
-        const fallbackMale =
-          anyMale ||
-          pool.find((v) => !isFemaleVoice(v.name) && !v.name.toLowerCase().includes('neural')) ||
+        // Prioridad 1: Voces sintéticas clásicas de escritorio "Desktop" (Helena Desktop, Sabina Desktop, Laura Desktop, Zira Desktop)
+        const desktopVoice = pool.find((v) => {
+          const n = v.name.toLowerCase();
+          return (
+            n.includes('desktop') &&
+            (n.includes('helena') ||
+              n.includes('sabina') ||
+              n.includes('laura') ||
+              n.includes('zira') ||
+              n.includes('hazel') ||
+              n.includes('susan') ||
+              n.includes('monica') ||
+              n.includes('paulina') ||
+              n.includes('female'))
+          );
+        });
+
+        // Prioridad 2: Cualquier voz femenina no neural
+        const femaleVoice =
+          desktopVoice ||
+          pool.find((v) => {
+            const n = v.name.toLowerCase();
+            return (
+              n.includes('helena') ||
+              n.includes('sabina') ||
+              n.includes('laura') ||
+              n.includes('zira') ||
+              n.includes('hazel') ||
+              n.includes('susan') ||
+              n.includes('monica') ||
+              n.includes('paulina') ||
+              n.includes('elena') ||
+              n.includes('lucia') ||
+              n.includes('female')
+            );
+          });
+
+        // Prioridad 3: Voces Google o Desktop alternativas
+        const fallbackVoice =
+          pool.find((v) => v.name.toLowerCase().includes('google')) ||
+          pool.find((v) => v.name.toLowerCase().includes('desktop')) ||
           pool[0];
 
-        if (fallbackMale) {
-          utterance.voice = fallbackMale;
+        const preferredVoice = femaleVoice || fallbackVoice;
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
         }
       }
     };
 
     selectBestVoice();
 
-    // Modulación acústica: Androide Masculino Sofisticado
-    // Pitch 0.88: Registro medio-grave masculino, controlado, resonante y sereno
-    // Si recae en voz femenina por ausencia total de voces masculinas en el OS, 0.72 la transforma a registro masculino
-    const selectedIsFemale = utterance.voice ? isFemaleVoice(utterance.voice.name) : false;
-    utterance.pitch = selectedIsFemale ? 0.72 : 0.88;
-    utterance.rate = 0.92; // Cadencia deliberada, precisa y mesurada
+    // Modulación acústica estilo StarCraft II Terran Adjutant:
+    // Pitch 0.82 ubica la voz en una tesitura androide gélida, desprovista de emoción humana
+    // Rate 0.84 establece la cadencia milimétrica, controlada y deliberada de una supercomputadora
+    const isFemaleVoice = utterance.voice?.name.toLowerCase().match(/helena|sabina|laura|monica|paulina|zira|hazel|susan|elena|lucia|female/);
+    utterance.pitch = isFemaleVoice ? 0.82 : 0.88;
+    utterance.rate = 0.84;
     utterance.volume = 1.0;
 
-    // Disparar chime de inicialización neural limpio
+    // Disparar chime de intercomunicador con squelch de radio StarCraft
     playSpaceshipEchoChime();
 
     utterance.onstart = () => {
@@ -709,7 +866,7 @@ export function playShipWelcomeVoice(
       if (ctx) startServoRumble(ctx);
     };
 
-    // Al finalizar la voz: emitir tono roger de confirmación
+    // Al finalizar la voz: apagar servo vocoder y emitir corte de squelch militar StarCraft
     utterance.onend = () => {
       stopServoRumble();
       activeUtterance = null;
@@ -721,7 +878,7 @@ export function playShipWelcomeVoice(
       activeUtterance = null;
     };
 
-    // Retardo sutil de 240ms tras el chime inicial
+    // Retardo de 260ms para permitir que el squelch inicial resuene antes de la primera palabra
     setTimeout(() => {
       try {
         window.speechSynthesis.speak(utterance);
@@ -729,7 +886,7 @@ export function playShipWelcomeVoice(
         stopServoRumble();
         activeUtterance = null;
       }
-    }, 240);
+    }, 260);
   } catch {}
 }
 
