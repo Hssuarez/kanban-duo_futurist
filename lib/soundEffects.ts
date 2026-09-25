@@ -584,22 +584,18 @@ function buildShipSpeechText(
   lang: 'es' | 'en',
   briefing?: ShipVoiceBriefingOptions
 ): string {
+  const commanderTitle = lang === 'es' ? 'Comandante' : 'Commander';
+  const userGreeting = firstName ? `${commanderTitle} ${firstName}` : commanderTitle;
+
   const intro =
     lang === 'es'
-      ? `INICIANDO PROTOCOLO. Identificación biométrica confirmada. Comandante ${firstName}...`
-      : `PROTOCOL INITIATED. Biometric authorization confirmed. Commander ${firstName}...`;
+      ? `INICIANDO PROTOCOLO. Identificación biométrica confirmada. ${userGreeting}...`
+      : `PROTOCOL INITIATED. Biometric authorization confirmed. ${userGreeting}...`;
 
-  // Sin informe de tareas provisto: saludo estándar
-  if (!briefing || !briefing.pendingTasks) {
-    return lang === 'es'
-      ? `${intro} Núcleo orbital en línea. Inteligencia Artificial a su servicio.`
-      : `${intro} Orbital core online. Artificial Intelligence standing by.`;
-  }
+  const count = briefing?.totalPendingCount ?? (briefing?.pendingTasks?.length ?? 0);
 
-  const count = briefing.totalPendingCount ?? briefing.pendingTasks.length;
-
-  // Cero tareas pendientes
-  if (count === 0 || briefing.pendingTasks.length === 0) {
+  // Cero tareas pendientes o sin briefing
+  if (!briefing || !briefing.pendingTasks || briefing.pendingTasks.length === 0 || count === 0) {
     return lang === 'es'
       ? `${intro} Núcleo orbital sincronizado. No se detectan tareas pendientes en el registro táctico. Todos los sistemas operativos.`
       : `${intro} Orbital core synchronized. No pending tasks detected in tactical logs. All systems operational.`;
@@ -752,9 +748,9 @@ function applyBlizzardDSPClient(rawSamples: Float32Array, sampleRate: number): F
 
   // 2. Ring Modulator (30 Hz) + Comb Filter metálico (26ms) + Highpass EQ (350Hz)
   const ringFreq = 30.0;
-  const ringDepth = 0.45;
+  const ringDepth = 0.42;
   const combDelay = Math.floor(sampleRate * 0.026);
-  const combFeedback = 0.38;
+  const combFeedback = 0.36;
   const combBuffer = new Float32Array(numSamples);
   let hpPrevIn = 0;
   let hpPrevOut = 0;
@@ -785,13 +781,13 @@ function applyBlizzardDSPClient(rawSamples: Float32Array, sampleRate: number): F
     outSamples[rogerStart + i] = tone * env;
   }
 
-  // Normalización pico a -0.7 dB (0.92)
+  // Normalización pico a -1 dB (0.89)
   let maxAmp = 0;
   for (let i = 0; i < totalSamples; i++) {
     const abs = Math.abs(outSamples[i]);
     if (abs > maxAmp) maxAmp = abs;
   }
-  const gain = maxAmp > 0 ? 0.92 / maxAmp : 1.0;
+  const gain = maxAmp > 0 ? 0.89 / maxAmp : 1.0;
   for (let i = 0; i < totalSamples; i++) {
     outSamples[i] = Math.max(-1.0, Math.min(1.0, outSamples[i] * gain));
   }
@@ -825,9 +821,10 @@ export function playShipWelcomeVoice(
     if (cleanName.includes('@')) {
       cleanName = cleanName.split('@')[0].replace(/[._-]/g, ' ');
     }
-    const firstName = cleanName
-      ? sanitizeVoiceText(cleanName.split(' ')[0], 25)
-      : lang === 'es' ? 'Comandante' : 'Commander';
+    const rawFirst = cleanName ? cleanName.split(' ')[0] : '';
+    const firstName = rawFirst
+      ? sanitizeVoiceText(rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase(), 25)
+      : '';
 
     const text = buildShipSpeechText(firstName, lang, briefing);
 

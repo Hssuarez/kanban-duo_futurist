@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import crypto from 'crypto';
 import { exec } from 'child_process';
 
 export const dynamic = 'force-dynamic';
 
-const cacheDir = path.join(process.cwd(), 'public', 'sounds', 'adjutant', 'cache');
-const tempDir = path.join(process.cwd(), 'scratch_adjutant_temp');
+// Caché en memoria: seguro para Vercel, serverless y local (evita cualquier error EROFS)
+const memoryCache = new Map<string, { buffer: Buffer; contentType: string; dspApplied: boolean }>();
 
-if (!fs.existsSync(cacheDir)) {
-  fs.mkdirSync(cacheDir, { recursive: true });
-}
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true });
-}
+const tempDir = path.join(os.tmpdir(), 'adjutant_temp');
+const cacheDir = path.join(os.tmpdir(), 'adjutant_cache');
+try {
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+  }
+} catch {}
 
-function applyBlizzardDSP(rawWavPath: string, outputPath: string): Buffer {
+function applyBlizzardDSP(rawWavPath: string, outputPath?: string): Buffer {
   const buf = fs.readFileSync(rawWavPath);
   const sampleRate = buf.readUInt32LE(24);
   const dataOffset = buf.indexOf('data') + 8;
@@ -101,7 +106,11 @@ function applyBlizzardDSP(rawWavPath: string, outputPath: string): Buffer {
     finalBuf.writeInt16LE(Math.round(s * 32767), 44 + i * 2);
   }
 
-  fs.writeFileSync(outputPath, finalBuf);
+  if (outputPath) {
+    try {
+      fs.writeFileSync(outputPath, finalBuf);
+    } catch {}
+  }
   return finalBuf;
 }
 
@@ -111,7 +120,7 @@ async function fetchGoogleTTSBuffer(text: string, lang: string): Promise<Buffer>
   let current = '';
 
   for (const piece of rawChunks) {
-    if ((current + ' ' + piece).trim().length > 180) {
+    if ((current + ' ' + piece).trim().length > 130) {
       if (current.trim()) chunks.push(current.trim());
       current = piece;
     } else {
@@ -125,12 +134,22 @@ async function fetchGoogleTTSBuffer(text: string, lang: string): Promise<Buffer>
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodeURIComponent(chunk)}`;
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://translate.google.com/',
+        'Accept': 'audio/mpeg, audio/*, */*',
       },
     });
     if (!res.ok) throw new Error(`Google TTS HTTP ${res.status}`);
     const arrayBuf = await res.arrayBuffer();
-    buffers.push(Buffer.from(arrayBuf));
+    const buf = Buffer.from(arrayBuf);
+    // Verificar que la respuesta sea audio y no una página HTML de captcha
+    const isAudio = (buf.length > 200) && (
+      (buf[0] === 0xFF && (buf[1] & 0xE0) === 0xE0) ||
+      buf.slice(0, 3).toString() === 'ID3' ||
+      !buf.slice(0, 20).toString().includes('<html')
+    );
+    if (!isAudio) throw new Error('Google TTS returned non-audio response');
+    buffers.push(buf);
   }
 
   return Buffer.concat(buffers);
@@ -140,44 +159,65 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const text = searchParams.get('text');
-    const lang = (searchParams.get('lang') || 'es').toLowerCase();
+    const lang = (searchParams.get('lang') || 'es').toLowerCase() === 'en' ? 'en' : 'es';
 
     if (!text || text.trim().length === 0) {
       return NextResponse.json({ error: 'Text parameter is required' }, { status: 400 });
     }
 
     const cleanText = text.trim().slice(0, 450);
-    const hash = crypto.createHash('md5').update(`${lang}:${cleanText}`).digest('hex');
+    const cacheKey = `${lang}:${cleanText}`;
+
+    // 1. Servir desde caché en memoria si existe (0ms, ultra-rápido)
+    const memCached = memoryCache.get(cacheKey);
+    if (memCached) {
+      return new Response(new Uint8Array(memCached.buffer), {
+        status: 200,
+        headers: {
+          'Content-Type': memCached.contentType,
+          'Cache-Control': 'public, max-age=604800, immutable',
+          'x-dsp-applied': memCached.dspApplied ? 'true' : 'false',
+        },
+      });
+    }
+
+    const hash = crypto.createHash('md5').update(cacheKey).digest('hex');
     const cachedWavPath = path.join(cacheDir, `${hash}.wav`);
     const cachedMp3Path = path.join(cacheDir, `${hash}.mp3`);
 
-    // 1. Servir desde caché WAV (ya procesado con DSP)
-    if (fs.existsSync(cachedWavPath)) {
-      const cachedBuf = fs.readFileSync(cachedWavPath);
-      return new Response(new Uint8Array(cachedBuf), {
-        status: 200,
-        headers: {
-          'Content-Type': 'audio/wav',
-          'Cache-Control': 'public, max-age=604800, immutable',
-          'x-dsp-applied': 'true',
-        },
-      });
-    }
+    // 2. Servir desde caché WAV en disco (ya procesado con Blizzard DSP)
+    try {
+      if (fs.existsSync(cachedWavPath)) {
+        const cachedBuf = fs.readFileSync(cachedWavPath);
+        memoryCache.set(cacheKey, { buffer: cachedBuf, contentType: 'audio/wav', dspApplied: true });
+        return new Response(new Uint8Array(cachedBuf), {
+          status: 200,
+          headers: {
+            'Content-Type': 'audio/wav',
+            'Cache-Control': 'public, max-age=604800, immutable',
+            'x-dsp-applied': 'true',
+          },
+        });
+      }
+    } catch {}
 
-    // 2. Servir desde caché MP3
-    if (fs.existsSync(cachedMp3Path)) {
-      const cachedBuf = fs.readFileSync(cachedMp3Path);
-      return new Response(new Uint8Array(cachedBuf), {
-        status: 200,
-        headers: {
-          'Content-Type': 'audio/mpeg',
-          'Cache-Control': 'public, max-age=604800, immutable',
-          'x-dsp-applied': 'false',
-        },
-      });
-    }
+    // 3. Servir desde caché MP3 en disco
+    try {
+      if (fs.existsSync(cachedMp3Path)) {
+        const cachedBuf = fs.readFileSync(cachedMp3Path);
+        memoryCache.set(cacheKey, { buffer: cachedBuf, contentType: 'audio/mpeg', dspApplied: false });
+        return new Response(new Uint8Array(cachedBuf), {
+          status: 200,
+          headers: {
+            'Content-Type': 'audio/mpeg',
+            'Cache-Control': 'public, max-age=604800, immutable',
+            'x-dsp-applied': 'false',
+          },
+        });
+      }
+    } catch {}
 
-    // 3. Intento en Windows: SAPI Helena/Zira Desktop + Blizzard DSP en servidor
+    // 4. Intento en Windows: SAPI Helena/Zira Desktop + Blizzard DSP en servidor
     if (process.platform === 'win32') {
       try {
         const voice = lang === 'en' ? 'Microsoft Zira Desktop' : 'Microsoft Helena Desktop';
@@ -215,6 +255,8 @@ $s.Dispose()
         const dspBuf = applyBlizzardDSP(tempRawPath, cachedWavPath);
         try { fs.unlinkSync(tempRawPath); } catch {}
 
+        memoryCache.set(cacheKey, { buffer: dspBuf, contentType: 'audio/wav', dspApplied: true });
+
         return new Response(new Uint8Array(dspBuf), {
           status: 200,
           headers: {
@@ -228,11 +270,13 @@ $s.Dispose()
       }
     }
 
-    // 4. Universal (Vercel / Linux / Docker / Fallback): Obtener audio de voz limpio vía Google TTS
+    // 5. Universal (Vercel / Linux / Docker / Fallback): Obtener audio de voz limpio vía Google TTS
     const mp3Buf = await fetchGoogleTTSBuffer(cleanText, lang);
     try {
       fs.writeFileSync(cachedMp3Path, mp3Buf);
     } catch {}
+
+    memoryCache.set(cacheKey, { buffer: mp3Buf, contentType: 'audio/mpeg', dspApplied: false });
 
     return new Response(new Uint8Array(mp3Buf), {
       status: 200,
