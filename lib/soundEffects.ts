@@ -233,6 +233,7 @@ export function setSoundEnabled(enabled: boolean): void {
   localStorage.setItem(SOUND_ENABLED_KEY, String(enabled));
   if (!enabled) {
     stopAmbientWarpDrone();
+    stopAdjutantAudio();
     if ('speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
@@ -649,11 +650,87 @@ function buildShipSpeechText(
   }
 }
 
+let currentAdjutantAudio: HTMLAudioElement | null = null;
+
+export function stopAdjutantAudio(): void {
+  if (currentAdjutantAudio) {
+    try {
+      currentAdjutantAudio.pause();
+      currentAdjutantAudio.currentTime = 0;
+    } catch {}
+    currentAdjutantAudio = null;
+  }
+  stopServoRumble();
+  activeUtterance = null;
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
+  }
+}
+
 /**
  * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
- * Calibrado fielmente al Terran Adjutant de StarCraft 2 (voz androide clínica, fría y sintetizada)
+ * Reproduce los audios de estudio pre-procesados con la cadena DSP de StarCraft 2: Terran Adjutant
+ * (Ring Modulator, Comb Filter metálico, EQ de comunicador militar y squelch de radio de combate)
  */
 export function playShipWelcomeVoice(
+  userName: string,
+  customLang?: 'es' | 'en',
+  briefing?: ShipVoiceBriefingOptions
+) {
+  if (!isSoundEnabled()) return;
+  if (typeof window === 'undefined') return;
+
+  try {
+    stopAdjutantAudio();
+
+    const lang = customLang || getSoundLanguage();
+    const count = briefing?.totalPendingCount ?? (briefing?.pendingTasks?.length ?? 0);
+
+    // Selección del clip táctico StarCraft 2 Terran Adjutant
+    let clipFile = `adjutant_generic_${lang}.wav`;
+    if (briefing && briefing.pendingTasks) {
+      if (count === 0) {
+        clipFile = `adjutant_ready_${lang}.wav`;
+      } else if (count === 1) {
+        clipFile = `adjutant_single_${lang}.wav`;
+      } else {
+        clipFile = `adjutant_multi_${lang}.wav`;
+      }
+    }
+
+    const audioPath = `/sounds/adjutant/${clipFile}`;
+    const audio = new Audio(audioPath);
+    currentAdjutantAudio = audio;
+    audio.volume = 1.0;
+
+    audio.onended = () => {
+      if (currentAdjutantAudio === audio) {
+        currentAdjutantAudio = null;
+      }
+    };
+
+    audio.onerror = () => {
+      // Fallback a síntesis nativa si el archivo no estuviera disponible
+      playShipWelcomeVoiceSynthesisFallback(userName, lang, briefing);
+    };
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        playShipWelcomeVoiceSynthesisFallback(userName, lang, briefing);
+      });
+    }
+  } catch {
+    playShipWelcomeVoiceSynthesisFallback(userName, customLang || 'es', briefing);
+  }
+}
+
+/**
+ * Fallback de síntesis de voz en caso de que los archivos estáticos no estén accesibles
+ */
+function playShipWelcomeVoiceSynthesisFallback(
   userName: string,
   customLang?: 'es' | 'en',
   briefing?: ShipVoiceBriefingOptions
@@ -749,8 +826,6 @@ export function playShipWelcomeVoice(
     selectBestVoice();
 
     // Modulación acústica estilo StarCraft II Terran Adjutant:
-    // Pitch 0.68 ubica la voz en una tesitura profundamente sintética, plana y androide
-    // Rate 0.85 establece la cadencia deliberada y clínica de la computadora Terran
     const isFemaleVoice = utterance.voice?.name.toLowerCase().match(/helena|sabina|laura|monica|paulina|zira|hazel|susan|elena|lucia|female/);
     utterance.pitch = isFemaleVoice ? 0.68 : 0.74;
     utterance.rate = 0.85;
