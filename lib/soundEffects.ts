@@ -318,9 +318,147 @@ export function playSciFiBootSequence() {
   } catch {}
 }
 
+/* ========================================================
+   COMUNICACIONES DE PUENTE & INTELIGENCIA ARTIFICIAL DE ABORDO
+   ======================================================== */
+
+let activeAiCarrier: { osc1: OscillatorNode; osc2: OscillatorNode; gain: GainNode } | null = null;
+
 /**
- * Saludo por voz sintetizada de la computadora de a bordo (Web Speech API)
- * Configurado con modulación de IA espacial ("Starship Onboard AI")
+ * Chime arpegiado futurista de apertura de enlace de comunicaciones (Com-Link Open)
+ * F#5 (739.99Hz) -> A#5 (932.33Hz) -> C#6 (1108.73Hz)
+ */
+export function playCommsOpenChime() {
+  if (!isSoundEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const tones = [
+      { freq: 739.99, time: now },
+      { freq: 932.33, time: now + 0.07 },
+      { freq: 1108.73, time: now + 0.14 },
+    ];
+
+    tones.forEach(({ freq, time }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.exponentialRampToValueAtTime(0.045, time + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.24);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(time);
+      osc.stop(time + 0.26);
+    });
+  } catch {}
+}
+
+/**
+ * Doble blip táctico de confirmación al cerrar canal de comunicaciones (Com-Link Roger)
+ */
+export function playCommsCloseChime() {
+  if (!isSoundEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const tones = [
+      { freq: 1046.5, time: now },
+      { freq: 1318.51, time: now + 0.05 },
+    ];
+
+    tones.forEach(({ freq, time }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.exponentialRampToValueAtTime(0.035, time + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.07);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(time);
+      osc.stop(time + 0.08);
+    });
+  } catch {}
+}
+
+/**
+ * Portadora sub-acústica de radio / campo holográfico mientras la IA habla
+ */
+function startAiCarrier(ctx: AudioContext) {
+  if (activeAiCarrier) return;
+  try {
+    const now = ctx.currentTime;
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(540, now);
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(1080, now);
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(800, now);
+    filter.Q.setValueAtTime(2.0, now);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.012, now + 0.2);
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc1.start(now);
+    osc2.start(now);
+    activeAiCarrier = { osc1, osc2, gain };
+  } catch {}
+}
+
+function stopAiCarrier() {
+  if (!activeAiCarrier) return;
+  try {
+    const { osc1, osc2, gain } = activeAiCarrier;
+    const ctx = getAudioContext();
+    if (ctx) {
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+      setTimeout(() => {
+        try {
+          osc1.stop();
+          osc2.stop();
+          osc1.disconnect();
+          osc2.disconnect();
+          gain.disconnect();
+        } catch {}
+      }, 350);
+    }
+    activeAiCarrier = null;
+  } catch {
+    activeAiCarrier = null;
+  }
+}
+
+/**
+ * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
+ * Configurado con estilo cinematográfico de nave espacial (Alien Mother / Star Trek Computer / HAL)
  */
 export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en') {
   if (!isSoundEnabled()) return;
@@ -328,54 +466,123 @@ export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en')
 
   try {
     window.speechSynthesis.cancel();
+    stopAiCarrier();
 
     const lang = customLang || getSoundLanguage();
     const firstName = userName ? userName.trim().split(' ')[0] : (lang === 'es' ? 'Comandante' : 'Commander');
 
+    // Guión de IA espacial protocolario y militar
     const text =
       lang === 'es'
-        ? `Comandante ${firstName}, puente de mando en línea. Todos los sistemas orbitales sincronizados.`
-        : `Commander ${firstName}, command bridge online. All orbital systems synchronized.`;
+        ? `Identificación biométrica confirmada. Saludos, Comandante ${firstName}. Núcleo orbital sincronizado. Inteligencia de abordo a su servicio.`
+        : `Biometric authorization confirmed. Greetings, Commander ${firstName}. Orbital core synchronized. Ship artificial intelligence standing by.`;
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
-    utterance.pitch = 1.05; // Timbre ligeramente estilizado de interfaz
-    utterance.rate = 1.02;  // Cadencia militar / protocolaria espacial
-    utterance.volume = 0.85;
+    utterance.pitch = 1.12; // Timbre sintético cristalino, clinical y futurista
+    utterance.rate = 0.96;  // Cadencia analítica, pausada y autoritaria de IA espacial
+    utterance.volume = 0.95;
 
-    // Intentar seleccionar la mejor voz disponible del idioma
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      const matchingVoice =
-        voices.find((v) => v.lang.toLowerCase().startsWith(lang) && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Neural'))) ||
-        voices.find((v) => v.lang.toLowerCase().startsWith(lang));
-      if (matchingVoice) {
-        utterance.voice = matchingVoice;
+    // Disparar chime de enlace antes de la locución
+    playCommsOpenChime();
+
+    // Priorizar voces neurales / sintéticas de IA en el navegador
+    const selectBestVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length === 0) return;
+
+      const langCode = lang === 'es' ? 'es' : 'en';
+      const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(langCode));
+
+      if (langVoices.length > 0) {
+        const preferredVoice =
+          langVoices.find((v) => {
+            const n = v.name.toLowerCase();
+            return (
+              (n.includes('natural') || n.includes('neural') || n.includes('online')) &&
+              (n.includes('helena') || n.includes('sabina') || n.includes('zira') || n.includes('jenny') || n.includes('aria'))
+            );
+          }) ||
+          langVoices.find((v) => {
+            const n = v.name.toLowerCase();
+            return n.includes('natural') || n.includes('neural') || n.includes('online');
+          }) ||
+          langVoices.find((v) => {
+            const n = v.name.toLowerCase();
+            return n.includes('zira') || n.includes('helena') || n.includes('sabina') || n.includes('google');
+          }) ||
+          langVoices[0];
+
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
       }
-    }
+    };
 
-    window.speechSynthesis.speak(utterance);
+    selectBestVoice();
+
+    // Activar portadora de cabina al comenzar la locución
+    utterance.onstart = () => {
+      const ctx = getAudioContext();
+      if (ctx) startAiCarrier(ctx);
+    };
+
+    // Al finalizar: cerrar portadora y emitir blip de canal cerrado
+    utterance.onend = () => {
+      stopAiCarrier();
+      playCommsCloseChime();
+    };
+
+    utterance.onerror = () => {
+      stopAiCarrier();
+    };
+
+    // Retardo para que el chime de apertura resuene antes de la voz
+    setTimeout(() => {
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch {}
+    }, 220);
   } catch {}
 }
 
 /* ========================================================
-   ZUMBIDO AMBIENTAL DE CABINA (WARP CORE DRONE)
+   ATMÓSFERA AMBIENTAL DE NAVE (WARP CORE & CABIN HUM - CERO INTERFERENCIAS)
    ======================================================== */
 
 interface AmbientDroneInstance {
-  osc1: OscillatorNode;
-  osc2: OscillatorNode;
+  sub1: OscillatorNode;
+  sub2: OscillatorNode;
+  sub3: OscillatorNode;
+  noiseSource: AudioBufferSourceNode;
   lfo: OscillatorNode;
-  filter: BiquadFilterNode;
   gain: GainNode;
   ctx: AudioContext;
 }
 
 let activeDrone: AmbientDroneInstance | null = null;
+let cachedBrownianBuffer: AudioBuffer | null = null;
+
+function getBrownianBuffer(ctx: AudioContext): AudioBuffer {
+  if (cachedBrownianBuffer) return cachedBrownianBuffer;
+  const durationSeconds = 4;
+  const bufferSize = ctx.sampleRate * durationSeconds;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let lastOut = 0.0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    lastOut = (lastOut + 0.02 * white) / 1.02;
+    data[i] = lastOut * 3.0;
+  }
+  cachedBrownianBuffer = buffer;
+  return buffer;
+}
 
 /**
- * Inicia el zumbido ambiental de baja frecuencia de la nave (Warp Core Hum)
- * 100% procedural, muy sutil (volumen ~3.5%) con modulación lenta
+ * Inicia la atmósfera espacial continua de la nave (Warp Core & Pressurized Cabin)
+ * 100% Sinusoidal puro + Ruido Browniano ultra-filtrado a 65Hz
+ * CERO distorsión, CERO interferencia, CERO chasquidos. Máxima calidez cinemática.
  */
 export function startAmbientWarpDrone() {
   if (!isSoundEnabled() || activeDrone) return;
@@ -385,45 +592,84 @@ export function startAmbientWarpDrone() {
 
     const now = ctx.currentTime;
 
-    // 1. Oscilador subgrave 1 (52Hz)
-    const osc1 = ctx.createOscillator();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(52, now);
+    // 1. Fundamental sub-grave cálido y continuo (44 Hz / F1) - CERO distorsión
+    const sub1 = ctx.createOscillator();
+    sub1.type = 'sine';
+    sub1.frequency.setValueAtTime(44.0, now);
 
-    // 2. Oscilador subgrave 2 desfasado (55.5Hz) -> genera pulso binaural zen de 3.5Hz
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(55.5, now);
+    // 2. Segundo armónico puro y sutil (88 Hz / F2) - CERO armónicos triangulares discordantes
+    const sub2 = ctx.createOscillator();
+    sub2.type = 'sine';
+    sub2.frequency.setValueAtTime(88.0, now);
+    const sub2Gain = ctx.createGain();
+    sub2Gain.gain.setValueAtTime(0.18, now);
+    sub2.connect(sub2Gain);
 
-    // 3. Filtro paso-bajo para aislar solo la vibración cálida
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(95, now);
+    // 3. Quinto armónico zen (132 Hz / C3) - resonancia musical profunda
+    const sub3 = ctx.createOscillator();
+    sub3.type = 'sine';
+    sub3.frequency.setValueAtTime(132.0, now);
+    const sub3Gain = ctx.createGain();
+    sub3Gain.gain.setValueAtTime(0.08, now);
+    sub3.connect(sub3Gain);
 
-    // 4. LFO muy lento (0.15Hz) para respiración sónica del reactor
+    // 4. Presurización y flujo de aire de cabina espacial (Ruido Browniano filtrado a 65 Hz)
+    // Sensación pura de soporte vital continuo de puente de mando sin ruidos agudos
+    const brownBuffer = getBrownianBuffer(ctx);
+    const noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = brownBuffer;
+    noiseSource.loop = true;
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.setValueAtTime(65, now);
+    noiseFilter.Q.setValueAtTime(0.3, now);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.25, now);
+
+    noiseSource.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+
+    // 5. LFO de respiración ultra-lento (0.06 Hz = 1 ciclo cada 16 segundos)
+    // Modula suavemente el volumen general (±10%), NUNCA el filtro de frecuencias
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
     lfo.type = 'sine';
-    lfo.frequency.setValueAtTime(0.15, now);
-    lfoGain.gain.setValueAtTime(18, now); // Modula el filtro ±18Hz
+    lfo.frequency.setValueAtTime(0.06, now);
+    lfoGain.gain.setValueAtTime(0.003, now);
+
+    // 6. Ganancia maestra del ambiente de cabina con fade-in suave de 2.5s
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.0001, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.024, now + 2.5);
+
     lfo.connect(lfoGain);
-    lfoGain.connect(filter.frequency);
+    lfoGain.connect(masterGain.gain);
 
-    // 5. Ganancia maestra del drone con fade-in suave de 2 segundos
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.035, now + 2.0); // Volumen suave y tranquilizante
+    // Conectar todos los componentes limpios al masterGain
+    sub1.connect(masterGain);
+    sub2Gain.connect(masterGain);
+    sub3Gain.connect(masterGain);
+    noiseGain.connect(masterGain);
 
-    osc1.connect(filter);
-    osc2.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
+    masterGain.connect(ctx.destination);
 
-    osc1.start(now);
-    osc2.start(now);
+    sub1.start(now);
+    sub2.start(now);
+    sub3.start(now);
+    noiseSource.start(now);
     lfo.start(now);
 
-    activeDrone = { osc1, osc2, lfo, filter, gain, ctx };
+    activeDrone = {
+      sub1,
+      sub2,
+      sub3,
+      noiseSource,
+      lfo,
+      gain: masterGain,
+      ctx,
+    };
   } catch {}
 }
 
@@ -433,18 +679,22 @@ export function startAmbientWarpDrone() {
 export function stopAmbientWarpDrone() {
   if (!activeDrone) return;
   try {
-    const { osc1, osc2, lfo, gain, ctx } = activeDrone;
+    const { sub1, sub2, sub3, noiseSource, lfo, gain, ctx } = activeDrone;
     const now = ctx.currentTime;
     gain.gain.setValueAtTime(gain.gain.value, now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
 
     setTimeout(() => {
       try {
-        osc1.stop();
-        osc2.stop();
+        sub1.stop();
+        sub2.stop();
+        sub3.stop();
+        noiseSource.stop();
         lfo.stop();
-        osc1.disconnect();
-        osc2.disconnect();
+        sub1.disconnect();
+        sub2.disconnect();
+        sub3.disconnect();
+        noiseSource.disconnect();
         lfo.disconnect();
         gain.disconnect();
       } catch {}
@@ -457,7 +707,11 @@ export function stopAmbientWarpDrone() {
 }
 
 /**
- * Micro-blip de telemetría al pasar el cursor sobre un mini-planeta
+ * Escáner Holográfico de Telemetría Orbital al posarse sobre un mini-planeta
+ * Sonido multi-capa de nave espacial:
+ * 1. Chirp láser de fijación de objetivo (Target Lock de 18ms)
+ * 2. Resonancia de plasma cristalino (doble tono armónico quinta perfecta, 130ms)
+ * 3. Impulso gravitacional de masa planetaria (sub-pulse táctil de 40ms)
  */
 export function playPlanetTelemetrySound(planetId: string) {
   if (!isSoundEnabled()) return;
@@ -465,34 +719,77 @@ export function playPlanetTelemetrySound(planetId: string) {
     const ctx = getAudioContext();
     if (!ctx) return;
 
-    const freqMap: Record<string, number> = {
-      board: 1174.66,     // D6
-      dashboard: 1318.51, // E6
-      calendar: 1396.91,  // F6
-      pomodoro: 1046.50,  // C6
-      habits: 1244.51,    // D#6
-      challenges: 1479.98,// F#6
-      goals: 1567.98,     // G6
+    const now = ctx.currentTime;
+
+    // Frecuencias base de plasma orbital para cada módulo táctico
+    const tacticalFrequencies: Record<string, number> = {
+      board: 659.25,      // E5 (Tablero / Tactical Grid)
+      dashboard: 783.99,  // G5 (Métricas / Telemetry Array)
+      calendar: 587.33,   // D5 (Calendario / Chrono Grid)
+      pomodoro: 523.25,   // C5 (Pomodoro / Chrono Core)
+      habits: 698.46,     // F5 (Hábitos / Bio Matrix)
+      challenges: 880.00, // A5 (Retos / Orbital Beacon)
+      goals: 987.77,      // B5 (Objetivos / Quantum Vector)
     };
 
-    const freq = freqMap[planetId] || 1200;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const f0 = tacticalFrequencies[planetId] || 700;
+    const fHarmonic = f0 * 1.5; // Quinta perfecta armónica espacial
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, now);
-    osc.frequency.exponentialRampToValueAtTime(freq * 1.12, now + 0.035);
+    // --- CAPA 1: Chirp táctico de fijación de sensor (Micro-laser sweep de 18ms) ---
+    const chirpOsc = ctx.createOscillator();
+    const chirpGain = ctx.createGain();
+    chirpOsc.type = 'sine';
+    chirpOsc.frequency.setValueAtTime(2200, now);
+    chirpOsc.frequency.exponentialRampToValueAtTime(900, now + 0.018);
 
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.exponentialRampToValueAtTime(0.025, now + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+    chirpGain.gain.setValueAtTime(0.001, now);
+    chirpGain.gain.exponentialRampToValueAtTime(0.035, now + 0.004);
+    chirpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.022);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    chirpOsc.connect(chirpGain);
+    chirpGain.connect(ctx.destination);
+    chirpOsc.start(now);
+    chirpOsc.stop(now + 0.025);
 
-    osc.start(now);
-    osc.stop(now + 0.05);
+    // --- CAPA 2: Resonancia de Plasma Cristalino (Doble tono armónico de 130ms) ---
+    const oscMain = ctx.createOscillator();
+    const oscHarm = ctx.createOscillator();
+    const gainResonance = ctx.createGain();
+
+    oscMain.type = 'sine';
+    oscMain.frequency.setValueAtTime(f0, now + 0.004);
+
+    oscHarm.type = 'sine';
+    oscHarm.frequency.setValueAtTime(fHarmonic, now + 0.004);
+
+    gainResonance.gain.setValueAtTime(0.001, now + 0.004);
+    gainResonance.gain.exponentialRampToValueAtTime(0.038, now + 0.016);
+    gainResonance.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+
+    oscMain.connect(gainResonance);
+    oscHarm.connect(gainResonance);
+    gainResonance.connect(ctx.destination);
+
+    oscMain.start(now + 0.004);
+    oscHarm.start(now + 0.004);
+    oscMain.stop(now + 0.14);
+    oscHarm.stop(now + 0.14);
+
+    // --- CAPA 3: Impulso Gravitacional de Masa (Sub-grave táctil de 40ms) ---
+    const subOsc = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(55, now);
+    subOsc.frequency.exponentialRampToValueAtTime(38, now + 0.04);
+
+    subGain.gain.setValueAtTime(0.001, now);
+    subGain.gain.exponentialRampToValueAtTime(0.022, now + 0.008);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+
+    subOsc.connect(subGain);
+    subGain.connect(ctx.destination);
+    subOsc.start(now);
+    subOsc.stop(now + 0.05);
 
     triggerHapticPulse('light');
   } catch {}
