@@ -651,6 +651,7 @@ function buildShipSpeechText(
 
 let currentSessionId = 0;
 let activeAudioElement: HTMLAudioElement | null = null;
+let activeAudioSourceNode: AudioBufferSourceNode | null = null;
 let activeAbortController: AbortController | null = null;
 let registeredAudioTimers: NodeJS.Timeout[] = [];
 let voiceStatusListeners: ((isPlaying: boolean) => void)[] = [];
@@ -690,7 +691,16 @@ export function stopAdjutantAudio(): void {
     activeAbortController = null;
   }
 
-  // 4. Detener y desechar cualquier elemento de audio HTML activo de inmediato
+  // 4. Detener nodo de audio Web Audio en curso si existe
+  if (activeAudioSourceNode) {
+    try {
+      activeAudioSourceNode.stop();
+      activeAudioSourceNode.disconnect();
+    } catch {}
+    activeAudioSourceNode = null;
+  }
+
+  // 5. Detener y desechar cualquier elemento de audio HTML activo de inmediato
   if (activeAudioElement) {
     try {
       activeAudioElement.pause();
@@ -701,7 +711,7 @@ export function stopAdjutantAudio(): void {
     activeAudioElement = null;
   }
 
-  // 5. Cancelar síntesis de voz del navegador
+  // 6. Cancelar síntesis de voz del navegador
   stopServoRumble();
   activeUtterance = null;
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -710,15 +720,90 @@ export function stopAdjutantAudio(): void {
     } catch {}
   }
 
-  // 6. Notificar al HUD que la voz se ha detenido
+  // 7. Notificar al HUD que la voz se ha detenido
   notifyVoiceStatus(false);
+}
+
+/**
+ * Cadena de efectos Blizzard DSP StarCraft 2 Terran Adjutant (procesamiento en tiempo real):
+ * - 0.05s Squelch inicial militar
+ * - 30 Hz Ring Modulator (multiplicador de frecuencia robótica cibernética)
+ * - 26ms Comb Filter con feedback 0.38 (cámara metálica / diafragma de acero)
+ * - 350 Hz Filtro Paso Alto (elimina calidez o resonancia pectoral humana)
+ * - 0.18s Roger Beep militar descendente (1396 Hz -> 880 Hz)
+ */
+function applyBlizzardDSPClient(rawSamples: Float32Array, sampleRate: number): Float32Array {
+  const numSamples = rawSamples.length;
+  const introSquelchSec = 0.05;
+  const outroRogerSec = 0.18;
+  const introSquelchSamples = Math.floor(sampleRate * introSquelchSec);
+  const outroRogerSamples = Math.floor(sampleRate * outroRogerSec);
+
+  const totalSamples = introSquelchSamples + numSamples + outroRogerSamples;
+  const outSamples = new Float32Array(totalSamples);
+
+  // 1. Squelch inicial de apertura de transceptor ("kzz-click")
+  for (let i = 0; i < introSquelchSamples; i++) {
+    const t = i / sampleRate;
+    const noise = (Math.random() * 2 - 1) * Math.sin(2 * Math.PI * 2400 * t);
+    const env = (1.0 - i / introSquelchSamples) * 0.12;
+    outSamples[i] = noise * env;
+  }
+
+  // 2. Ring Modulator (30 Hz) + Comb Filter metálico (26ms) + Highpass EQ (350Hz)
+  const ringFreq = 30.0;
+  const ringDepth = 0.45;
+  const combDelay = Math.floor(sampleRate * 0.026);
+  const combFeedback = 0.38;
+  const combBuffer = new Float32Array(numSamples);
+  let hpPrevIn = 0;
+  let hpPrevOut = 0;
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    const ringCarrier = Math.sin(2 * Math.PI * ringFreq * t);
+    const ringed = rawSamples[i] * (1.0 - ringDepth + ringDepth * ringCarrier);
+
+    const delayed = i >= combDelay ? combBuffer[i - combDelay] : 0;
+    const combed = ringed + combFeedback * delayed;
+    combBuffer[i] = combed;
+
+    const hp = combed - hpPrevIn + 0.90 * hpPrevOut;
+    hpPrevIn = combed;
+    hpPrevOut = hp;
+
+    outSamples[introSquelchSamples + i] = hp;
+  }
+
+  // 3. Roger Beep militar descendente al final (1396 Hz -> 880 Hz)
+  const rogerStart = introSquelchSamples + numSamples;
+  for (let i = 0; i < outroRogerSamples; i++) {
+    const t = i / sampleRate;
+    const freq = t < 0.08 ? 1396.91 : 880.0;
+    const tone = Math.sin(2 * Math.PI * freq * t) * 0.06;
+    const env = Math.exp(-t * 18);
+    outSamples[rogerStart + i] = tone * env;
+  }
+
+  // Normalización pico a -0.7 dB (0.92)
+  let maxAmp = 0;
+  for (let i = 0; i < totalSamples; i++) {
+    const abs = Math.abs(outSamples[i]);
+    if (abs > maxAmp) maxAmp = abs;
+  }
+  const gain = maxAmp > 0 ? 0.92 / maxAmp : 1.0;
+  for (let i = 0; i < totalSamples; i++) {
+    outSamples[i] = Math.max(-1.0, Math.min(1.0, outSamples[i] * gain));
+  }
+
+  return outSamples;
 }
 
 /**
  * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
  * Genera dinámicamente el audio con el nombre del usuario, tareas y proyectos
- * procesado en tiempo real con la cadena DSP de StarCraft 2: Terran Adjutant
- * Garantiza CERO solapamientos y cancelación inmediata ante nuevos clics.
+ * procesado con la cadena Blizzard DSP de StarCraft 2: Terran Adjutant
+ * Garantiza CERO solapamientos y la voz androide en cualquier plataforma.
  */
 export function playShipWelcomeVoice(
   userName: string,
@@ -746,8 +831,7 @@ export function playShipWelcomeVoice(
 
     const text = buildShipSpeechText(firstName, lang, briefing);
 
-    // 3. Chime inicial inmediato de intercomunicador espacial
-    playSpaceshipEchoChime();
+    // 3. Notificar estado activo de inmediato
     notifyVoiceStatus(true);
 
     const abortController = new AbortController();
@@ -755,202 +839,93 @@ export function playShipWelcomeVoice(
 
     const dynamicUrl = `/api/adjutant-voice?lang=${lang}&text=${encodeURIComponent(text)}`;
 
-    // Petición Blob: pre-carga el audio en memoria antes de reproducir para evitar cortes o fallbacks prematuros
     fetch(dynamicUrl, { signal: abortController.signal })
       .then(async (response) => {
         if (thisSessionId !== currentSessionId) return;
         if (!response.ok) {
           throw new Error(`Server returned status ${response.status}`);
         }
-        const blob = await response.blob();
+        const isDspApplied = response.headers.get('x-dsp-applied') === 'true';
+        const arrayBuf = await response.arrayBuffer();
         if (thisSessionId !== currentSessionId) return;
 
-        const objectUrl = URL.createObjectURL(blob);
-        const audio = new Audio(objectUrl);
-        activeAudioElement = audio;
-        audio.volume = 1.0;
-
-        audio.onended = () => {
-          if (thisSessionId === currentSessionId) {
-            activeAudioElement = null;
-            notifyVoiceStatus(false);
-            URL.revokeObjectURL(objectUrl);
-          }
-        };
-
-        audio.onerror = () => {
-          if (thisSessionId === currentSessionId) {
-            URL.revokeObjectURL(objectUrl);
-            playShipWelcomeVoiceSynthesisFallback(firstName, lang, briefing);
-          }
-        };
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {
-            if (thisSessionId === currentSessionId) {
-              URL.revokeObjectURL(objectUrl);
-              playShipWelcomeVoiceSynthesisFallback(firstName, lang, briefing);
-            }
-          });
+        const ctx = getAudioContext();
+        if (!ctx) {
+          playApprovedAdjutantClip(lang, briefing);
+          return;
         }
+
+        // Decodificar el audio en un AudioBuffer nativo
+        const audioBuffer = await ctx.decodeAudioData(arrayBuf);
+        if (thisSessionId !== currentSessionId) return;
+
+        let finalAudioBuffer: AudioBuffer;
+
+        if (isDspApplied) {
+          finalAudioBuffer = audioBuffer;
+        } else {
+          // Aplicar la cadena completa Blizzard DSP en el cliente (Ring Modulator 30Hz, Comb Filter 26ms, High-pass 350Hz, Squelch, Roger)
+          const rawSamples = audioBuffer.getChannelData(0);
+          const dspSamples = applyBlizzardDSPClient(rawSamples, ctx.sampleRate);
+          finalAudioBuffer = ctx.createBuffer(1, dspSamples.length, ctx.sampleRate);
+          finalAudioBuffer.getChannelData(0).set(dspSamples);
+        }
+
+        const source = ctx.createBufferSource();
+        source.buffer = finalAudioBuffer;
+        source.connect(ctx.destination);
+        activeAudioSourceNode = source;
+
+        source.onended = () => {
+          if (thisSessionId === currentSessionId) {
+            activeAudioSourceNode = null;
+            notifyVoiceStatus(false);
+          }
+        };
+
+        source.start();
       })
       .catch((err) => {
         if (thisSessionId !== currentSessionId) return;
         if (err.name === 'AbortError') return;
-        // Si la API falla o no hay conexión, usar síntesis Web Speech personalizada con nombre y proyecto
-        playShipWelcomeVoiceSynthesisFallback(firstName, lang, briefing);
+        // Fallback garantizado a los clips aprobados de StarCraft Adjutant
+        playApprovedAdjutantClip(lang, briefing);
       });
   } catch {
-    playShipWelcomeVoiceSynthesisFallback(userName, customLang || 'es', briefing);
+    playApprovedAdjutantClip(customLang || 'es', briefing);
   }
 }
 
 /**
- * Fallback de síntesis de voz en caso de que los archivos estáticos no estén accesibles
+ * Fallback a los clips estáticos de StarCraft Terran Adjutant aprobados
  */
-function playShipWelcomeVoiceSynthesisFallback(
-  userName: string,
-  customLang?: 'es' | 'en',
+function playApprovedAdjutantClip(
+  lang: 'es' | 'en',
   briefing?: ShipVoiceBriefingOptions
 ) {
-  if (!isSoundEnabled()) return;
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
   try {
-    window.speechSynthesis.cancel();
-    stopServoRumble();
-    activeUtterance = null;
+    const count = briefing?.totalPendingCount ?? (briefing?.pendingTasks?.length ?? 0);
+    let clipFile = `adjutant_generic_${lang}.wav`;
+    if (briefing && briefing.pendingTasks) {
+      if (count === 0) clipFile = `adjutant_ready_${lang}.wav`;
+      else if (count === 1) clipFile = `adjutant_single_${lang}.wav`;
+      else clipFile = `adjutant_multi_${lang}.wav`;
+    }
 
-    const lang = customLang || getSoundLanguage();
-    const firstName = userName ? userName.trim().split(' ')[0] : (lang === 'es' ? 'Comandante' : 'Commander');
-
-    // Generar guión táctico estructurado con puntuación androide staccato
-    const text = buildShipSpeechText(firstName, lang, briefing);
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    activeUtterance = utterance; // Retener referencia para evitar recolección de basura de Chromium
-    utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
-
-    // Priorización de voces estilo StarCraft 2 Terran Adjutant (androide sintetizada clínica y limpia)
-    const selectBestVoice = () => {
-      let voices = window.speechSynthesis.getVoices();
-      if ((!voices || voices.length === 0) && cachedVoices.length > 0) {
-        voices = cachedVoices;
-      }
-      if (!voices || voices.length === 0) return;
-
-      const langCode = lang === 'es' ? 'es' : 'en';
-      const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(langCode));
-
-      if (langVoices.length > 0) {
-        // Excluir voces naturales "Neural" excesivamente emocionales y humanas
-        const nonNeuralVoices = langVoices.filter((v) => {
-          const n = v.name.toLowerCase();
-          return !n.includes('natural') && !n.includes('neural') && !n.includes('online');
-        });
-
-        const pool = nonNeuralVoices.length > 0 ? nonNeuralVoices : langVoices;
-
-        // Prioridad 1: Voces sintéticas clásicas de escritorio "Desktop" (Helena Desktop, Sabina Desktop, Laura Desktop, Zira Desktop)
-        const desktopVoice = pool.find((v) => {
-          const n = v.name.toLowerCase();
-          return (
-            n.includes('desktop') &&
-            (n.includes('helena') ||
-              n.includes('sabina') ||
-              n.includes('laura') ||
-              n.includes('zira') ||
-              n.includes('hazel') ||
-              n.includes('susan') ||
-              n.includes('monica') ||
-              n.includes('paulina') ||
-              n.includes('female'))
-          );
-        });
-
-        // Prioridad 2: Cualquier voz femenina no neural
-        const femaleVoice =
-          desktopVoice ||
-          pool.find((v) => {
-            const n = v.name.toLowerCase();
-            return (
-              n.includes('helena') ||
-              n.includes('sabina') ||
-              n.includes('laura') ||
-              n.includes('zira') ||
-              n.includes('hazel') ||
-              n.includes('susan') ||
-              n.includes('monica') ||
-              n.includes('paulina') ||
-              n.includes('elena') ||
-              n.includes('lucia') ||
-              n.includes('female')
-            );
-          });
-
-        // Prioridad 3: Voces Google o Desktop alternativas
-        const fallbackVoice =
-          pool.find((v) => v.name.toLowerCase().includes('google')) ||
-          pool.find((v) => v.name.toLowerCase().includes('desktop')) ||
-          pool[0];
-
-        const preferredVoice = femaleVoice || fallbackVoice;
-        if (preferredVoice) {
-          utterance.voice = preferredVoice;
-        }
-      }
-    };
-
-    selectBestVoice();
-
-    // Modulación acústica estilo StarCraft II Terran Adjutant:
-    const isFemaleVoice = utterance.voice?.name.toLowerCase().match(/helena|sabina|laura|monica|paulina|zira|hazel|susan|elena|lucia|female/);
-    utterance.pitch = isFemaleVoice ? 0.68 : 0.74;
-    utterance.rate = 0.85;
-    utterance.volume = 1.0;
-
-    // Disparar chime de intercomunicador con squelch de radio StarCraft
-    playSpaceshipEchoChime();
-
-    utterance.onstart = () => {
-      notifyVoiceStatus(true);
-      const ctx = getAudioContext();
-      if (ctx) startServoRumble(ctx);
-    };
-
-    // Resonancia metálica cibernética sincronizada con cada palabra hablada (eco androide)
-    utterance.onboundary = () => {
-      const ctx = getAudioContext();
-      if (ctx) playRobotWordMetallicRing(ctx);
-    };
-
-    // Al finalizar la voz: apagar servo y emitir corte de squelch militar StarCraft
-    utterance.onend = () => {
-      stopServoRumble();
-      activeUtterance = null;
-      notifyVoiceStatus(false);
-      playSpaceshipEchoRoger();
-    };
-
-    utterance.onerror = () => {
-      stopServoRumble();
-      activeUtterance = null;
+    const staticAudio = new Audio(`/sounds/adjutant/${clipFile}`);
+    activeAudioElement = staticAudio;
+    staticAudio.volume = 1.0;
+    staticAudio.onended = () => {
+      activeAudioElement = null;
       notifyVoiceStatus(false);
     };
-
-    // Retardo de 260ms para permitir que el squelch inicial resuene antes de la primera palabra
-    const synthTimer = setTimeout(() => {
-      try {
-        window.speechSynthesis.speak(utterance);
-      } catch {
-        stopServoRumble();
-        activeUtterance = null;
-        notifyVoiceStatus(false);
-      }
-    }, 260);
-    registerAudioTimer(synthTimer);
-  } catch {}
+    notifyVoiceStatus(true);
+    staticAudio.play().catch(() => {
+      notifyVoiceStatus(false);
+    });
+  } catch {
+    notifyVoiceStatus(false);
+  }
 }
 
 /* ========================================================

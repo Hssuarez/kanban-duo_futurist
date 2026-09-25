@@ -105,6 +105,37 @@ function applyBlizzardDSP(rawWavPath: string, outputPath: string): Buffer {
   return finalBuf;
 }
 
+async function fetchGoogleTTSBuffer(text: string, lang: string): Promise<Buffer> {
+  const rawChunks = text.match(/[^.,;!?]+[.,;!?]+/g) || [text];
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const piece of rawChunks) {
+    if ((current + ' ' + piece).trim().length > 180) {
+      if (current.trim()) chunks.push(current.trim());
+      current = piece;
+    } else {
+      current = (current + ' ' + piece).trim();
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+
+  const buffers: Buffer[] = [];
+  for (const chunk of chunks) {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodeURIComponent(chunk)}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+    if (!res.ok) throw new Error(`Google TTS HTTP ${res.status}`);
+    const arrayBuf = await res.arrayBuffer();
+    buffers.push(Buffer.from(arrayBuf));
+  }
+
+  return Buffer.concat(buffers);
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -117,26 +148,43 @@ export async function GET(req: NextRequest) {
 
     const cleanText = text.trim().slice(0, 450);
     const hash = crypto.createHash('md5').update(`${lang}:${cleanText}`).digest('hex');
-    const cachedFilePath = path.join(cacheDir, `${hash}.wav`);
+    const cachedWavPath = path.join(cacheDir, `${hash}.wav`);
+    const cachedMp3Path = path.join(cacheDir, `${hash}.mp3`);
 
-    // 1. Servir desde caché si ya existe
-    if (fs.existsSync(cachedFilePath)) {
-      const cachedBuf = fs.readFileSync(cachedFilePath);
+    // 1. Servir desde caché WAV (ya procesado con DSP)
+    if (fs.existsSync(cachedWavPath)) {
+      const cachedBuf = fs.readFileSync(cachedWavPath);
       return new Response(new Uint8Array(cachedBuf), {
         status: 200,
         headers: {
           'Content-Type': 'audio/wav',
           'Cache-Control': 'public, max-age=604800, immutable',
+          'x-dsp-applied': 'true',
         },
       });
     }
 
-    // 2. Generar con SAPI + Blizzard DSP
-    const voice = lang === 'en' ? 'Microsoft Zira Desktop' : 'Microsoft Helena Desktop';
-    const tempRawPath = path.join(tempDir, `raw_${hash}.wav`);
-    const cleanTextSafe = cleanText.replace(/'/g, "''");
+    // 2. Servir desde caché MP3
+    if (fs.existsSync(cachedMp3Path)) {
+      const cachedBuf = fs.readFileSync(cachedMp3Path);
+      return new Response(new Uint8Array(cachedBuf), {
+        status: 200,
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'Cache-Control': 'public, max-age=604800, immutable',
+          'x-dsp-applied': 'false',
+        },
+      });
+    }
 
-    const psScript = `
+    // 3. Intento en Windows: SAPI Helena/Zira Desktop + Blizzard DSP en servidor
+    if (process.platform === 'win32') {
+      try {
+        const voice = lang === 'en' ? 'Microsoft Zira Desktop' : 'Microsoft Helena Desktop';
+        const tempRawPath = path.join(tempDir, `raw_${hash}.wav`);
+        const cleanTextSafe = cleanText.replace(/'/g, "''");
+
+        const psScript = `
 Add-Type -AssemblyName System.Speech
 $s = New-Object System.Speech.Synthesis.SpeechSynthesizer
 $targetVoice = '${voice}'
@@ -150,34 +198,48 @@ $s.Speak('${cleanTextSafe}')
 $s.Dispose()
 `;
 
-    // Utilizar -EncodedCommand en Base64 UTF-16LE para máxima estabilidad y evitar cualquier conflicto de comillas
-    const encodedCommand = Buffer.from(psScript, 'utf16le').toString('base64');
+        const encodedCommand = Buffer.from(psScript, 'utf16le').toString('base64');
 
-    await new Promise<void>((resolve, reject) => {
-      exec(
-        `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`,
-        { timeout: 8000 },
-        (err, _stdout, stderr) => {
-          if (err) return reject(new Error(stderr || err.message));
-          if (!fs.existsSync(tempRawPath)) return reject(new Error('SAPI output file was not created'));
-          resolve();
-        }
-      );
-    });
+        await new Promise<void>((resolve, reject) => {
+          exec(
+            `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ${encodedCommand}`,
+            { timeout: 6000 },
+            (err, _stdout, stderr) => {
+              if (err) return reject(new Error(stderr || err.message));
+              if (!fs.existsSync(tempRawPath)) return reject(new Error('SAPI output file was not created'));
+              resolve();
+            }
+          );
+        });
 
-    // 3. Aplicar Blizzard DSP y guardar en caché
-    const dspBuf = applyBlizzardDSP(tempRawPath, cachedFilePath);
+        const dspBuf = applyBlizzardDSP(tempRawPath, cachedWavPath);
+        try { fs.unlinkSync(tempRawPath); } catch {}
 
-    // Limpiar archivo temporal sin procesar
+        return new Response(new Uint8Array(dspBuf), {
+          status: 200,
+          headers: {
+            'Content-Type': 'audio/wav',
+            'Cache-Control': 'public, max-age=604800, immutable',
+            'x-dsp-applied': 'true',
+          },
+        });
+      } catch (sapiErr) {
+        console.warn('Windows SAPI execution failed, falling back to universal Google TTS:', sapiErr);
+      }
+    }
+
+    // 4. Universal (Vercel / Linux / Docker / Fallback): Obtener audio de voz limpio vía Google TTS
+    const mp3Buf = await fetchGoogleTTSBuffer(cleanText, lang);
     try {
-      fs.unlinkSync(tempRawPath);
+      fs.writeFileSync(cachedMp3Path, mp3Buf);
     } catch {}
 
-    return new Response(new Uint8Array(dspBuf), {
+    return new Response(new Uint8Array(mp3Buf), {
       status: 200,
       headers: {
-        'Content-Type': 'audio/wav',
+        'Content-Type': 'audio/mpeg',
         'Cache-Control': 'public, max-age=604800, immutable',
+        'x-dsp-applied': 'false',
       },
     });
   } catch (error: any) {
