@@ -577,8 +577,7 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 }
 
 /**
- * Genera el guión táctico de voz con puntuación staccato androide
- * Rompe las curvas de entonación humanas para forzar una cadencia clínica, plana y robótica
+ * Genera el guión táctico de voz con identificación de usuario, tareas pendientes y proyectos
  */
 function buildShipSpeechText(
   firstName: string,
@@ -587,14 +586,14 @@ function buildShipSpeechText(
 ): string {
   const intro =
     lang === 'es'
-      ? `INICIANDO PROTOCOLO. Identificación. Biométrica. Confirmada. Comandante: ${firstName}.`
-      : `PROTOCOL INITIATED. Biometric. Authorization. Confirmed. Commander: ${firstName}.`;
+      ? `INICIANDO PROTOCOLO. Identificación biométrica confirmada. Comandante ${firstName}...`
+      : `PROTOCOL INITIATED. Biometric authorization confirmed. Commander ${firstName}...`;
 
   // Sin informe de tareas provisto: saludo estándar
   if (!briefing || !briefing.pendingTasks) {
     return lang === 'es'
-      ? `${intro} Núcleo orbital... en línea. Inteligencia Artificial... a su servicio.`
-      : `${intro} Orbital core... online. Artificial Intelligence... standing by.`;
+      ? `${intro} Núcleo orbital en línea. Inteligencia Artificial a su servicio.`
+      : `${intro} Orbital core online. Artificial Intelligence standing by.`;
   }
 
   const count = briefing.totalPendingCount ?? briefing.pendingTasks.length;
@@ -602,8 +601,8 @@ function buildShipSpeechText(
   // Cero tareas pendientes
   if (count === 0 || briefing.pendingTasks.length === 0) {
     return lang === 'es'
-      ? `${intro} Núcleo orbital sincronizado. Cero tareas pendientes en registro táctico. Todos los sistemas... operativos.`
-      : `${intro} Orbital core synchronized. Zero pending directives in tactical logs. All systems... operational.`;
+      ? `${intro} Núcleo orbital sincronizado. No se detectan tareas pendientes en el registro táctico. Todos los sistemas operativos.`
+      : `${intro} Orbital core synchronized. No pending tasks detected in tactical logs. All systems operational.`;
   }
 
   // 1 tarea pendiente
@@ -614,11 +613,11 @@ function buildShipSpeechText(
     const isWorking = task.status === 'trabajando';
 
     if (lang === 'es') {
-      const statusPhrase = isWorking ? 'una tarea en curso' : 'una directiva pendiente';
-      return `${intro} Alerta táctica. Tienes ${statusPhrase}: ${title}... en proyecto: ${project}. Sistemas de a bordo... en línea.`;
+      const statusPhrase = isWorking ? 'una tarea en curso' : 'una tarea pendiente';
+      return `${intro} Alerta táctica: Tienes ${statusPhrase}: ${title}... en el proyecto... ${project}. Sistemas de abordo en línea.`;
     } else {
-      const statusPhrase = isWorking ? 'one active mission in progress' : 'one pending directive';
-      return `${intro} Tactical alert. You have ${statusPhrase}: ${title}... in project: ${project}. Ship systems... online.`;
+      const statusPhrase = isWorking ? 'one active mission in progress' : 'one pending task';
+      return `${intro} Tactical alert: You have ${statusPhrase}: ${title}... in project... ${project}. Ship systems online.`;
     }
   }
 
@@ -632,9 +631,9 @@ function buildShipSpeechText(
     const proj2 = sanitizeVoiceText(t2.projectName, 26);
 
     if (lang === 'es') {
-      return `${intro} Informe táctico. Dos tareas activas en registro. Misión prioritaria: ${title1}... en proyecto: ${proj1}. Tarea secundaria: ${title2}... en: ${proj2}. Sistemas listos.`;
+      return `${intro} Informe táctico: Tienes dos tareas activas. Misión prioritaria: ${title1}... en el proyecto... ${proj1}... y tarea secundaria: ${title2}... en... ${proj2}. Sistemas listos.`;
     } else {
-      return `${intro} Tactical report. Two active missions in logs. Priority mission: ${title1}... in project: ${proj1}. Secondary task: ${title2}... in: ${proj2}. Systems ready.`;
+      return `${intro} Tactical report: You have two active missions. Priority: ${title1}... in project... ${proj1}... and secondary: ${title2}... in... ${proj2}. Systems ready.`;
     }
   }
 
@@ -644,9 +643,9 @@ function buildShipSpeechText(
   const primaryProject = sanitizeVoiceText(primaryTask.projectName, 28);
 
   if (lang === 'es') {
-    return `${intro} Informe táctico. Tienes ${count} directivas en registro. Misión prioritaria: ${primaryTitle}... en proyecto: ${primaryProject}. Inteligencia Artificial... a su servicio.`;
+    return `${intro} Informe táctico: Tienes ${count} tareas pendientes. Misión prioritaria: ${primaryTitle}... en el proyecto... ${primaryProject}. Inteligencia Artificial a su servicio.`;
   } else {
-    return `${intro} Tactical report. You have ${count} pending directives. Priority mission: ${primaryTitle}... in project: ${primaryProject}. Artificial Intelligence... standing by.`;
+    return `${intro} Tactical report: You have ${count} pending tasks. Priority mission: ${primaryTitle}... in project... ${primaryProject}. Artificial Intelligence standing by.`;
   }
 }
 
@@ -671,8 +670,8 @@ export function stopAdjutantAudio(): void {
 
 /**
  * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
- * Reproduce los audios de estudio pre-procesados con la cadena DSP de StarCraft 2: Terran Adjutant
- * (Ring Modulator, Comb Filter metálico, EQ de comunicador militar y squelch de radio de combate)
+ * Genera dinámicamente el audio con el nombre del usuario, tareas y proyectos
+ * procesado en tiempo real con la cadena DSP de StarCraft 2: Terran Adjutant
  */
 export function playShipWelcomeVoice(
   userName: string,
@@ -686,22 +685,15 @@ export function playShipWelcomeVoice(
     stopAdjutantAudio();
 
     const lang = customLang || getSoundLanguage();
-    const count = briefing?.totalPendingCount ?? (briefing?.pendingTasks?.length ?? 0);
+    const firstName = userName ? userName.trim().split(' ')[0] : (lang === 'es' ? 'Comandante' : 'Commander');
+    const text = buildShipSpeechText(firstName, lang, briefing);
 
-    // Selección del clip táctico StarCraft 2 Terran Adjutant
-    let clipFile = `adjutant_generic_${lang}.wav`;
-    if (briefing && briefing.pendingTasks) {
-      if (count === 0) {
-        clipFile = `adjutant_ready_${lang}.wav`;
-      } else if (count === 1) {
-        clipFile = `adjutant_single_${lang}.wav`;
-      } else {
-        clipFile = `adjutant_multi_${lang}.wav`;
-      }
-    }
+    // Chime inicial inmediato de intercomunicador
+    playSpaceshipEchoChime();
 
-    const audioPath = `/sounds/adjutant/${clipFile}`;
-    const audio = new Audio(audioPath);
+    // Llamada dinámica a la API con Blizzard DSP que pronuncia el nombre exacto del usuario y las tareas
+    const dynamicUrl = `/api/adjutant-voice?lang=${lang}&text=${encodeURIComponent(text)}`;
+    const audio = new Audio(dynamicUrl);
     currentAdjutantAudio = audio;
     audio.volume = 1.0;
 
@@ -712,18 +704,46 @@ export function playShipWelcomeVoice(
     };
 
     audio.onerror = () => {
-      // Fallback a síntesis nativa si el archivo no estuviera disponible
-      playShipWelcomeVoiceSynthesisFallback(userName, lang, briefing);
+      // Fallback si la API dinámica no responde
+      playStaticOrSynthesisFallback(lang, briefing, userName);
     };
 
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch(() => {
-        playShipWelcomeVoiceSynthesisFallback(userName, lang, briefing);
+        playStaticOrSynthesisFallback(lang, briefing, userName);
       });
     }
   } catch {
-    playShipWelcomeVoiceSynthesisFallback(userName, customLang || 'es', briefing);
+    playStaticOrSynthesisFallback(customLang || 'es', briefing, userName);
+  }
+}
+
+/**
+ * Fallback a clips estáticos o síntesis si la generación dinámica falla
+ */
+function playStaticOrSynthesisFallback(
+  lang: 'es' | 'en',
+  briefing?: ShipVoiceBriefingOptions,
+  userName: string = ''
+) {
+  try {
+    const count = briefing?.totalPendingCount ?? (briefing?.pendingTasks?.length ?? 0);
+    let clipFile = `adjutant_generic_${lang}.wav`;
+    if (briefing && briefing.pendingTasks) {
+      if (count === 0) clipFile = `adjutant_ready_${lang}.wav`;
+      else if (count === 1) clipFile = `adjutant_single_${lang}.wav`;
+      else clipFile = `adjutant_multi_${lang}.wav`;
+    }
+
+    const staticAudio = new Audio(`/sounds/adjutant/${clipFile}`);
+    currentAdjutantAudio = staticAudio;
+    staticAudio.volume = 1.0;
+    staticAudio.play().catch(() => {
+      playShipWelcomeVoiceSynthesisFallback(userName, lang, briefing);
+    });
+  } catch {
+    playShipWelcomeVoiceSynthesisFallback(userName, lang, briefing);
   }
 }
 
