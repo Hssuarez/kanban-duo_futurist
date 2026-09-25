@@ -134,3 +134,8 @@ CREATE POLICY "Acceso a tareas" ON public.tasks FOR ALL USING (true) WITH CHECK 
 CREATE POLICY "Acceso a historico" ON public.task_status_history FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acceso a logs actividad" ON public.activity_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Acceso a logs seguridad" ON public.security_logs FOR ALL USING (true) WITH CHECK (true);
+
+-- 7. Campos de Invitaciones y Aceptación (v10)
+ALTER TABLE IF EXISTS public.projects ADD COLUMN IF NOT EXISTS pending_member_ids JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE IF EXISTS public.challenge_members ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'accepted' CHECK (status IN ('pending', 'accepted', 'declined'));
+

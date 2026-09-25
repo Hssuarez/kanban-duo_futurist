@@ -311,7 +311,10 @@ export function calculateChallengeLeaderboard(
   challengeHabits: ChallengeHabit[],
   todayKey = getBogotaToday()
 ): ChallengeMemberCompliance[] {
-  const complianceList: ChallengeMemberCompliance[] = members.map((member) => {
+  // Solo miembros activos confirmados (o retrocompatibles sin campo status) participan en métricas
+  const activeMembers = members.filter((m) => !m.status || m.status === 'accepted');
+
+  const complianceList: ChallengeMemberCompliance[] = activeMembers.map((member) => {
     const user: User = getResolvedMemberUser(member.userId, users);
     return calculateMemberCompliance(member, user, challenge, logs, challengeHabits, todayKey);
   });
@@ -363,9 +366,11 @@ export function calculateChallengeSummaryKpis(
   challengeHabits: ChallengeHabit[],
   todayKey = getBogotaToday()
 ): ChallengeSummaryKpis {
+  const activeMembers = members.filter((m) => !m.status || m.status === 'accepted');
+
   const leaderboard = calculateChallengeLeaderboard(
     challenge,
-    members,
+    activeMembers,
     users,
     logs,
     challengeHabits,
@@ -398,10 +403,10 @@ export function calculateChallengeSummaryKpis(
   let tempTeamStreak = 0;
 
   days.forEach((day) => {
-    if (day.dateKey <= todayKey && members.length > 0) {
+    if (day.dateKey <= todayKey && activeMembers.length > 0) {
       let membersCompletedOnDay = 0;
 
-      members.forEach((member) => {
+      activeMembers.forEach((member) => {
         const completedHabits = habitsToTrack.filter((h) =>
           logs.some(
             (l) =>
@@ -418,7 +423,7 @@ export function calculateChallengeSummaryKpis(
         }
       });
 
-      const dayTeamRate = membersCompletedOnDay / members.length;
+      const dayTeamRate = membersCompletedOnDay / activeMembers.length;
       if (dayTeamRate >= 0.7) {
         tempTeamStreak++;
         if (tempTeamStreak > bestTeamStreak) bestTeamStreak = tempTeamStreak;

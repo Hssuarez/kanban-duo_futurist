@@ -16,12 +16,20 @@ export type NotificationType =
   | 'task_overdue'
   | 'task_completed'
   | 'daily_briefing'
-  | 'task_stagnant';
+  | 'task_stagnant'
+  | 'project_invitation'
+  | 'project_invitation_accepted'
+  | 'project_invitation_declined'
+  | 'challenge_invitation'
+  | 'challenge_invitation_accepted'
+  | 'challenge_invitation_declined';
 
 export interface AppNotification {
   id: string;
   userId: string; // Target user ID or 'all' for team broadcast
   projectId: string;
+  challengeId?: string;
+  invitationStatus?: 'pending' | 'accepted' | 'declined';
   taskId?: string;
   taskTitle?: string;
   type: NotificationType;

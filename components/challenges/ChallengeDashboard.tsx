@@ -18,6 +18,8 @@ import {
   getLocalChallengeMembers,
   addChallengeMember,
   removeChallengeMember,
+  acceptChallengeInvitation,
+  declineChallengeInvitation,
   getLocalChallengeHabits,
   getLocalChallengeLogs,
   toggleChallengeLog,
@@ -57,7 +59,7 @@ import { ChallengeGoalModal } from './ChallengeGoalModal';
 import { ChallengeModal } from './ChallengeModal';
 import { ChallengeMembersModal } from './ChallengeMembersModal';
 import { ChallengeMigrationModal } from './ChallengeMigrationModal';
-import { Plus, Trophy } from 'lucide-react';
+import { Plus, Trophy, Check, X } from 'lucide-react';
 
 interface ChallengeDashboardProps {
   currentUser: User;
@@ -163,7 +165,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     return () => unsubscribe();
   }, [loadChallengeData]);
 
-  // Retos accesibles para el usuario conectado (Privacidad Estricta - Opción A)
+  // Retos accesibles para el usuario conectado (Privacidad Estricta - Solo miembros aceptados)
   const accessibleChallenges = useMemo(() => {
     if (!currentUser) return [];
     return challenges.filter((c) => {
@@ -172,10 +174,30 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
       if (currentUser.role === 'admin') return true;
       // El creador siempre tiene acceso
       if (c.createdBy === currentUser.id) return true;
-      // Miembros invitados explícitamente tienen acceso
-      return members.some((m) => m.challengeId === c.id && m.userId === currentUser.id);
+      // Miembros con aceptación confirmada (o retrocompatibles) tienen acceso
+      return members.some(
+        (m) =>
+          m.challengeId === c.id &&
+          m.userId === currentUser.id &&
+          (!m.status || m.status === 'accepted')
+      );
     });
   }, [challenges, members, currentUser]);
+
+  // Invitaciones a retos pendientes para el usuario actual
+  const pendingChallengeInvitations = useMemo(() => {
+    if (!currentUser) return [];
+    return members
+      .filter((m) => m.userId === currentUser.id && m.status === 'pending')
+      .map((m) => {
+        const ch = challenges.find((c) => c.id === m.challengeId);
+        return {
+          member: m,
+          challenge: ch,
+        };
+      })
+      .filter((item): item is { member: ChallengeMember; challenge: Challenge } => Boolean(item.challenge));
+  }, [members, challenges, currentUser]);
 
   // Reto seleccionado actual dentro de los retos accesibles (null si no tiene retos)
   const currentChallenge = useMemo(() => {
@@ -390,13 +412,21 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
   // Invitar miembro
   const handleAddMember = async (userId: string) => {
     if (!currentChallenge) return;
-    await addChallengeMember(currentChallenge.id, userId, 'member');
-    addChallengeActivity(
-      currentChallenge.id,
-      userId,
-      `${users.find((u) => u.id === userId)?.name || 'Un nuevo miembro'} se unió al reto`,
-      'joined'
-    );
+    await addChallengeMember(currentChallenge.id, userId, 'member', undefined, 'pending');
+    loadChallengeData();
+  };
+
+  // Aceptar invitación al reto
+  const handleAcceptChallengeInvitation = async (challengeId: string) => {
+    await acceptChallengeInvitation(challengeId, currentUser.id);
+    setSelectedChallengeId(challengeId);
+    saveLastSelectedChallengeId(challengeId);
+    loadChallengeData();
+  };
+
+  // Rechazar invitación al reto
+  const handleDeclineChallengeInvitation = async (challengeId: string) => {
+    await declineChallengeInvitation(challengeId, currentUser.id);
     loadChallengeData();
   };
 
@@ -479,6 +509,67 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
           <span>Nuevo reto</span>
         </button>
       </div>
+
+      {/* Invitaciones pendientes de Retos */}
+      {pendingChallengeInvitations.length > 0 && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-950/20 p-4 space-y-3 backdrop-blur-md shadow-[0_0_25px_rgba(245,158,11,0.15)]">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+              <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-amber-300">
+                Invitaciones Pendientes ({pendingChallengeInvitations.length})
+              </h4>
+            </div>
+            <span className="text-[11px] font-mono text-amber-400/80">
+              Debes confirmar tu participación
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {pendingChallengeInvitations.map(({ challenge }) => {
+              const creator = users.find((u) => u.id === challenge.createdBy);
+              return (
+                <div
+                  key={challenge.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-black/50 border border-amber-500/20 hover:border-amber-500/40 transition-all gap-3"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-xl flex-shrink-0">{challenge.icon || '🏆'}</span>
+                    <div className="min-w-0">
+                      <div className="text-xs font-mono font-bold text-zinc-100 truncate">
+                        {challenge.title}
+                      </div>
+                      <div className="text-[11px] font-mono text-zinc-400 truncate">
+                        Invitado por <span className="text-amber-300 font-semibold">{creator?.name || 'Compañero'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleAcceptChallengeInvitation(challenge.id)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-500 text-white text-xs font-mono font-bold tracking-wider transition-colors cursor-pointer active:scale-95 shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center gap-1"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Aceptar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeclineChallengeInvitation(challenge.id)}
+                      className="px-2.5 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-white/10 hover:border-rose-500/30 text-xs font-mono transition-colors cursor-pointer active:scale-95 flex items-center gap-1"
+                      title="Rechazar invitación"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Rechazar</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pantalla de Onboarding / Empty State si el usuario no tiene retos asignados */}
       {!currentChallenge ? (

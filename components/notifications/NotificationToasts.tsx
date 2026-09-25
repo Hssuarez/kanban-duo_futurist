@@ -44,9 +44,11 @@ export const NotificationToasts: React.FC<NotificationToastsProps> = ({
       const notif = e.detail;
       if (!notif || !currentUser) return;
 
-      // Filter: only show if for current user or all, and for current project
+      // Filter: only show if for current user or all, and for current project (or global invitations)
       const forUser = notif.userId === currentUser.id || notif.userId === 'all';
-      const forProj = !notif.projectId || notif.projectId === activeProject?.id;
+      const isInvitationType =
+        notif.type.startsWith('project_invitation') || notif.type.startsWith('challenge_invitation');
+      const forProj = isInvitationType || !notif.projectId || notif.projectId === activeProject?.id;
       if (!forUser || !forProj) return;
 
       const toastId = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;

@@ -60,9 +60,11 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     if (editingProject) {
       setName(editingProject.name);
       setDescription(editingProject.description || '');
-      setColor(editingProject.color || '#06b6d4');
-      // Asegurar que el creador y miembros previos estén seleccionados
-      const initialMembers = new Set(editingProject.memberIds || []);
+      // Asegurar que el creador, miembros activos y miembros con invitación pendiente estén seleccionados
+      const initialMembers = new Set([
+        ...(editingProject.memberIds || []),
+        ...(editingProject.pendingMemberIds || []),
+      ]);
       if (editingProject.createdBy) {
         initialMembers.add(editingProject.createdBy);
       }
@@ -71,7 +73,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       setName('');
       setDescription('');
       setColor('#06b6d4');
-      // Para nuevo proyecto, preseleccionar al usuario actual y opcionalmente a todos los activos
+      // Para nuevo proyecto, preseleccionar al usuario actual
       setSelectedMembers([currentUser.id]);
     }
     setError('');
@@ -299,10 +301,16 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               className="w-full px-3 py-1.5 text-xs bg-zinc-950/70 border border-zinc-800 rounded-lg text-white placeholder:text-zinc-500 mb-2 focus:outline-none focus:border-zinc-500"
             />
 
+            <div className="p-2 mb-2 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-[11px] font-mono text-cyan-300/90 leading-tight">
+              Los nuevos miembros añadidos recibirán una invitación y deberán aceptar para acceder a las tareas del proyecto.
+            </div>
+
             <div className="max-h-48 overflow-y-auto space-y-1 pr-0.5 divide-y divide-white/[0.04]">
               {filteredUsers.map((user) => {
                 const isChecked = selectedMembers.includes(user.id);
                 const isCreator = user.id === creatorId;
+                const isActive = editingProject?.memberIds?.includes(user.id);
+                const isPending = editingProject?.pendingMemberIds?.includes(user.id);
 
                 return (
                   <div
@@ -323,13 +331,25 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                         />
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs font-medium truncate">{user.name}</span>
-                          {isCreator && (
+                          {isCreator ? (
                             <span className="text-[10px] bg-amber-950/60 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-medium">
                               Creador
                             </span>
-                          )}
+                          ) : isActive ? (
+                            <span className="text-[10px] bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded font-medium">
+                              Activo
+                            </span>
+                          ) : isPending ? (
+                            <span className="text-[10px] bg-amber-950/60 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-medium flex items-center gap-0.5">
+                              ⏳ Pendiente
+                            </span>
+                          ) : isChecked ? (
+                            <span className="text-[10px] bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.2 rounded font-medium">
+                              Invitar
+                            </span>
+                          ) : null}
                         </div>
                         <p className="text-[11px] text-zinc-500 truncate">{user.email}</p>
                       </div>
@@ -337,7 +357,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
                     <div className="text-xs">
                       {isChecked ? (
-                        <Check className="w-4 h-4 text-zinc-200 stroke-[2.5]" />
+                        <Check className="w-4 h-4 text-cyan-400 stroke-[2.5]" />
                       ) : (
                         <span className="w-4 h-4 rounded border border-zinc-700 block" />
                       )}

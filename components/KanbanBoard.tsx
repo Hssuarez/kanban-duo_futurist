@@ -58,6 +58,7 @@ import { Filter, Tag as TagIcon, X, FileBarChart } from 'lucide-react';
 import { HabitCoreSubView } from '@/lib/habitTypes';
 import { AppSidebar } from './navigation/AppSidebar';
 import { HabitDashboard } from './habits/HabitDashboard';
+import { PendingInvitationsBanner } from './invitations/PendingInvitationsBanner';
 import { CommandCenter } from './command-center/CommandCenter';
 
 export const KanbanBoard: React.FC = () => {
@@ -602,6 +603,13 @@ export const KanbanBoard: React.FC = () => {
           onToggleSidebar={() => setIsMobileSidebarOpen(true)}
         />
       </div>
+
+      {/* Global Pending Invitations HUD Banner */}
+      <PendingInvitationsBanner
+        currentUser={sessionUser}
+        onRefreshData={refreshData}
+        onSelectProject={handleSelectProject}
+      />
 
       {/* Global HUD AppSidebar (Offcanvas Drawer) */}
       <AppSidebar

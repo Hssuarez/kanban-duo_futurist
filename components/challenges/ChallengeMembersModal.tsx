@@ -65,72 +65,143 @@ export const ChallengeMembersModal: React.FC<ChallengeMembersModalProps> = ({
         </div>
 
         {/* Members List */}
-        <div className="p-4 sm:p-5 space-y-3 overflow-y-auto custom-scrollbar flex-1">
-          <h4 className="text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider">
-            Miembros Actuales ({members.length})
-          </h4>
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+          {/* 1. Miembros Activos */}
+          <div>
+            <h4 className="text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>Miembros Activos</span>
+              <span className="text-[11px] text-cyan-400 font-bold">
+                {members.filter((m) => !m.status || m.status === 'accepted').length}
+              </span>
+            </h4>
 
-          <div className="space-y-2">
-            {members.map((member) => {
-              const user = users.find((u) => u.id === member.userId) || {
-                id: member.userId,
-                name: 'Usuario',
-                username: 'user',
-                role: 'user',
-                avatar: '',
-              };
-              const isCreator = challenge.createdBy === member.userId;
+            <div className="space-y-2">
+              {members
+                .filter((m) => !m.status || m.status === 'accepted')
+                .map((member) => {
+                  const user = users.find((u) => u.id === member.userId) || {
+                    id: member.userId,
+                    name: 'Usuario',
+                    username: 'user',
+                    role: 'user',
+                    avatar: '',
+                  };
+                  const isCreator = challenge.createdBy === member.userId;
 
-              return (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-zinc-950/60 border border-white/[0.04]"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/[0.08] overflow-hidden flex items-center justify-center text-xs font-bold text-zinc-300">
-                      {user.avatar ? (
-                        <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                      ) : (
-                        user.name.slice(0, 1)
+                  return (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-zinc-950/60 border border-white/[0.04]"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/[0.08] overflow-hidden flex items-center justify-center text-xs font-bold text-zinc-300">
+                          {user.avatar ? (
+                            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                          ) : (
+                            user.name.slice(0, 1)
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-xs font-medium text-white truncate block">
+                            {user.name}
+                          </span>
+                          <span className="text-[10px] font-mono text-zinc-500">
+                            {isCreator ? '👑 Creador' : 'Participante Activo'} · Unido:{' '}
+                            {member.joinedAt?.slice(5) || '10-01'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Remove Button (only if owner and not removing creator) */}
+                      {isOwner && !isCreator && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveMember(member.userId)}
+                          className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition-colors"
+                          title="Quitar participante"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </button>
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <span className="text-xs font-medium text-white truncate block">
-                        {user.name}
-                      </span>
-                      <span className="text-[10px] font-mono text-zinc-500">
-                        {isCreator ? '👑 Creador' : 'Participante'} · Unido:{' '}
-                        {member.joinedAt?.slice(5) || '10-01'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Remove Button (only if owner and not removing creator) */}
-                  {isOwner && !isCreator && (
-                    <button
-                      type="button"
-                      onClick={() => onRemoveMember(member.userId)}
-                      className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition-colors"
-                      title="Quitar participante"
-                    >
-                      <UserMinus className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+            </div>
           </div>
 
-          {/* Add Available Users */}
+          {/* 2. Invitaciones Pendientes de Aceptación */}
+          {members.some((m) => m.status === 'pending') && (
+            <div className="pt-2 border-t border-white/[0.06]">
+              <h4 className="text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>Invitaciones Pendientes</span>
+                <span className="text-[11px] font-bold">
+                  {members.filter((m) => m.status === 'pending').length}
+                </span>
+              </h4>
+
+              <div className="space-y-2">
+                {members
+                  .filter((m) => m.status === 'pending')
+                  .map((member) => {
+                    const user = users.find((u) => u.id === member.userId) || {
+                      id: member.userId,
+                      name: 'Usuario',
+                      username: 'user',
+                      role: 'user',
+                      avatar: '',
+                    };
+
+                    return (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-amber-950/20 border border-amber-500/20"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-zinc-800 border border-amber-500/30 overflow-hidden flex items-center justify-center text-xs font-bold text-amber-300">
+                            {user.avatar ? (
+                              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                            ) : (
+                              user.name.slice(0, 1)
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-xs font-medium text-white truncate block">
+                              {user.name}
+                            </span>
+                            <span className="text-[10px] font-mono text-amber-400/90 flex items-center gap-1">
+                              ⏳ Esperando aceptación
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Cancel invitation */}
+                        {isOwner && (
+                          <button
+                            type="button"
+                            onClick={() => onRemoveMember(member.userId)}
+                            className="px-2 py-1 text-[11px] font-mono text-zinc-400 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg transition-colors"
+                            title="Cancelar invitación"
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Invitar Compañeros */}
           {isOwner && (
-            <div className="pt-3 border-t border-white/[0.06] space-y-2">
+            <div className="pt-2 border-t border-white/[0.06] space-y-2">
               <h4 className="text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider">
                 Invitar Compañeros
               </h4>
 
               <div className="space-y-1.5">
                 {users
-                  .filter((u) => !members.some((m) => m.userId === u.id))
+                  .filter((u) => !members.some((m) => m.userId === u.id && m.status !== 'declined'))
                   .map((u) => (
                     <div
                       key={u.id}

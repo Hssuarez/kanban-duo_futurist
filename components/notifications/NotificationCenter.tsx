@@ -18,14 +18,15 @@ import {
   getDynamicNotificationTitle,
   getTimeOfDayGreeting,
 } from '@/lib/notifications';
-import { playChimeSound } from '@/lib/soundEffects';
+import { playChimeSound, playSuccessSound } from '@/lib/soundEffects';
 import {
   getBrowserNotificationPermission,
   requestBrowserNotificationPermission,
   showBrowserNotification,
   BrowserNotificationStatus,
 } from '@/lib/browserNotifications';
-import { subscribeToSync } from '@/lib/storage';
+import { subscribeToSync, acceptProjectInvitation, declineProjectInvitation } from '@/lib/storage';
+import { acceptChallengeInvitation, declineChallengeInvitation } from '@/lib/challengeStorage';
 import {
   Bell,
   CheckCheck,
@@ -46,6 +47,8 @@ import {
   Globe,
   Sliders,
   Check,
+  Trophy,
+  FolderKanban,
 } from 'lucide-react';
 
 interface NotificationCenterProps {
@@ -128,11 +131,23 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     };
   }, []);
 
-  // Filter notifications relevant to current user and project
+  // Helper para identificar notificaciones de invitación cross-proyecto
+  const isInvitationType = (type: NotificationType) =>
+    type === 'project_invitation' ||
+    type === 'project_invitation_accepted' ||
+    type === 'project_invitation_declined' ||
+    type === 'challenge_invitation' ||
+    type === 'challenge_invitation_accepted' ||
+    type === 'challenge_invitation_declined';
+
+  // Filter notifications relevant to current user and project (las invitaciones son globales)
   const userNotifications = useMemo(() => {
     return notifications.filter((n) => {
       const isForUser = n.userId === currentUser.id || n.userId === 'all';
-      const isForProj = !n.projectId || (activeProject && n.projectId === activeProject.id);
+      const isForProj =
+        isInvitationType(n.type) ||
+        !n.projectId ||
+        (activeProject && n.projectId === activeProject.id);
       return isForUser && isForProj;
     });
   }, [notifications, currentUser.id, activeProject?.id]);
@@ -173,6 +188,44 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       setIsOpen(false);
       onOpenTaskDetail(notif.taskId);
     }
+  };
+
+  const handleAcceptProject = async (e: React.MouseEvent, notif: AppNotification) => {
+    e.stopPropagation();
+    if (!notif.projectId) return;
+    playSuccessSound();
+    await acceptProjectInvitation(notif.projectId, currentUser);
+    markAsRead(notif.id);
+    reloadNotifications();
+  };
+
+  const handleDeclineProject = async (e: React.MouseEvent, notif: AppNotification) => {
+    e.stopPropagation();
+    if (!notif.projectId) return;
+    playChimeSound();
+    await declineProjectInvitation(notif.projectId, currentUser);
+    markAsRead(notif.id);
+    reloadNotifications();
+  };
+
+  const handleAcceptChallenge = async (e: React.MouseEvent, notif: AppNotification) => {
+    e.stopPropagation();
+    const challengeId = notif.challengeId || notif.projectId;
+    if (!challengeId) return;
+    playSuccessSound();
+    await acceptChallengeInvitation(challengeId, currentUser.id);
+    markAsRead(notif.id);
+    reloadNotifications();
+  };
+
+  const handleDeclineChallenge = async (e: React.MouseEvent, notif: AppNotification) => {
+    e.stopPropagation();
+    const challengeId = notif.challengeId || notif.projectId;
+    if (!challengeId) return;
+    playChimeSound();
+    await declineChallengeInvitation(challengeId, currentUser.id);
+    markAsRead(notif.id);
+    reloadNotifications();
   };
 
   const handleMarkAllRead = () => {
@@ -305,6 +358,48 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           badgeText: 'Resumen matutino',
         };
       }
+      case 'project_invitation':
+        return {
+          icon: FolderKanban,
+          iconBg: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+          dot: 'bg-cyan-400',
+          badgeText: 'Invitación a Proyecto',
+        };
+      case 'project_invitation_accepted':
+        return {
+          icon: CheckCircle2,
+          iconBg: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+          dot: 'bg-emerald-400',
+          badgeText: 'Invitación Aceptada',
+        };
+      case 'project_invitation_declined':
+        return {
+          icon: X,
+          iconBg: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+          dot: 'bg-rose-400',
+          badgeText: 'Invitación Declinada',
+        };
+      case 'challenge_invitation':
+        return {
+          icon: Trophy,
+          iconBg: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+          dot: 'bg-amber-400',
+          badgeText: 'Invitación a Reto',
+        };
+      case 'challenge_invitation_accepted':
+        return {
+          icon: CheckCircle2,
+          iconBg: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+          dot: 'bg-emerald-400',
+          badgeText: 'Reto Aceptado',
+        };
+      case 'challenge_invitation_declined':
+        return {
+          icon: X,
+          iconBg: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+          dot: 'bg-rose-400',
+          badgeText: 'Reto Declinado',
+        };
       case 'task_created':
       default:
         return {
@@ -457,6 +552,74 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                           <p className="text-[11px] text-zinc-400 line-clamp-2 leading-relaxed">
                             {notif.message}
                           </p>
+
+                          {/* Acciones interactivas para invitaciones de proyectos */}
+                          {notif.type === 'project_invitation' && (
+                            <div className="mt-2.5 flex items-center gap-2 pt-1.5 border-t border-white/[0.06]">
+                              {notif.invitationStatus === 'accepted' ? (
+                                <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1 font-semibold">
+                                  <CheckCircle2 className="w-3 h-3" /> Participación aceptada
+                                </span>
+                              ) : notif.invitationStatus === 'declined' ? (
+                                <span className="text-[10px] font-mono text-zinc-500 flex items-center gap-1">
+                                  <X className="w-3 h-3" /> Invitación rechazada
+                                </span>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleAcceptProject(e, notif)}
+                                    className="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-mono font-bold tracking-wider transition-all flex items-center gap-1 active:scale-95 shadow-[0_0_10px_rgba(16,185,129,0.3)] cursor-pointer"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    <span>Aceptar</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeclineProject(e, notif)}
+                                    className="px-2 py-1 rounded-md bg-zinc-800 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-white/10 text-[10px] font-mono transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+                                  >
+                                    <X className="w-3 h-3" />
+                                    <span>Rechazar</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Acciones interactivas para invitaciones de retos */}
+                          {notif.type === 'challenge_invitation' && (
+                            <div className="mt-2.5 flex items-center gap-2 pt-1.5 border-t border-white/[0.06]">
+                              {notif.invitationStatus === 'accepted' ? (
+                                <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1 font-semibold">
+                                  <CheckCircle2 className="w-3 h-3" /> Participación aceptada
+                                </span>
+                              ) : notif.invitationStatus === 'declined' ? (
+                                <span className="text-[10px] font-mono text-zinc-500 flex items-center gap-1">
+                                  <X className="w-3 h-3" /> Invitación rechazada
+                                </span>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleAcceptChallenge(e, notif)}
+                                    className="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-mono font-bold tracking-wider transition-all flex items-center gap-1 active:scale-95 shadow-[0_0_10px_rgba(16,185,129,0.3)] cursor-pointer"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    <span>Aceptar</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeclineChallenge(e, notif)}
+                                    className="px-2 py-1 rounded-md bg-zinc-800 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-white/10 text-[10px] font-mono transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+                                  >
+                                    <X className="w-3 h-3" />
+                                    <span>Rechazar</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Unread blue dot */}

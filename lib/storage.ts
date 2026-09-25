@@ -1237,16 +1237,24 @@ export async function syncCloudProjects(): Promise<Project[]> {
       return getProjects();
     }
     if (data && data.length > 0) {
-      const mapped: Project[] = data.map((p) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || '',
-        color: p.color || '#06b6d4',
-        createdBy: p.created_by,
-        memberIds: Array.isArray(p.member_ids) ? p.member_ids : [],
-        createdAt: p.created_at,
-        updatedAt: p.updated_at,
-      }));
+      const localProjects = getProjects();
+      const localMap = new Map(localProjects.map((lp) => [lp.id, lp]));
+
+      const mapped: Project[] = data.map((p) => {
+        const local = localMap.get(p.id);
+        const remotePending = Array.isArray(p.pending_member_ids) ? p.pending_member_ids : null;
+        return {
+          id: p.id,
+          name: p.name,
+          description: p.description || '',
+          color: p.color || '#06b6d4',
+          createdBy: p.created_by,
+          memberIds: Array.isArray(p.member_ids) ? p.member_ids : [],
+          pendingMemberIds: remotePending !== null ? remotePending : (local?.pendingMemberIds || []),
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+        };
+      });
 
       if (!mapped.some((p) => p.id === 'proj-default')) {
         mapped.unshift(DEFAULT_PROJECTS[0]);
@@ -1274,8 +1282,11 @@ export async function createProject(
   const projects = getProjects();
   const nowIso = new Date().toISOString();
 
-  const memberSet = new Set(data.memberIds);
-  memberSet.add(actorUser.id);
+  // El creador es miembro activo inmediato
+  const activeMembers = [actorUser.id];
+
+  // Cualquier otro usuario seleccionado se coloca en invitaciones pendientes
+  const invitedIds = Array.from(new Set(data.memberIds.filter((id) => id !== actorUser.id)));
 
   const newProject: Project = {
     id: `proj-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -1283,7 +1294,8 @@ export async function createProject(
     description: data.description ? data.description.trim() : '',
     color: data.color || '#06b6d4',
     createdBy: actorUser.id,
-    memberIds: Array.from(memberSet),
+    memberIds: activeMembers,
+    pendingMemberIds: invitedIds,
     createdAt: nowIso,
     updatedAt: nowIso,
   };
@@ -1294,7 +1306,7 @@ export async function createProject(
   const client = await getOrInitSupabase();
   if (client) {
     try {
-      const { error } = await client.from('projects').insert({
+      const payload: any = {
         id: newProject.id,
         name: newProject.name,
         description: newProject.description || null,
@@ -1303,9 +1315,15 @@ export async function createProject(
         member_ids: newProject.memberIds,
         created_at: newProject.createdAt,
         updated_at: newProject.updatedAt,
+      };
+      // Intentar enviar con pending_member_ids
+      const { error } = await client.from('projects').insert({
+        ...payload,
+        pending_member_ids: newProject.pendingMemberIds,
       });
       if (error) {
-        console.error('Error insertando proyecto en Supabase:', error);
+        // Fallback si la columna no existe en Supabase todavía
+        await client.from('projects').insert(payload);
       }
     } catch (e) {
       console.warn('Error de red al crear proyecto en Supabase:', e);
@@ -1319,6 +1337,27 @@ export async function createProject(
     taskTitle: newProject.name,
   });
 
+  // Notificar a cada usuario invitado
+  if (invitedIds.length > 0) {
+    try {
+      const { addNotification } = await import('./notifications');
+      for (const invitedId of invitedIds) {
+        addNotification({
+          type: 'project_invitation',
+          title: 'Invitación a Proyecto',
+          message: `${actorUser.name} te ha invitado a unirte a "${newProject.name}"`,
+          userId: invitedId,
+          projectId: newProject.id,
+          invitationStatus: 'pending',
+          actorName: actorUser.name,
+          actorAvatar: actorUser.avatar,
+        });
+      }
+    } catch (e) {
+      console.warn('Error enviando notificaciones de invitación a proyecto:', e);
+    }
+  }
+
   return newProject;
 }
 
@@ -1329,6 +1368,7 @@ export async function updateProject(
     description?: string;
     color?: string;
     memberIds?: string[];
+    pendingMemberIds?: string[];
   },
   actorUser: User
 ): Promise<Project | null> {
@@ -1347,9 +1387,44 @@ export async function updateProject(
   }
 
   const nowIso = new Date().toISOString();
-  let updatedMembers = updates.memberIds ? [...updates.memberIds] : current.memberIds;
-  if (current.createdBy && !updatedMembers.includes(current.createdBy)) {
-    updatedMembers.push(current.createdBy);
+
+  // Conservar miembros que ya aceptaron
+  let existingActive = current.memberIds || [];
+  if (current.createdBy && !existingActive.includes(current.createdBy)) {
+    existingActive = [current.createdBy, ...existingActive];
+  }
+
+  let finalActive = existingActive;
+  let finalPending = current.pendingMemberIds || [];
+  const newlyInvited: string[] = [];
+
+  if (updates.memberIds) {
+    const selectedSet = new Set(updates.memberIds);
+    selectedSet.add(current.createdBy); // Creador siempre asegurado
+
+    // Miembros activos que permanecen seleccionados
+    finalActive = existingActive.filter((id) => selectedSet.has(id));
+
+    // Usuarios que fueron seleccionados pero no están en activos
+    const nonActiveSelected = updates.memberIds.filter((id) => !finalActive.includes(id));
+
+    // Si ya estaban en pending, permanecen; si son nuevos, se añaden a pending y se notifican
+    const existingPendingSet = new Set(finalPending);
+    const updatedPending: string[] = [];
+
+    for (const uid of nonActiveSelected) {
+      if (existingPendingSet.has(uid)) {
+        updatedPending.push(uid);
+      } else {
+        updatedPending.push(uid);
+        newlyInvited.push(uid);
+      }
+    }
+    finalPending = updatedPending;
+  }
+
+  if (updates.pendingMemberIds !== undefined) {
+    finalPending = updates.pendingMemberIds;
   }
 
   const updated: Project = {
@@ -1357,7 +1432,8 @@ export async function updateProject(
     name: updates.name ? updates.name.trim() : current.name,
     description: updates.description !== undefined ? updates.description.trim() : current.description,
     color: updates.color || current.color,
-    memberIds: updatedMembers,
+    memberIds: finalActive,
+    pendingMemberIds: finalPending,
     updatedAt: nowIso,
   };
 
@@ -1367,18 +1443,22 @@ export async function updateProject(
   const client = await getOrInitSupabase();
   if (client) {
     try {
+      const payload: any = {
+        name: updated.name,
+        description: updated.description || null,
+        color: updated.color,
+        member_ids: updated.memberIds,
+        updated_at: updated.updatedAt,
+      };
       const { error } = await client
         .from('projects')
         .update({
-          name: updated.name,
-          description: updated.description || null,
-          color: updated.color,
-          member_ids: updated.memberIds,
-          updated_at: updated.updatedAt,
+          ...payload,
+          pending_member_ids: updated.pendingMemberIds,
         })
         .eq('id', id);
       if (error) {
-        console.error('Error actualizando proyecto en Supabase:', error);
+        await client.from('projects').update(payload).eq('id', id);
       }
     } catch (e) {
       console.warn('Error de red actualizando proyecto en Supabase:', e);
@@ -1392,7 +1472,194 @@ export async function updateProject(
     taskTitle: updated.name,
   });
 
+  // Notificar a nuevos invitados
+  if (newlyInvited.length > 0) {
+    try {
+      const { addNotification } = await import('./notifications');
+      for (const invitedId of newlyInvited) {
+        addNotification({
+          type: 'project_invitation',
+          title: 'Invitación a Proyecto',
+          message: `${actorUser.name} te ha invitado a unirte a "${updated.name}"`,
+          userId: invitedId,
+          projectId: updated.id,
+          invitationStatus: 'pending',
+          actorName: actorUser.name,
+          actorAvatar: actorUser.avatar,
+        });
+      }
+    } catch (e) {
+      console.warn('Error enviando notificaciones de actualización de proyecto:', e);
+    }
+  }
+
   return updated;
+}
+
+export async function acceptProjectInvitation(projectId: string, user: User): Promise<boolean> {
+  const projects = getProjects();
+  const index = projects.findIndex((p) => p.id === projectId);
+  if (index === -1) return false;
+
+  const project = projects[index];
+  const pending = project.pendingMemberIds || [];
+  if (!pending.includes(user.id)) return false;
+
+  const updatedPending = pending.filter((id) => id !== user.id);
+  const updatedMembers = Array.from(new Set([...(project.memberIds || []), user.id]));
+
+  const updated: Project = {
+    ...project,
+    memberIds: updatedMembers,
+    pendingMemberIds: updatedPending,
+    updatedAt: new Date().toISOString(),
+  };
+
+  projects[index] = updated;
+  saveProjects(projects);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      const payload: any = {
+        member_ids: updated.memberIds,
+        updated_at: updated.updatedAt,
+      };
+      const { error } = await client.from('projects').update({
+        ...payload,
+        pending_member_ids: updated.pendingMemberIds,
+      }).eq('id', projectId);
+      if (error) {
+        await client.from('projects').update(payload).eq('id', projectId);
+      }
+    } catch (e) {
+      console.warn('Sync acceptProjectInvitation Supabase:', e);
+    }
+  }
+
+  logActivity({
+    userId: user.id,
+    userName: user.name,
+    action: 'aceptó la invitación al proyecto',
+    taskTitle: project.name,
+  });
+
+  if (project.createdBy && project.createdBy !== user.id) {
+    try {
+      const { addNotification } = await import('./notifications');
+      addNotification({
+        type: 'project_invitation_accepted',
+        title: 'Invitación Aceptada',
+        message: `${user.name} aceptó unirse al proyecto "${project.name}"`,
+        userId: project.createdBy,
+        projectId: project.id,
+        actorName: user.name,
+        actorAvatar: user.avatar,
+      });
+    } catch {}
+  }
+
+  return true;
+}
+
+export async function declineProjectInvitation(projectId: string, user: User): Promise<boolean> {
+  const projects = getProjects();
+  const index = projects.findIndex((p) => p.id === projectId);
+  if (index === -1) return false;
+
+  const project = projects[index];
+  const pending = project.pendingMemberIds || [];
+  if (!pending.includes(user.id)) return false;
+
+  const updatedPending = pending.filter((id) => id !== user.id);
+
+  const updated: Project = {
+    ...project,
+    pendingMemberIds: updatedPending,
+    updatedAt: new Date().toISOString(),
+  };
+
+  projects[index] = updated;
+  saveProjects(projects);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      const payload: any = { updated_at: updated.updatedAt };
+      const { error } = await client.from('projects').update({
+        ...payload,
+        pending_member_ids: updated.pendingMemberIds,
+      }).eq('id', projectId);
+      if (error) {
+        await client.from('projects').update(payload).eq('id', projectId);
+      }
+    } catch (e) {
+      console.warn('Sync declineProjectInvitation Supabase:', e);
+    }
+  }
+
+  logActivity({
+    userId: user.id,
+    userName: user.name,
+    action: 'declinó la invitación al proyecto',
+    taskTitle: project.name,
+  });
+
+  if (project.createdBy && project.createdBy !== user.id) {
+    try {
+      const { addNotification } = await import('./notifications');
+      addNotification({
+        type: 'project_invitation_declined',
+        title: 'Invitación Declinada',
+        message: `${user.name} declinó unirse al proyecto "${project.name}"`,
+        userId: project.createdBy,
+        projectId: project.id,
+        actorName: user.name,
+        actorAvatar: user.avatar,
+      });
+    } catch {}
+  }
+
+  return true;
+}
+
+export async function cancelProjectInvitation(projectId: string, targetUserId: string, actorUser: User): Promise<boolean> {
+  const projects = getProjects();
+  const index = projects.findIndex((p) => p.id === projectId);
+  if (index === -1) return false;
+
+  const project = projects[index];
+  const isCreatorOrAdmin = project.createdBy === actorUser.id || actorUser.role === 'admin';
+  if (!isCreatorOrAdmin) return false;
+
+  const pending = project.pendingMemberIds || [];
+  const updatedPending = pending.filter((id) => id !== targetUserId);
+
+  const updated: Project = {
+    ...project,
+    pendingMemberIds: updatedPending,
+    updatedAt: new Date().toISOString(),
+  };
+
+  projects[index] = updated;
+  saveProjects(projects);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      const { error } = await client.from('projects').update({
+        pending_member_ids: updated.pendingMemberIds,
+        updated_at: updated.updatedAt,
+      }).eq('id', projectId);
+      if (error) {
+        await client.from('projects').update({ updated_at: updated.updatedAt }).eq('id', projectId);
+      }
+    } catch (e) {
+      console.warn('Sync cancelProjectInvitation Supabase:', e);
+    }
+  }
+
+  return true;
 }
 
 export async function deleteProject(id: string, actorUser: User): Promise<{ success: boolean; error?: string }> {

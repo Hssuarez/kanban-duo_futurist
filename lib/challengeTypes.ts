@@ -8,6 +8,7 @@ import { HabitLogStatus } from './habitTypes';
 export type ChallengeMode = 'collaborative' | 'competitive';
 export type ChallengeStatus = 'upcoming' | 'active' | 'completed' | 'archived';
 export type ChallengeRole = 'owner' | 'member';
+export type ChallengeMemberStatus = 'pending' | 'accepted' | 'declined';
 
 export interface Challenge {
   id: string;
@@ -31,8 +32,9 @@ export interface ChallengeMember {
   id: string;
   challengeId: string;
   userId: string;
-  role: ChallengeRole;         // 'owner' | 'member'
-  joinedAt: string;            // 'YYYY-MM-DD' o ISO UTC (clave para cálculo de participación tardía)
+  role: ChallengeRole;                 // 'owner' | 'member'
+  status?: ChallengeMemberStatus;      // 'accepted' | 'pending' | 'declined' (default 'accepted' para retrocompatibilidad)
+  joinedAt: string;                    // 'YYYY-MM-DD' o ISO UTC
 }
 
 export interface ChallengeHabit {

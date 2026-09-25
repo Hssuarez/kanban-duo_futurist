@@ -27,6 +27,7 @@ export interface Project {
   color: string;
   createdBy: string;
   memberIds: string[];
+  pendingMemberIds?: string[]; // IDs de usuarios con invitación pendiente de aceptación
   createdAt: string;
   updatedAt: string;
 }

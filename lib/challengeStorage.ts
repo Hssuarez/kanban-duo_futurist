@@ -10,6 +10,7 @@ import {
   ChallengeLog,
   ChallengeActivity,
   ChallengeGoal,
+  ChallengeMemberStatus,
 } from './challengeTypes';
 import { getOrInitSupabase } from './supabaseClient';
 import { notifySync } from './storage';
@@ -317,12 +318,12 @@ export const DEFAULT_CHALLENGES: Challenge[] = [
 ];
 
 export const DEFAULT_CHALLENGE_MEMBERS: ChallengeMember[] = [
-  // Miembros de 'ch-gym-30d' (incluyendo usuarios reales del sistema)
-  { id: 'cm-1', challengeId: 'ch-gym-30d', userId: 'user-admin', role: 'owner', joinedAt: '2026-09-01' },
-  { id: 'cm-2', challengeId: 'ch-gym-30d', userId: 'user-alex', role: 'member', joinedAt: '2026-09-01' },
-  { id: 'cm-3', challengeId: 'ch-gym-30d', userId: 'user-beatriz', role: 'member', joinedAt: '2026-09-01' },
-  { id: 'cm-4', challengeId: 'ch-gym-30d', userId: 'user-2', role: 'member', joinedAt: '2026-09-01' },
-  { id: 'cm-5', challengeId: 'ch-gym-30d', userId: 'user-3', role: 'member', joinedAt: '2026-09-03' },
+  // Miembros de 'ch-gym-30d' (incluyendo usuarios reales del sistema ya activos)
+  { id: 'cm-1', challengeId: 'ch-gym-30d', userId: 'user-admin', role: 'owner', status: 'accepted', joinedAt: '2026-09-01' },
+  { id: 'cm-2', challengeId: 'ch-gym-30d', userId: 'user-alex', role: 'member', status: 'accepted', joinedAt: '2026-09-01' },
+  { id: 'cm-3', challengeId: 'ch-gym-30d', userId: 'user-beatriz', role: 'member', status: 'accepted', joinedAt: '2026-09-01' },
+  { id: 'cm-4', challengeId: 'ch-gym-30d', userId: 'user-2', role: 'member', status: 'accepted', joinedAt: '2026-09-01' },
+  { id: 'cm-5', challengeId: 'ch-gym-30d', userId: 'user-3', role: 'member', status: 'accepted', joinedAt: '2026-09-03' },
 ];
 
 export const DEFAULT_CHALLENGE_HABITS: ChallengeHabit[] = [
@@ -670,13 +671,22 @@ export function getLocalChallengeMembers(challengeId?: string): ChallengeMember[
       return m;
     });
 
+    // Auto-migración para miembros existentes sin campo status: asegurar status: 'accepted'
+    members = members.map((m) => {
+      if (!m.status) {
+        migrated = true;
+        return { ...m, status: 'accepted' as ChallengeMemberStatus };
+      }
+      return m;
+    });
+
     // Asegurar que los miembros del sistema tengan su fila en ch-gym-30d
     if (!members.some((m) => m.challengeId === 'ch-gym-30d' && m.userId === 'user-alex')) {
-      members.push({ id: 'cm-ch-gym-alex', challengeId: 'ch-gym-30d', userId: 'user-alex', role: 'member', joinedAt: '2026-09-01' });
+      members.push({ id: 'cm-ch-gym-alex', challengeId: 'ch-gym-30d', userId: 'user-alex', role: 'member', status: 'accepted', joinedAt: '2026-09-01' });
       migrated = true;
     }
     if (!members.some((m) => m.challengeId === 'ch-gym-30d' && m.userId === 'user-beatriz')) {
-      members.push({ id: 'cm-ch-gym-beatriz', challengeId: 'ch-gym-30d', userId: 'user-beatriz', role: 'member', joinedAt: '2026-09-01' });
+      members.push({ id: 'cm-ch-gym-beatriz', challengeId: 'ch-gym-30d', userId: 'user-beatriz', role: 'member', status: 'accepted', joinedAt: '2026-09-01' });
       migrated = true;
     }
 
@@ -707,11 +717,18 @@ export async function addChallengeMember(
   challengeId: string,
   userId: string,
   role: 'owner' | 'member' = 'member',
-  joinedAt?: string
+  joinedAt?: string,
+  status: ChallengeMemberStatus = role === 'owner' ? 'accepted' : 'pending'
 ): Promise<ChallengeMember> {
   const current = getLocalChallengeMembers();
   const exists = current.find((m) => m.challengeId === challengeId && m.userId === userId);
-  if (exists) return exists;
+  if (exists) {
+    if (status !== exists.status && exists.status === 'pending') {
+      exists.status = status;
+      saveLocalChallengeMembers(current);
+    }
+    return exists;
+  }
 
   // Si no se especifica joinedAt, heredar startDate del reto o la fecha actual
   let effectiveJoinedAt = joinedAt;
@@ -725,6 +742,7 @@ export async function addChallengeMember(
     challengeId,
     userId,
     role,
+    status,
     joinedAt: effectiveJoinedAt,
   };
 
@@ -734,19 +752,160 @@ export async function addChallengeMember(
   const client = await getOrInitSupabase();
   if (client) {
     try {
-      await client.from('challenge_members').upsert({
+      const payload: any = {
         id: newMember.id,
         challenge_id: challengeId,
         user_id: userId,
         role: newMember.role,
         joined_at: newMember.joinedAt,
+      };
+      const { error } = await client.from('challenge_members').upsert({
+        ...payload,
+        status: newMember.status,
       });
+      if (error) {
+        await client.from('challenge_members').upsert(payload);
+      }
     } catch (e) {
       console.warn('Sync addChallengeMember Supabase:', e);
     }
   }
 
+  // Notificación de invitación si queda en estado pendiente
+  if (status === 'pending') {
+    try {
+      const { addNotification } = await import('./notifications');
+      const challenge = getLocalChallenges().find((c) => c.id === challengeId);
+      const allUsers = (await import('./storage')).getUsers();
+      const creator = allUsers.find((u) => u.id === challenge?.createdBy);
+
+      addNotification({
+        type: 'challenge_invitation',
+        title: 'Invitación a Reto',
+        message: `${creator?.name || 'Un compañero'} te ha invitado a participar en el reto "${challenge?.title || 'Reto'}"`,
+        userId,
+        projectId: 'habits',
+        challengeId,
+        invitationStatus: 'pending',
+        actorName: creator?.name,
+        actorAvatar: creator?.avatar,
+      });
+    } catch (e) {
+      console.warn('Error enviando notificación de reto:', e);
+    }
+  }
+
   return newMember;
+}
+
+export async function acceptChallengeInvitation(challengeId: string, userId: string): Promise<boolean> {
+  const members = getLocalChallengeMembers();
+  const index = members.findIndex((m) => m.challengeId === challengeId && m.userId === userId);
+  if (index === -1) return false;
+
+  const today = getBogotaToday();
+  const updatedMember: ChallengeMember = {
+    ...members[index],
+    status: 'accepted',
+    joinedAt: today,
+  };
+
+  members[index] = updatedMember;
+  saveLocalChallengeMembers(members);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      const payload: any = {
+        id: updatedMember.id,
+        challenge_id: challengeId,
+        user_id: userId,
+        role: updatedMember.role,
+        joined_at: updatedMember.joinedAt,
+      };
+      const { error } = await client.from('challenge_members').upsert({
+        ...payload,
+        status: 'accepted',
+      });
+      if (error) {
+        await client.from('challenge_members').upsert(payload);
+      }
+    } catch (e) {
+      console.warn('Sync acceptChallengeInvitation Supabase:', e);
+    }
+  }
+
+  try {
+    const allUsers = (await import('./storage')).getUsers();
+    const user = allUsers.find((u) => u.id === userId);
+    addChallengeActivity(
+      challengeId,
+      userId,
+      `${user?.name || 'Un nuevo miembro'} aceptó el reto y comenzó a participar`,
+      'joined'
+    );
+
+    const ch = getLocalChallenges().find((c) => c.id === challengeId);
+    if (ch && ch.createdBy && ch.createdBy !== userId) {
+      const { addNotification } = await import('./notifications');
+      addNotification({
+        type: 'challenge_invitation_accepted',
+        title: 'Reto Aceptado',
+        message: `${user?.name || 'Un compañero'} aceptó la invitación al reto "${ch.title}"`,
+        userId: ch.createdBy,
+        projectId: 'habits',
+        challengeId,
+        actorName: user?.name,
+        actorAvatar: user?.avatar,
+      });
+    }
+  } catch (e) {
+    console.warn('Error registrando actividad de aceptación de reto:', e);
+  }
+
+  return true;
+}
+
+export async function declineChallengeInvitation(challengeId: string, userId: string): Promise<boolean> {
+  const members = getLocalChallengeMembers();
+  const target = members.find((m) => m.challengeId === challengeId && m.userId === userId);
+  if (!target) return false;
+
+  const filtered = members.filter((m) => !(m.challengeId === challengeId && m.userId === userId));
+  saveLocalChallengeMembers(filtered);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      await client
+        .from('challenge_members')
+        .delete()
+        .match({ challenge_id: challengeId, user_id: userId });
+    } catch (e) {
+      console.warn('Sync declineChallengeInvitation Supabase:', e);
+    }
+  }
+
+  try {
+    const allUsers = (await import('./storage')).getUsers();
+    const user = allUsers.find((u) => u.id === userId);
+    const ch = getLocalChallenges().find((c) => c.id === challengeId);
+    if (ch && ch.createdBy && ch.createdBy !== userId) {
+      const { addNotification } = await import('./notifications');
+      addNotification({
+        type: 'challenge_invitation_declined',
+        title: 'Invitación a Reto Declinada',
+        message: `${user?.name || 'Un compañero'} declinó participar en el reto "${ch.title}"`,
+        userId: ch.createdBy,
+        projectId: 'habits',
+        challengeId,
+        actorName: user?.name,
+        actorAvatar: user?.avatar,
+      });
+    }
+  } catch {}
+
+  return true;
 }
 
 export async function removeChallengeMember(challengeId: string, userId: string): Promise<boolean> {
@@ -1443,15 +1602,23 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
     const { data: cloudMembers, error: mErr } = await client.from('challenge_members').select('*');
     if (!mErr && cloudMembers) {
       const activeChallengeIds = new Set(getLocalChallenges().map((c) => c.id));
+      const localMembers = getLocalChallengeMembers();
+      const localMap = new Map(localMembers.map((lm) => [lm.id, lm]));
+
       const mappedMembers: ChallengeMember[] = cloudMembers
         .filter((m: any) => activeChallengeIds.has(m.challenge_id))
-        .map((m: any) => ({
-          id: m.id,
-          challengeId: m.challenge_id,
-          userId: m.user_id,
-          role: m.role || 'member',
-          joinedAt: m.joined_at || new Date().toISOString().slice(0, 10),
-        }));
+        .map((m: any) => {
+          const local = localMap.get(m.id);
+          const resolvedStatus: ChallengeMemberStatus = m.status || local?.status || 'accepted';
+          return {
+            id: m.id,
+            challengeId: m.challenge_id,
+            userId: m.user_id,
+            role: m.role || 'member',
+            status: resolvedStatus,
+            joinedAt: m.joined_at || new Date().toISOString().slice(0, 10),
+          };
+        });
 
       if (cloudMembers.length > 0) {
         saveLocalChallengeMembers(mappedMembers);
@@ -1463,13 +1630,20 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           if (activeChallengeIds.has(m.challengeId) && !memberMap.has(m.id)) {
             memberMap.set(m.id, m);
             try {
-              await (client.from('challenge_members') as any).upsert({
+              const payload: any = {
                 id: m.id,
                 challenge_id: m.challengeId,
                 user_id: m.userId,
                 role: m.role,
                 joined_at: m.joinedAt,
+              };
+              const { error } = await (client.from('challenge_members') as any).upsert({
+                ...payload,
+                status: m.status || 'accepted',
               });
+              if (error) {
+                await (client.from('challenge_members') as any).upsert(payload);
+              }
             } catch (e) {
               console.warn('Sync pending member exception:', e);
             }
