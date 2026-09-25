@@ -264,6 +264,11 @@ export function markWelcomedThisSession(): void {
   sessionStorage.setItem(CC_WELCOMED_KEY, 'true');
 }
 
+export function clearWelcomedSession(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem(CC_WELCOMED_KEY);
+}
+
 /**
  * Secuencia de encendido y arranque de nave espacial (Boot Sequence)
  * Incluye zumbido de reactores + doble chime de intercomunicador de cabina

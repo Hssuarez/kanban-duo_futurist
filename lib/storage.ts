@@ -896,6 +896,9 @@ export function logout() {
     });
   }
   localStorage.removeItem(STORAGE_KEYS.SESSION_USER_ID);
+  try {
+    sessionStorage.removeItem('kanban_cc_welcomed_session');
+  } catch {}
   notifySync('session');
 }
 

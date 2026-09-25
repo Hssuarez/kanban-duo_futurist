@@ -146,12 +146,18 @@ export const KanbanBoard: React.FC = () => {
   // Manejo de sesión
   const handleLoginSuccess = (user: User) => {
     setSessionUser(user);
+    try {
+      sessionStorage.removeItem('kanban_cc_welcomed_session');
+    } catch {}
     setCurrentView('command_center');
     refreshData();
   };
 
   const handleLogout = () => {
     logoutStorage();
+    try {
+      sessionStorage.removeItem('kanban_cc_welcomed_session');
+    } catch {}
     setSessionUser(null);
     setCurrentView('command_center');
   };
