@@ -556,8 +556,17 @@ export function sanitizeVoiceText(input: string, maxChars: number = 45): string 
   return (lastSpace > 15 ? truncated.slice(0, lastSpace) : truncated).trim();
 }
 
+// Caché proactivo de voces del sistema para Chromium/Windows
+let cachedVoices: SpeechSynthesisVoice[] = [];
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  cachedVoices = window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => {
+    cachedVoices = window.speechSynthesis.getVoices();
+  };
+}
+
 /**
- * Genera el guión táctico de voz estilo Terran Adjutant de StarCraft
+ * Genera el guión táctico de voz original (preferido por el usuario) con estructura de protocolo militar
  */
 function buildShipSpeechText(
   firstName: string,
@@ -566,14 +575,14 @@ function buildShipSpeechText(
 ): string {
   const intro =
     lang === 'es'
-      ? `Centro de mando en línea... Enlace táctico establecido. Comandante ${firstName}.`
-      : `Command center online... Tactical link established. Commander ${firstName}.`;
+      ? `INICIANDO PROTOCOLO. Identificación biométrica... confirmada. Comandante ${firstName}...`
+      : `PROTOCOL INITIATED. Biometric authorization... confirmed. Commander ${firstName}...`;
 
   // Sin informe de tareas provisto: saludo estándar
   if (!briefing || !briefing.pendingTasks) {
     return lang === 'es'
-      ? `${intro} Telemetría sincronizada. Adjutor de operaciones... a su servicio.`
-      : `${intro} Telemetry synchronized. Operations Adjutant... standing by.`;
+      ? `${intro} Núcleo orbital... en línea. Inteligencia Artificial... a su servicio.`
+      : `${intro} Orbital core... online. Artificial Intelligence... standing by.`;
   }
 
   const count = briefing.totalPendingCount ?? briefing.pendingTasks.length;
@@ -581,8 +590,8 @@ function buildShipSpeechText(
   // Cero tareas pendientes
   if (count === 0 || briefing.pendingTasks.length === 0) {
     return lang === 'es'
-      ? `${intro} Cuadrante pacificado. Sin directivas prioritarias en el registro de operaciones. Todos los sistemas en línea... Esperando órdenes.`
-      : `${intro} Sector secure. No pending directives in operational logs. All systems online... Standing by for orders.`;
+      ? `${intro} Núcleo orbital sincronizado. No se detectan tareas pendientes en el registro táctico. Todos los sistemas... operativos.`
+      : `${intro} Orbital core synchronized. No pending tasks detected in tactical logs. All systems... operational.`;
   }
 
   // 1 tarea pendiente
@@ -593,11 +602,11 @@ function buildShipSpeechText(
     const isWorking = task.status === 'trabajando';
 
     if (lang === 'es') {
-      const statusPhrase = isWorking ? 'Directiva prioritaria en curso' : 'Directiva pendiente asignada';
-      return `${intro} Alerta táctica. ${statusPhrase}: ${title}... en el sector ${project}. Telemetría operativa.`;
+      const statusPhrase = isWorking ? 'una tarea en curso' : 'una tarea pendiente';
+      return `${intro} Alerta táctica: Tienes ${statusPhrase}: ${title}... en el proyecto... ${project}. Sistemas de abordo... en línea.`;
     } else {
-      const statusPhrase = isWorking ? 'Priority directive in progress' : 'Pending directive assigned';
-      return `${intro} Tactical alert. ${statusPhrase}: ${title}... in sector ${project}. Telemetry operational.`;
+      const statusPhrase = isWorking ? 'one active mission in progress' : 'one pending task';
+      return `${intro} Tactical alert: You have ${statusPhrase}: ${title}... in project... ${project}. Ship systems... online.`;
     }
   }
 
@@ -611,9 +620,9 @@ function buildShipSpeechText(
     const proj2 = sanitizeVoiceText(t2.projectName, 26);
 
     if (lang === 'es') {
-      return `${intro} Informe de operaciones: Dos directivas activas. Objetivo prioritario: ${title1}... en el sector ${proj1}... y directiva secundaria: ${title2}... en ${proj2}. Esperando órdenes.`;
+      return `${intro} Informe táctico: Tienes dos tareas activas. Misión prioritaria: ${title1}... en el proyecto... ${proj1}... y tarea secundaria: ${title2}... en... ${proj2}. Sistemas listos.`;
     } else {
-      return `${intro} Operations report: Two active directives. Primary objective: ${title1}... in sector ${proj1}... and secondary directive: ${title2}... in ${proj2}. Standing by for orders.`;
+      return `${intro} Tactical report: You have two active missions. Priority: ${title1}... in project... ${proj1}... and secondary: ${title2}... in... ${proj2}. Systems ready.`;
     }
   }
 
@@ -623,15 +632,15 @@ function buildShipSpeechText(
   const primaryProject = sanitizeVoiceText(primaryTask.projectName, 28);
 
   if (lang === 'es') {
-    return `${intro} Alerta operacional: ${count} directivas en la cola táctica. Objetivo prioritario: ${primaryTitle}... en el sector ${primaryProject}. Adjutor... esperando instrucciones.`;
+    return `${intro} Informe táctico: Tienes ${count} tareas pendientes. Misión prioritaria: ${primaryTitle}... en el proyecto... ${primaryProject}. Inteligencia Artificial... a su servicio.`;
   } else {
-    return `${intro} Operational alert: ${count} directives in tactical queue. Primary objective: ${primaryTitle}... in sector ${primaryProject}. Adjutant... standing by.`;
+    return `${intro} Tactical report: You have ${count} pending tasks. Priority mission: ${primaryTitle}... in project... ${primaryProject}. Artificial Intelligence... standing by.`;
   }
 }
 
 /**
  * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
- * Configurado al estilo del Terran Adjutant de StarCraft (comms chirps, squelch y modulación de androide militar)
+ * Calibrado fielmente al Terran Adjutant de StarCraft 2 (voz androide femenina clínica, limpia y rítmica)
  */
 export function playShipWelcomeVoice(
   userName: string,
@@ -649,29 +658,26 @@ export function playShipWelcomeVoice(
     const lang = customLang || getSoundLanguage();
     const firstName = userName ? userName.trim().split(' ')[0] : (lang === 'es' ? 'Comandante' : 'Commander');
 
-    // Generar guión dinámico militar StarCraft
+    // Generar guión táctico estructurado
     const text = buildShipSpeechText(firstName, lang, briefing);
 
     const utterance = new SpeechSynthesisUtterance(text);
     activeUtterance = utterance; // Retener referencia para evitar recolección de basura de Chromium
     utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
-    utterance.pitch = 0.78; // Tonalidad sintética precisa de androide militar StarCraft
-    utterance.rate = 0.90;  // Cadencia militar, medida, rítmica y autoritaria
-    utterance.volume = 1.0;
 
-    // Disparar chime de intercomunicador con squelch de radio StarCraft
-    playSpaceshipEchoChime();
-
-    // Priorización de voces estilo StarCraft Adjutant (sintética femenina / androide militar)
+    // Priorización de voces estilo StarCraft 2 Terran Adjutant (androide sintetizada femenina serena y clínica)
     const selectBestVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length === 0) return;
+      let voices = window.speechSynthesis.getVoices();
+      if ((!voices || voices.length === 0) && cachedVoices.length > 0) {
+        voices = cachedVoices;
+      }
+      if (!voices || voices.length === 0) return;
 
       const langCode = lang === 'es' ? 'es' : 'en';
       const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(langCode));
 
       if (langVoices.length > 0) {
-        // Excluir voces naturales orgánicas que rompen la estética de IA cibernética
+        // Excluir voces naturales "Neural" excesivamente emocionales
         const nonNeuralVoices = langVoices.filter((v) => {
           const n = v.name.toLowerCase();
           return !n.includes('natural') && !n.includes('neural') && !n.includes('online');
@@ -693,7 +699,8 @@ export function playShipWelcomeVoice(
               n.includes('hazel') ||
               n.includes('susan') ||
               n.includes('elena') ||
-              n.includes('lucia')
+              n.includes('lucia') ||
+              n.includes('female')
             );
           }) ||
           pool.find((v) => {
@@ -715,6 +722,17 @@ export function playShipWelcomeVoice(
     };
 
     selectBestVoice();
+
+    // Modulación acústica estilo StarCraft II Terran Adjutant:
+    // Si es voz femenina (Helena, Sabina, Zira), 0.92 mantiene la calma clínica y electrónica sin caer en distorsión grave.
+    // Si es masculina por fallback, 1.02 evita el tono de monstruo y mantiene claridad androide.
+    const isFemaleVoice = utterance.voice?.name.toLowerCase().match(/helena|sabina|laura|monica|paulina|zira|hazel|susan|elena|lucia|female/);
+    utterance.pitch = isFemaleVoice ? 0.92 : 1.02;
+    utterance.rate = 0.88; // Cadencia metódica, precisa y medida como en StarCraft 2
+    utterance.volume = 1.0;
+
+    // Disparar chime de intercomunicador con squelch de radio StarCraft
+    playSpaceshipEchoChime();
 
     utterance.onstart = () => {
       const ctx = getAudioContext();
