@@ -320,51 +320,103 @@ export function playSciFiBootSequence() {
 
 /* ========================================================
    COMUNICACIONES DE PUENTE & INTELIGENCIA ARTIFICIAL DE ABORDO
+   (VOZ ROBOTIZADA + ECO MULTI-TAP DE PUENTE DE NAVE)
    ======================================================== */
 
-let activeAiCarrier: { osc1: OscillatorNode; osc2: OscillatorNode; gain: GainNode } | null = null;
+let activeUtterance: SpeechSynthesisUtterance | null = null;
 
 /**
- * Chime arpegiado futurista de apertura de enlace de comunicaciones (Com-Link Open)
- * F#5 (739.99Hz) -> A#5 (932.33Hz) -> C#6 (1108.73Hz)
+ * Chime arpegiado con reverberación y eco espacial multi-tap de mamparos metálicos
+ * Simula el sonido expandiéndose y rebotando en el puente de mando de una nave estelar
  */
-export function playCommsOpenChime() {
+export function playSpaceshipEchoChime() {
   if (!isSoundEnabled()) return;
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
     const now = ctx.currentTime;
 
+    // 1. Tono principal de intercomunicador (D5 587.33Hz -> A5 880Hz)
     const tones = [
-      { freq: 739.99, time: now },
-      { freq: 932.33, time: now + 0.07 },
-      { freq: 1108.73, time: now + 0.14 },
+      { freq: 587.33, time: now },
+      { freq: 880.00, time: now + 0.09 },
     ];
 
     tones.forEach(({ freq, time }) => {
+      // Onda directa
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, time);
 
       gain.gain.setValueAtTime(0.001, time);
-      gain.gain.exponentialRampToValueAtTime(0.045, time + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.24);
+      gain.gain.exponentialRampToValueAtTime(0.05, time + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.32);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
-
       osc.start(time);
-      osc.stop(time + 0.26);
+      osc.stop(time + 0.35);
+
+      // Eco 1: Rebote en mamparo lateral (+85ms, amortiguado)
+      const echo1Osc = ctx.createOscillator();
+      const echo1Gain = ctx.createGain();
+      const echo1Filter = ctx.createBiquadFilter();
+      echo1Filter.type = 'lowpass';
+      echo1Filter.frequency.setValueAtTime(700, time);
+
+      echo1Osc.type = 'sine';
+      echo1Osc.frequency.setValueAtTime(freq, time + 0.085);
+      echo1Gain.gain.setValueAtTime(0.0001, time + 0.085);
+      echo1Gain.gain.exponentialRampToValueAtTime(0.022, time + 0.095);
+      echo1Gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.42);
+
+      echo1Osc.connect(echo1Filter);
+      echo1Filter.connect(echo1Gain);
+      echo1Gain.connect(ctx.destination);
+      echo1Osc.start(time + 0.085);
+      echo1Osc.stop(time + 0.45);
+
+      // Eco 2: Rebote lejano de la bahía de mando (+180ms, más grave)
+      const echo2Osc = ctx.createOscillator();
+      const echo2Gain = ctx.createGain();
+      const echo2Filter = ctx.createBiquadFilter();
+      echo2Filter.type = 'lowpass';
+      echo2Filter.frequency.setValueAtTime(450, time);
+
+      echo2Osc.type = 'sine';
+      echo2Osc.frequency.setValueAtTime(freq, time + 0.18);
+      echo2Gain.gain.setValueAtTime(0.0001, time + 0.18);
+      echo2Gain.gain.exponentialRampToValueAtTime(0.012, time + 0.195);
+      echo2Gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.55);
+
+      echo2Osc.connect(echo2Filter);
+      echo2Filter.connect(echo2Gain);
+      echo2Gain.connect(ctx.destination);
+      echo2Osc.start(time + 0.18);
+      echo2Osc.stop(time + 0.58);
     });
+
+    // 2. Resonancia sub-grave de presurización de la sala (36Hz, 1.2s de cola acústica)
+    const roomSub = ctx.createOscillator();
+    const roomGain = ctx.createGain();
+    roomSub.type = 'sine';
+    roomSub.frequency.setValueAtTime(36, now);
+    roomGain.gain.setValueAtTime(0.001, now);
+    roomGain.gain.exponentialRampToValueAtTime(0.028, now + 0.04);
+    roomGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+
+    roomSub.connect(roomGain);
+    roomGain.connect(ctx.destination);
+    roomSub.start(now);
+    roomSub.stop(now + 1.25);
   } catch {}
 }
 
 /**
- * Doble blip táctico de confirmación al cerrar canal de comunicaciones (Com-Link Roger)
+ * Acuse de recibo de canal cerrado (Roger Beep) con eco espacial en descenso
  */
-export function playCommsCloseChime() {
+export function playSpaceshipEchoRoger() {
   if (!isSoundEnabled()) return;
   try {
     const ctx = getAudioContext();
@@ -372,93 +424,47 @@ export function playCommsCloseChime() {
     const now = ctx.currentTime;
 
     const tones = [
-      { freq: 1046.5, time: now },
-      { freq: 1318.51, time: now + 0.05 },
+      { freq: 880.00, time: now },
+      { freq: 1174.66, time: now + 0.055 },
     ];
 
     tones.forEach(({ freq, time }) => {
+      // Onda directa
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, time);
 
       gain.gain.setValueAtTime(0.001, time);
       gain.gain.exponentialRampToValueAtTime(0.035, time + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.14);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
-
       osc.start(time);
-      osc.stop(time + 0.08);
+      osc.stop(time + 0.15);
+
+      // Eco de mamparo (+95ms)
+      const echoOsc = ctx.createOscillator();
+      const echoGain = ctx.createGain();
+      echoOsc.type = 'sine';
+      echoOsc.frequency.setValueAtTime(freq, time + 0.095);
+
+      echoGain.gain.setValueAtTime(0.0001, time + 0.095);
+      echoGain.gain.exponentialRampToValueAtTime(0.014, time + 0.105);
+      echoGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.28);
+
+      echoOsc.connect(echoGain);
+      echoGain.connect(ctx.destination);
+      echoOsc.start(time + 0.095);
+      echoOsc.stop(time + 0.3);
     });
   } catch {}
 }
 
 /**
- * Portadora sub-acústica de radio / campo holográfico mientras la IA habla
- */
-function startAiCarrier(ctx: AudioContext) {
-  if (activeAiCarrier) return;
-  try {
-    const now = ctx.currentTime;
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(540, now);
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(1080, now);
-
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(800, now);
-    filter.Q.setValueAtTime(2.0, now);
-
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.012, now + 0.2);
-
-    osc1.connect(filter);
-    osc2.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc1.start(now);
-    osc2.start(now);
-    activeAiCarrier = { osc1, osc2, gain };
-  } catch {}
-}
-
-function stopAiCarrier() {
-  if (!activeAiCarrier) return;
-  try {
-    const { osc1, osc2, gain } = activeAiCarrier;
-    const ctx = getAudioContext();
-    if (ctx) {
-      const now = ctx.currentTime;
-      gain.gain.setValueAtTime(gain.gain.value, now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
-      setTimeout(() => {
-        try {
-          osc1.stop();
-          osc2.stop();
-          osc1.disconnect();
-          osc2.disconnect();
-          gain.disconnect();
-        } catch {}
-      }, 350);
-    }
-    activeAiCarrier = null;
-  } catch {
-    activeAiCarrier = null;
-  }
-}
-
-/**
  * Saludo protocolario por voz de la Inteligencia Artificial de a bordo
- * Configurado con estilo cinematográfico de nave espacial (Alien Mother / Star Trek Computer / HAL)
+ * Configurado con voz profundamente robotizada y eco acústico de puente de nave
  */
 export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en') {
   if (!isSoundEnabled()) return;
@@ -466,27 +472,28 @@ export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en')
 
   try {
     window.speechSynthesis.cancel();
-    stopAiCarrier();
+    activeUtterance = null;
 
     const lang = customLang || getSoundLanguage();
     const firstName = userName ? userName.trim().split(' ')[0] : (lang === 'es' ? 'Comandante' : 'Commander');
 
-    // Guión de IA espacial protocolario y militar
+    // Guión estructurado con pausas mecánicas para forzar cadencia puramente robótica
     const text =
       lang === 'es'
-        ? `Identificación biométrica confirmada. Saludos, Comandante ${firstName}. Núcleo orbital sincronizado. Inteligencia de abordo a su servicio.`
-        : `Biometric authorization confirmed. Greetings, Commander ${firstName}. Orbital core synchronized. Ship artificial intelligence standing by.`;
+        ? `Atención... Identificación biométrica confirmada... Unidad orbital sincronizada... Comandante ${firstName}... Inteligencia de abordo a su servicio.`
+        : `Attention... Biometric authorization confirmed... Orbital core synchronized... Commander ${firstName}... Ship artificial intelligence standing by.`;
 
     const utterance = new SpeechSynthesisUtterance(text);
+    activeUtterance = utterance; // Retener referencia para evitar recolección de basura de Chromium
     utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
-    utterance.pitch = 1.12; // Timbre sintético cristalino, clinical y futurista
-    utterance.rate = 0.96;  // Cadencia analítica, pausada y autoritaria de IA espacial
+    utterance.pitch = 0.80; // Tonalidad baja, fría, sintética y altamente robotizada
+    utterance.rate = 0.88;  // Cadencia lenta, calculada y puramente mecánica
     utterance.volume = 0.95;
 
-    // Disparar chime de enlace antes de la locución
-    playCommsOpenChime();
+    // Disparar chime de intercomunicador con eco espacial multi-tap
+    playSpaceshipEchoChime();
 
-    // Priorizar voces neurales / sintéticas de IA en el navegador
+    // Priorización de voces robóticas / sintéticas en el sistema operativo
     const selectBestVoice = () => {
       const voices = window.speechSynthesis.getVoices();
       if (voices.length === 0) return;
@@ -495,23 +502,22 @@ export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en')
       const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(langCode));
 
       if (langVoices.length > 0) {
+        // Priorizar voces masculinas o sintéticas de tono plano que a pitch 0.80 suenan exactamente como robots
         const preferredVoice =
           langVoices.find((v) => {
             const n = v.name.toLowerCase();
             return (
-              (n.includes('natural') || n.includes('neural') || n.includes('online')) &&
-              (n.includes('helena') || n.includes('sabina') || n.includes('zira') || n.includes('jenny') || n.includes('aria'))
+              n.includes('david') ||
+              n.includes('raul') ||
+              n.includes('pablo') ||
+              n.includes('mark') ||
+              n.includes('george') ||
+              n.includes('sabina') ||
+              n.includes('helena') ||
+              n.includes('zira') ||
+              n.includes('google')
             );
-          }) ||
-          langVoices.find((v) => {
-            const n = v.name.toLowerCase();
-            return n.includes('natural') || n.includes('neural') || n.includes('online');
-          }) ||
-          langVoices.find((v) => {
-            const n = v.name.toLowerCase();
-            return n.includes('zira') || n.includes('helena') || n.includes('sabina') || n.includes('google');
-          }) ||
-          langVoices[0];
+          }) || langVoices[0];
 
         if (preferredVoice) {
           utterance.voice = preferredVoice;
@@ -521,39 +527,34 @@ export function playShipWelcomeVoice(userName: string, customLang?: 'es' | 'en')
 
     selectBestVoice();
 
-    // Activar portadora de cabina al comenzar la locución
-    utterance.onstart = () => {
-      const ctx = getAudioContext();
-      if (ctx) startAiCarrier(ctx);
-    };
-
-    // Al finalizar: cerrar portadora y emitir blip de canal cerrado
+    // Al finalizar la voz: emitir blip de canal cerrado con eco
     utterance.onend = () => {
-      stopAiCarrier();
-      playCommsCloseChime();
+      activeUtterance = null;
+      playSpaceshipEchoRoger();
     };
 
     utterance.onerror = () => {
-      stopAiCarrier();
+      activeUtterance = null;
     };
 
-    // Retardo para que el chime de apertura resuene antes de la voz
+    // Retardo de 260ms para permitir que el eco inicial resuene antes de la primera palabra
     setTimeout(() => {
       try {
         window.speechSynthesis.speak(utterance);
-      } catch {}
-    }, 220);
+      } catch {
+        activeUtterance = null;
+      }
+    }, 260);
   } catch {}
 }
 
 /* ========================================================
-   ATMÓSFERA AMBIENTAL DE NAVE (WARP CORE & CABIN HUM - CERO INTERFERENCIAS)
+   ATMÓSFERA AMBIENTAL DE NAVE (WARP CORE & CABIN HUM - CERO INTERFERENCIAS, CERO PITOS)
    ======================================================== */
 
 interface AmbientDroneInstance {
   sub1: OscillatorNode;
   sub2: OscillatorNode;
-  sub3: OscillatorNode;
   noiseSource: AudioBufferSourceNode;
   lfo: OscillatorNode;
   gain: GainNode;
@@ -581,8 +582,8 @@ function getBrownianBuffer(ctx: AudioContext): AudioBuffer {
 
 /**
  * Inicia la atmósfera espacial continua de la nave (Warp Core & Pressurized Cabin)
- * 100% Sinusoidal puro + Ruido Browniano ultra-filtrado a 65Hz
- * CERO distorsión, CERO interferencia, CERO chasquidos. Máxima calidez cinemática.
+ * 100% Sub-grave puro + Ruido Browniano ultra-filtrado a 50Hz
+ * CERO pitos, CERO frecuencias medias agudas, CERO distorsión. Puro calor sub-acústico de cabina.
  */
 export function startAmbientWarpDrone() {
   if (!isSoundEnabled() || activeDrone) return;
@@ -592,29 +593,21 @@ export function startAmbientWarpDrone() {
 
     const now = ctx.currentTime;
 
-    // 1. Fundamental sub-grave cálido y continuo (44 Hz / F1) - CERO distorsión
+    // 1. Fundamental sub-grave ultra-cálido (40.0 Hz) - CERO frecuencias agudas ni pitos
     const sub1 = ctx.createOscillator();
     sub1.type = 'sine';
-    sub1.frequency.setValueAtTime(44.0, now);
+    sub1.frequency.setValueAtTime(40.0, now);
 
-    // 2. Segundo armónico puro y sutil (88 Hz / F2) - CERO armónicos triangulares discordantes
+    // 2. Segundo armónico sub-grave tenue (80.0 Hz) a muy bajo volumen
     const sub2 = ctx.createOscillator();
     sub2.type = 'sine';
-    sub2.frequency.setValueAtTime(88.0, now);
+    sub2.frequency.setValueAtTime(80.0, now);
     const sub2Gain = ctx.createGain();
-    sub2Gain.gain.setValueAtTime(0.18, now);
+    sub2Gain.gain.setValueAtTime(0.12, now);
     sub2.connect(sub2Gain);
 
-    // 3. Quinto armónico zen (132 Hz / C3) - resonancia musical profunda
-    const sub3 = ctx.createOscillator();
-    sub3.type = 'sine';
-    sub3.frequency.setValueAtTime(132.0, now);
-    const sub3Gain = ctx.createGain();
-    sub3Gain.gain.setValueAtTime(0.08, now);
-    sub3.connect(sub3Gain);
-
-    // 4. Presurización y flujo de aire de cabina espacial (Ruido Browniano filtrado a 65 Hz)
-    // Sensación pura de soporte vital continuo de puente de mando sin ruidos agudos
+    // 3. Flujo de aire continuo presurizado ultra-grave (Ruido Browniano filtrado estrictamente a 50 Hz)
+    // Nada por encima de 50 Hz puede pasar: CERO siseos, CERO silbidos
     const brownBuffer = getBrownianBuffer(ctx);
     const noiseSource = ctx.createBufferSource();
     noiseSource.buffer = brownBuffer;
@@ -622,49 +615,46 @@ export function startAmbientWarpDrone() {
 
     const noiseFilter = ctx.createBiquadFilter();
     noiseFilter.type = 'lowpass';
-    noiseFilter.frequency.setValueAtTime(65, now);
-    noiseFilter.Q.setValueAtTime(0.3, now);
+    noiseFilter.frequency.setValueAtTime(50, now);
+    noiseFilter.Q.setValueAtTime(0.28, now); // ultra-amortiguado sin resonancia
 
     const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.25, now);
+    noiseGain.gain.setValueAtTime(0.20, now);
 
     noiseSource.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
 
-    // 5. LFO de respiración ultra-lento (0.06 Hz = 1 ciclo cada 16 segundos)
-    // Modula suavemente el volumen general (±10%), NUNCA el filtro de frecuencias
+    // 4. LFO de respiración cósmica ultra-lento (0.05 Hz = 1 ciclo cada 20 segundos)
+    // Modula exclusivamente la ganancia global en ±8%, NUNCA frecuencias de filtros
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
     lfo.type = 'sine';
-    lfo.frequency.setValueAtTime(0.06, now);
-    lfoGain.gain.setValueAtTime(0.003, now);
+    lfo.frequency.setValueAtTime(0.05, now);
+    lfoGain.gain.setValueAtTime(0.002, now);
 
-    // 6. Ganancia maestra del ambiente de cabina con fade-in suave de 2.5s
+    // 5. Ganancia maestra del ambiente con fade-in suave de 2.5s
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0.0001, now);
-    masterGain.gain.exponentialRampToValueAtTime(0.024, now + 2.5);
+    masterGain.gain.exponentialRampToValueAtTime(0.022, now + 2.5);
 
     lfo.connect(lfoGain);
     lfoGain.connect(masterGain.gain);
 
-    // Conectar todos los componentes limpios al masterGain
+    // Conectar todos los componentes al masterGain
     sub1.connect(masterGain);
     sub2Gain.connect(masterGain);
-    sub3Gain.connect(masterGain);
     noiseGain.connect(masterGain);
 
     masterGain.connect(ctx.destination);
 
     sub1.start(now);
     sub2.start(now);
-    sub3.start(now);
     noiseSource.start(now);
     lfo.start(now);
 
     activeDrone = {
       sub1,
       sub2,
-      sub3,
       noiseSource,
       lfo,
       gain: masterGain,
@@ -679,7 +669,7 @@ export function startAmbientWarpDrone() {
 export function stopAmbientWarpDrone() {
   if (!activeDrone) return;
   try {
-    const { sub1, sub2, sub3, noiseSource, lfo, gain, ctx } = activeDrone;
+    const { sub1, sub2, noiseSource, lfo, gain, ctx } = activeDrone;
     const now = ctx.currentTime;
     gain.gain.setValueAtTime(gain.gain.value, now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
@@ -688,12 +678,10 @@ export function stopAmbientWarpDrone() {
       try {
         sub1.stop();
         sub2.stop();
-        sub3.stop();
         noiseSource.stop();
         lfo.stop();
         sub1.disconnect();
         sub2.disconnect();
-        sub3.disconnect();
         noiseSource.disconnect();
         lfo.disconnect();
         gain.disconnect();
