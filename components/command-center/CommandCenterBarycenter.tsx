@@ -29,7 +29,7 @@ export const CommandCenterBarycenter: React.FC<CommandCenterBarycenterProps> = (
   // En modo móvil / Focus, renderizamos el Switcher HUD superior de alto contraste
   if (layoutMode === 'focus') {
     return (
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+      <div className="pointer-events-auto">
         <div className="flex items-center p-1 rounded-2xl bg-slate-950/90 border border-white/10 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,0.8)]">
           {/* Tab 1: Workspace */}
           <button

@@ -516,32 +516,66 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         />
       </div>
 
-      {/* HUD de Control de Audio de Cabina (Mute, Idioma, Com-Link) */}
-      <div className="absolute top-3 right-3 sm:top-4 sm:right-6 z-40">
-        <CommandCenterAudioHUD
-          currentUserName={currentUser.name}
-          isMobile={binaryParams.isMobile}
-        />
-      </div>
+      {/* 2. BARRA SUPERIOR HUD (Responsive: separado en móvil para evitar solapamientos) */}
+      {binaryParams.layoutMode === 'focus' ? (
+        // Modo Móvil / Focus: Columna vertical centrada que evita cualquier solapamiento
+        <header className="absolute top-2.5 left-0 right-0 z-30 pointer-events-none flex flex-col items-center gap-1.5 px-2">
+          {/* Fila 1: Switcher de Polos (Workspace <-> Habit Core) */}
+          <CommandCenterBarycenter
+            activeProject={activeProject}
+            currentUser={currentUser}
+            projectTaskCount={effectiveProjectTasks.length}
+            consistencyPct={userConsistencyPct}
+            activePole={activePole}
+            onSelectPole={(pole) => {
+              if (pole !== activePole) {
+                playWarpJumpSound();
+              }
+              setActivePole(pole);
+              setHoveredModuleId(null);
+              setIsProjectDropdownOpen(false);
+            }}
+            isMobile={true}
+            layoutMode="focus"
+          />
 
-      {/* 2. Selector HUD Superior / Baricentro de Conexión */}
-      <CommandCenterBarycenter
-        activeProject={activeProject}
-        currentUser={currentUser}
-        projectTaskCount={effectiveProjectTasks.length}
-        consistencyPct={userConsistencyPct}
-        activePole={activePole}
-        onSelectPole={(pole) => {
-          if (pole !== activePole) {
-            playWarpJumpSound();
-          }
-          setActivePole(pole);
-          setHoveredModuleId(null);
-          setIsProjectDropdownOpen(false);
-        }}
-        isMobile={binaryParams.isMobile}
-        layoutMode={binaryParams.layoutMode}
-      />
+          {/* Fila 2: Controles de Audio de Cabina */}
+          <div className="pointer-events-auto">
+            <CommandCenterAudioHUD
+              currentUserName={currentUser.name}
+              isMobile={true}
+            />
+          </div>
+        </header>
+      ) : (
+        // Modo Panorámico (Desktop >= 1024px): AudioHUD arriba a la derecha, Baricentro en el centro
+        <>
+          <div className="absolute top-4 right-6 z-40">
+            <CommandCenterAudioHUD
+              currentUserName={currentUser.name}
+              isMobile={false}
+            />
+          </div>
+
+          <CommandCenterBarycenter
+            activeProject={activeProject}
+            currentUser={currentUser}
+            projectTaskCount={effectiveProjectTasks.length}
+            consistencyPct={userConsistencyPct}
+            activePole={activePole}
+            onSelectPole={(pole) => {
+              if (pole !== activePole) {
+                playWarpJumpSound();
+              }
+              setActivePole(pole);
+              setHoveredModuleId(null);
+              setIsProjectDropdownOpen(false);
+            }}
+            isMobile={false}
+            layoutMode="panoramic"
+          />
+        </>
+      )}
 
       {/* 3. Escenario Orbital Central */}
       <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden">

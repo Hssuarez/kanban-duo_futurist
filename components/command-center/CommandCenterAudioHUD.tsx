@@ -65,7 +65,11 @@ export const CommandCenterAudioHUD: React.FC<CommandCenterAudioHUDProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#030712]/80 border border-white/10 backdrop-blur-xl shadow-[0_4px_20px_rgba(0,0,0,0.6)] select-none pointer-events-auto transition-all duration-300">
+    <div
+      className={`flex items-center gap-1.5 p-1 rounded-xl bg-[#030712]/85 border border-white/10 backdrop-blur-xl shadow-[0_4px_20px_rgba(0,0,0,0.6)] select-none pointer-events-auto transition-all duration-300 ${
+        isMobile ? 'scale-90 origin-top' : ''
+      }`}
+    >
       {/* Boton Mute / Unmute */}
       <button
         type="button"
