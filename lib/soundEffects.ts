@@ -418,20 +418,6 @@ export function playSpaceshipEchoChime() {
       echoOsc.start(time + 0.08);
       echoOsc.stop(time + 0.4);
     });
-
-    // 3. Resonancia sub-grave de presurización de la nave (42Hz)
-    const roomSub = ctx.createOscillator();
-    const roomGain = ctx.createGain();
-    roomSub.type = 'sine';
-    roomSub.frequency.setValueAtTime(42, now);
-    roomGain.gain.setValueAtTime(0.001, now);
-    roomGain.gain.exponentialRampToValueAtTime(0.025, now + 0.03);
-    roomGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
-
-    roomSub.connect(roomGain);
-    roomGain.connect(ctx.destination);
-    roomSub.start(now);
-    roomSub.stop(now + 1.0);
   } catch {}
 }
 
@@ -473,77 +459,50 @@ export function playSpaceshipEchoRoger() {
 }
 
 /* ========================================================
-   CHASIS ACÚSTICO ANDROIDE / VOCODER RING-MODULATOR STARCRAFT
-   Emula la resonancia electromecánica y flutter del Terran Adjutant
+   RESONADOR METÁLICO CIBERNÉTICO SINCRONIZADO POR PALABRA
+   Aplica el característico timbre androide de StarCraft a cada sílaba
+   sin producir ruidos graves ni zumbidos continuos en el fondo.
    ======================================================== */
 
-interface AndroidVocoderChassis {
-  carrierOsc: OscillatorNode;
-  carrierFilter: BiquadFilterNode;
-  carrierGain: GainNode;
-  lfoOsc: OscillatorNode;
-  lfoGain: GainNode;
-  subOsc: OscillatorNode;
-  subGain: GainNode;
-  telemetryTimer: NodeJS.Timeout | null;
-}
-
-let activeAndroidChassis: AndroidVocoderChassis | null = null;
-let androidSafetyTimer: NodeJS.Timeout | null = null;
-
-function startServoRumble(ctx: AudioContext) {
-  if (activeAndroidChassis) return;
+/**
+ * Impulso de resonancia metálica que acompaña la dicción de cada palabra (onboundary)
+ */
+export function playRobotWordMetallicRing(ctx: AudioContext) {
   try {
     const now = ctx.currentTime;
 
-    // 1. Portadora metálica vocoder (Onda diente de sierra a 175 Hz - frecuencia fundamental de chasis androide)
-    const carrierOsc = ctx.createOscillator();
-    carrierOsc.type = 'sawtooth';
-    carrierOsc.frequency.setValueAtTime(175, now);
+    // Resonador de formante metálico cibernético (1380 Hz, Q: 6.5)
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
 
-    // Filtro pasa banda resonante centrado en formantes mecánicos (1250 Hz, Q: 3.2)
-    const carrierFilter = ctx.createBiquadFilter();
-    carrierFilter.type = 'bandpass';
-    carrierFilter.frequency.setValueAtTime(1250, now);
-    carrierFilter.Q.setValueAtTime(3.2, now);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(185, now);
 
-    // Ganancia de la portadora con modulación
-    const carrierGain = ctx.createGain();
-    carrierGain.gain.setValueAtTime(0.0001, now);
-    carrierGain.gain.exponentialRampToValueAtTime(0.0075, now + 0.15);
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1380, now);
+    filter.Q.setValueAtTime(6.5, now);
 
-    // 2. LFO de Ring-Modulation a 28 Hz (el clásico flutter androide de StarCraft / Dalek)
-    const lfoOsc = ctx.createOscillator();
-    lfoOsc.type = 'sine';
-    lfoOsc.frequency.setValueAtTime(28, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.0055, now + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
 
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.setValueAtTime(0.004, now);
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
 
-    // Conectar modulación LFO a la ganancia de la portadora
-    lfoOsc.connect(lfoGain);
-    lfoGain.connect(carrierGain.gain);
+    osc.start(now);
+    osc.stop(now + 0.05);
+  } catch {}
+}
 
-    carrierOsc.connect(carrierFilter);
-    carrierFilter.connect(carrierGain);
-    carrierGain.connect(ctx.destination);
+let boundaryFallbackInterval: NodeJS.Timeout | null = null;
 
-    carrierOsc.start(now);
-    lfoOsc.start(now);
+function startServoRumble(ctx: AudioContext) {
+  try {
+    const now = ctx.currentTime;
 
-    // 3. Sub-chasis de servo electromecánico (64 Hz con atenuación de pitos)
-    const subOsc = ctx.createOscillator();
-    const subGain = ctx.createGain();
-    subOsc.type = 'sine';
-    subOsc.frequency.setValueAtTime(64, now);
-    subGain.gain.setValueAtTime(0.0001, now);
-    subGain.gain.exponentialRampToValueAtTime(0.015, now + 0.2);
-
-    subOsc.connect(subGain);
-    subGain.connect(ctx.destination);
-    subOsc.start(now);
-
-    // 4. Servo lock micro-chirp al inicio de la transmisión (290Hz -> 175Hz en 80ms)
+    // Micro-servo de bloqueo mecánico al inicio (290Hz -> 175Hz en 80ms)
     const servoLockOsc = ctx.createOscillator();
     const servoLockGain = ctx.createGain();
     servoLockOsc.type = 'sine';
@@ -556,84 +515,23 @@ function startServoRumble(ctx: AudioContext) {
     servoLockOsc.start(now);
     servoLockOsc.stop(now + 0.09);
 
-    // 5. Pulsos sutiles de telemetría de procesamiento neural mientras la IA habla
-    const telemetryTimer = setInterval(() => {
+    // Fallback de cadencia metálica cada 280ms por si el navegador no emite onboundary
+    if (boundaryFallbackInterval) clearInterval(boundaryFallbackInterval);
+    boundaryFallbackInterval = setInterval(() => {
       try {
         const audioCtx = getAudioContext();
-        if (!audioCtx || audioCtx.state === 'closed') return;
-        const t = audioCtx.currentTime;
-        const blipOsc = audioCtx.createOscillator();
-        const blipGain = audioCtx.createGain();
-        blipOsc.type = 'sine';
-        blipOsc.frequency.setValueAtTime(Math.random() > 0.5 ? 1950 : 2350, t);
-        blipGain.gain.setValueAtTime(0.002, t);
-        blipGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.012);
-        blipOsc.connect(blipGain);
-        blipGain.connect(audioCtx.destination);
-        blipOsc.start(t);
-        blipOsc.stop(t + 0.015);
+        if (audioCtx && audioCtx.state !== 'closed') {
+          playRobotWordMetallicRing(audioCtx);
+        }
       } catch {}
-    }, 320);
-
-    activeAndroidChassis = {
-      carrierOsc,
-      carrierFilter,
-      carrierGain,
-      lfoOsc,
-      lfoGain,
-      subOsc,
-      subGain,
-      telemetryTimer,
-    };
-
-    // Temporizador de seguridad de 24s para garantizar que nunca quede sonando
-    if (androidSafetyTimer) clearTimeout(androidSafetyTimer);
-    androidSafetyTimer = setTimeout(() => {
-      stopServoRumble();
-    }, 24000);
+    }, 280);
   } catch {}
 }
 
 function stopServoRumble() {
-  if (androidSafetyTimer) {
-    clearTimeout(androidSafetyTimer);
-    androidSafetyTimer = null;
-  }
-  if (!activeAndroidChassis) return;
-  try {
-    const { carrierOsc, carrierFilter, carrierGain, lfoOsc, lfoGain, subOsc, subGain, telemetryTimer } =
-      activeAndroidChassis;
-
-    if (telemetryTimer) {
-      clearInterval(telemetryTimer);
-    }
-
-    const ctx = getAudioContext();
-    if (ctx) {
-      const now = ctx.currentTime;
-      carrierGain.gain.setValueAtTime(carrierGain.gain.value, now);
-      carrierGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-      subGain.gain.setValueAtTime(subGain.gain.value, now);
-      subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-
-      setTimeout(() => {
-        try {
-          carrierOsc.stop();
-          lfoOsc.stop();
-          subOsc.stop();
-          carrierOsc.disconnect();
-          carrierFilter.disconnect();
-          carrierGain.disconnect();
-          lfoOsc.disconnect();
-          lfoGain.disconnect();
-          subOsc.disconnect();
-          subGain.disconnect();
-        } catch {}
-      }, 220);
-    }
-    activeAndroidChassis = null;
-  } catch {
-    activeAndroidChassis = null;
+  if (boundaryFallbackInterval) {
+    clearInterval(boundaryFallbackInterval);
+    boundaryFallbackInterval = null;
   }
 }
 
@@ -851,11 +749,11 @@ export function playShipWelcomeVoice(
     selectBestVoice();
 
     // Modulación acústica estilo StarCraft II Terran Adjutant:
-    // Pitch 0.82 ubica la voz en una tesitura androide gélida, desprovista de emoción humana
-    // Rate 0.84 establece la cadencia milimétrica, controlada y deliberada de una supercomputadora
+    // Pitch 0.68 ubica la voz en una tesitura profundamente sintética, plana y androide
+    // Rate 0.85 establece la cadencia deliberada y clínica de la computadora Terran
     const isFemaleVoice = utterance.voice?.name.toLowerCase().match(/helena|sabina|laura|monica|paulina|zira|hazel|susan|elena|lucia|female/);
-    utterance.pitch = isFemaleVoice ? 0.82 : 0.88;
-    utterance.rate = 0.84;
+    utterance.pitch = isFemaleVoice ? 0.68 : 0.74;
+    utterance.rate = 0.85;
     utterance.volume = 1.0;
 
     // Disparar chime de intercomunicador con squelch de radio StarCraft
@@ -866,7 +764,13 @@ export function playShipWelcomeVoice(
       if (ctx) startServoRumble(ctx);
     };
 
-    // Al finalizar la voz: apagar servo vocoder y emitir corte de squelch militar StarCraft
+    // Resonancia metálica cibernética sincronizada con cada palabra hablada (eco androide)
+    utterance.onboundary = () => {
+      const ctx = getAudioContext();
+      if (ctx) playRobotWordMetallicRing(ctx);
+    };
+
+    // Al finalizar la voz: apagar servo y emitir corte de squelch militar StarCraft
     utterance.onend = () => {
       stopServoRumble();
       activeUtterance = null;
