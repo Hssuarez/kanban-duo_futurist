@@ -23,7 +23,21 @@ import { CommandCenterProjectCore } from './CommandCenterProjectCore';
 import { CommandCenterUserCore } from './CommandCenterUserCore';
 import { CommandCenterBarycenter } from './CommandCenterBarycenter';
 import { CommandCenterFooter } from './CommandCenterFooter';
+import { CommandCenterAudioHUD } from './CommandCenterAudioHUD';
 import { X, ArrowRight } from 'lucide-react';
+
+import {
+  isSoundEnabled,
+  hasWelcomedThisSession,
+  markWelcomedThisSession,
+  playSciFiBootSequence,
+  playShipWelcomeVoice,
+  startAmbientWarpDrone,
+  stopAmbientWarpDrone,
+  playPlanetTelemetrySound,
+  playGiroDriftSound,
+  playWarpJumpSound,
+} from '@/lib/soundEffects';
 
 // Data sources
 import { getLocalHabits, getLocalHabitLogs, getLocalGoals } from '@/lib/habitStorage';
@@ -95,6 +109,61 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     });
     return () => unsub();
   }, []);
+
+  // 2b. Audio Ambient & Boot Lifecycle
+  useEffect(() => {
+    if (!isSoundEnabled()) return;
+
+    let bootTimer: NodeJS.Timeout | null = null;
+    let voiceTimer: NodeJS.Timeout | null = null;
+    let droneTimer: NodeJS.Timeout | null = null;
+
+    if (!hasWelcomedThisSession()) {
+      // Primera visita de la sesión: Secuencia cinemática
+      bootTimer = setTimeout(() => {
+        playSciFiBootSequence();
+      }, 400);
+
+      voiceTimer = setTimeout(() => {
+        playShipWelcomeVoice(currentUser.name);
+        markWelcomedThisSession();
+      }, 950);
+
+      droneTimer = setTimeout(() => {
+        startAmbientWarpDrone();
+      }, 2500);
+    } else {
+      // Re-entrada en la sesión: solo iniciar motor espacial suavemente
+      droneTimer = setTimeout(() => {
+        startAmbientWarpDrone();
+      }, 800);
+    }
+
+    // Pausar audio al cambiar de pestaña para no molestar
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAmbientWarpDrone();
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+      } else if (isSoundEnabled()) {
+        startAmbientWarpDrone();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (bootTimer) clearTimeout(bootTimer);
+      if (voiceTimer) clearTimeout(voiceTimer);
+      if (droneTimer) clearTimeout(droneTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      stopAmbientWarpDrone();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [currentUser.name]);
 
   // 3. Medición y escala responsiva de la composición orbital binaria
   const updateDimensions = useCallback(() => {
@@ -344,9 +413,17 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     }
   };
 
+  const handlePlanetHover = useCallback((moduleId: string | null) => {
+    setHoveredModuleId(moduleId);
+    if (moduleId) {
+      playPlanetTelemetrySound(moduleId);
+    }
+  }, []);
+
   const handleDragStateChange = (moduleId: string, isDragging: boolean) => {
     if (isDragging) {
       setDraggingModuleId(moduleId);
+      playGiroDriftSound();
     } else {
       setDraggingModuleId((prev) => (prev === moduleId ? null : prev));
     }
@@ -371,11 +448,13 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
 
     // Deslizar izquierda -> ir a Hábitos
     if (diff < -50 && activePole === 'workspace') {
+      playWarpJumpSound();
       setActivePole('habits');
       setHoveredModuleId(null);
     }
     // Deslizar derecha -> ir a Workspace
     else if (diff > 50 && activePole === 'habits') {
+      playWarpJumpSound();
       setActivePole('workspace');
       setHoveredModuleId(null);
     }
@@ -437,6 +516,14 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         />
       </div>
 
+      {/* HUD de Control de Audio de Cabina (Mute, Idioma, Com-Link) */}
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-6 z-40">
+        <CommandCenterAudioHUD
+          currentUserName={currentUser.name}
+          isMobile={binaryParams.isMobile}
+        />
+      </div>
+
       {/* 2. Selector HUD Superior / Baricentro de Conexión */}
       <CommandCenterBarycenter
         activeProject={activeProject}
@@ -445,6 +532,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         consistencyPct={userConsistencyPct}
         activePole={activePole}
         onSelectPole={(pole) => {
+          if (pole !== activePole) {
+            playWarpJumpSound();
+          }
           setActivePole(pole);
           setHoveredModuleId(null);
           setIsProjectDropdownOpen(false);
@@ -614,7 +704,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
               y={pos.y}
               size={Math.round(module.planetSizePx * binaryParams.planetScale)}
               isHovered={isHovered}
-              onHover={setHoveredModuleId}
+              onHover={handlePlanetHover}
               onNavigate={handleNavigateModule}
               onDragStateChange={handleDragStateChange}
               isMobile={binaryParams.isMobile}
