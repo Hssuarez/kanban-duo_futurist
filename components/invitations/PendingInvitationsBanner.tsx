@@ -46,13 +46,22 @@ export const PendingInvitationsBanner: React.FC<PendingInvitationsBannerProps> =
 
   useEffect(() => {
     loadData();
+
+    // Sincronizar en segundo plano la nube para retos y proyectos al montar o cambiar de usuario
+    Promise.allSettled([
+      import('@/lib/challengeStorage').then((m) => m.syncCloudChallenges()),
+      import('@/lib/storage').then((m) => m.syncCloudProjects()),
+    ]).then(() => {
+      loadData();
+    });
+
     const unsub = subscribeToSync((type) => {
       if (type === 'projects' || type === 'challenges' || type === 'notifications') {
         loadData();
       }
     });
     return () => unsub();
-  }, [loadData]);
+  }, [loadData, currentUser?.id]);
 
   // Proyectos donde el usuario tiene invitación pendiente
   const pendingProjects = useMemo(() => {

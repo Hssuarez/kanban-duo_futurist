@@ -671,12 +671,62 @@ export function getLocalChallengeMembers(challengeId?: string): ChallengeMember[
       return m;
     });
 
-    // Auto-migración para miembros existentes sin campo status: asegurar status: 'accepted'
+    // Auto-migración y resolución rigurosa de estados de invitación:
+    // 1. Reto demo ch-gym-30d: Alex y Beatriz siempre accepted
+    // 2. Retos creados por usuarios:
+    //    - Creador/Owner: siempre 'accepted'
+    //    - Invitados (role === 'member'):
+    //      - Si ya tiene acceptedAt: 'accepted'
+    //      - Si ya tiene status 'declined': 'declined'
+    //      - Si ya tiene logs completados en challenge_logs: mantener 'accepted'
+    //      - Si NO tiene logs ni acceptedAt: debe ser 'pending' para requerir confirmación explícita
+    const rawLogs = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.LOGS) : null;
+    const allLogs: any[] = rawLogs ? JSON.parse(rawLogs) : [];
+
     members = members.map((m) => {
-      if (!m.status) {
-        migrated = true;
-        return { ...m, status: 'accepted' as ChallengeMemberStatus };
+      const ch = allChallenges.find((c) => c.id === m.challengeId);
+      const isCreator = ch?.createdBy === m.userId || m.role === 'owner';
+      const isDemo = m.challengeId === 'ch-gym-30d';
+
+      if (isDemo || isCreator) {
+        if (m.status !== 'accepted') {
+          migrated = true;
+          return { ...m, status: 'accepted' as ChallengeMemberStatus };
+        }
+        return m;
       }
+
+      // Si es un miembro invitado a un reto personalizado
+      if (m.status === 'declined') {
+        return m;
+      }
+
+      if (m.acceptedAt) {
+        if (m.status !== 'accepted') {
+          migrated = true;
+          return { ...m, status: 'accepted' as ChallengeMemberStatus };
+        }
+        return m;
+      }
+
+      const hasCompletedLogs = allLogs.some(
+        (l) => l.challengeId === m.challengeId && l.userId === m.userId && l.status === 'completed'
+      );
+
+      if (hasCompletedLogs) {
+        if (m.status !== 'accepted') {
+          migrated = true;
+          return { ...m, status: 'accepted' as ChallengeMemberStatus };
+        }
+        return m;
+      }
+
+      // Si no ha completado check-ins ni aceptado manualmente, su estado debe ser 'pending'
+      if (m.status !== 'pending') {
+        migrated = true;
+        return { ...m, status: 'pending' as ChallengeMemberStatus };
+      }
+
       return m;
     });
 
@@ -804,10 +854,12 @@ export async function acceptChallengeInvitation(challengeId: string, userId: str
   if (index === -1) return false;
 
   const today = getBogotaToday();
+  const acceptedAt = new Date().toISOString();
   const updatedMember: ChallengeMember = {
     ...members[index],
     status: 'accepted',
     joinedAt: today,
+    acceptedAt,
   };
 
   members[index] = updatedMember;
@@ -826,13 +878,25 @@ export async function acceptChallengeInvitation(challengeId: string, userId: str
       const { error } = await client.from('challenge_members').upsert({
         ...payload,
         status: 'accepted',
+        accepted_at: acceptedAt,
       });
       if (error) {
-        await client.from('challenge_members').upsert(payload);
+        await client.from('challenge_members').upsert({
+          ...payload,
+          status: 'accepted',
+        });
       }
     } catch (e) {
       console.warn('Sync acceptChallengeInvitation Supabase:', e);
     }
+  }
+
+  // Actualizar notificaciones asociadas para marcarlas como aceptadas y leídas
+  try {
+    const { updateNotificationInvitationStatus } = await import('./notifications');
+    updateNotificationInvitationStatus(challengeId, userId, 'accepted');
+  } catch (e) {
+    console.warn('Error actualizando estado de notificación en aceptación:', e);
   }
 
   try {
@@ -863,6 +927,8 @@ export async function acceptChallengeInvitation(challengeId: string, userId: str
     console.warn('Error registrando actividad de aceptación de reto:', e);
   }
 
+  notifySync('challenges');
+  notifySync('notifications');
   return true;
 }
 
@@ -884,6 +950,14 @@ export async function declineChallengeInvitation(challengeId: string, userId: st
     } catch (e) {
       console.warn('Sync declineChallengeInvitation Supabase:', e);
     }
+  }
+
+  // Actualizar notificaciones asociadas para marcarlas como declinadas y leídas
+  try {
+    const { updateNotificationInvitationStatus } = await import('./notifications');
+    updateNotificationInvitationStatus(challengeId, userId, 'declined');
+  } catch (e) {
+    console.warn('Error actualizando estado de notificación en declinación:', e);
   }
 
   try {
@@ -1601,15 +1675,45 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
     // 2. Sincronizar miembros (challenge_members)
     const { data: cloudMembers, error: mErr } = await client.from('challenge_members').select('*');
     if (!mErr && cloudMembers) {
-      const activeChallengeIds = new Set(getLocalChallenges().map((c) => c.id));
+      const allLocalChallenges = getLocalChallenges();
+      const activeChallengeIds = new Set(allLocalChallenges.map((c) => c.id));
+      const localChallengesMap = new Map(allLocalChallenges.map((c) => [c.id, c]));
       const localMembers = getLocalChallengeMembers();
       const localMap = new Map(localMembers.map((lm) => [lm.id, lm]));
+
+      const rawLogs = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.LOGS) : null;
+      const allLogs: any[] = rawLogs ? JSON.parse(rawLogs) : [];
 
       const mappedMembers: ChallengeMember[] = cloudMembers
         .filter((m: any) => activeChallengeIds.has(m.challenge_id))
         .map((m: any) => {
           const local = localMap.get(m.id);
-          const resolvedStatus: ChallengeMemberStatus = m.status || local?.status || 'accepted';
+          const ch = localChallengesMap.get(m.challenge_id);
+          const isCreator = ch?.createdBy === m.user_id || m.role === 'owner';
+          const isDemo = m.challenge_id === 'ch-gym-30d';
+
+          let resolvedStatus: ChallengeMemberStatus;
+          if (m.status === 'pending' || m.status === 'accepted' || m.status === 'declined') {
+            resolvedStatus = m.status;
+          } else if (local?.status) {
+            resolvedStatus = local.status;
+          } else {
+            resolvedStatus = (isCreator || isDemo) ? 'accepted' : 'pending';
+          }
+
+          // Si es un reto no-demo y el usuario es invitado (no creador):
+          // Si no tiene acceptedAt ni local?.acceptedAt ni m.accepted_at:
+          // Verificar si ha completado check-ins; si no tiene check-ins ni confirmación manual,
+          // su estado legítimo es 'pending' (corrige registros auto-aceptados por el bug previo)
+          if (!isDemo && !isCreator && !m.accepted_at && !local?.acceptedAt) {
+            const hasLogs = allLogs.some(
+              (l) => l.challengeId === m.challenge_id && l.userId === m.user_id && l.status === 'completed'
+            );
+            if (!hasLogs && resolvedStatus !== 'declined') {
+              resolvedStatus = 'pending';
+            }
+          }
+
           return {
             id: m.id,
             challengeId: m.challenge_id,
@@ -1617,6 +1721,7 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
             role: m.role || 'member',
             status: resolvedStatus,
             joinedAt: m.joined_at || new Date().toISOString().slice(0, 10),
+            acceptedAt: m.accepted_at || local?.acceptedAt,
           };
         });
 
@@ -1636,12 +1741,11 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
                 user_id: m.userId,
                 role: m.role,
                 joined_at: m.joinedAt,
+                status: m.status || (m.role === 'owner' ? 'accepted' : 'pending'),
               };
-              const { error } = await (client.from('challenge_members') as any).upsert({
-                ...payload,
-                status: m.status || 'accepted',
-              });
+              const { error } = await (client.from('challenge_members') as any).upsert(payload);
               if (error) {
+                delete payload.status;
                 await (client.from('challenge_members') as any).upsert(payload);
               }
             } catch (e) {
@@ -1650,6 +1754,38 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           }
         }
         saveLocalChallengeMembers(Array.from(memberMap.values()).filter((m) => activeChallengeIds.has(m.challengeId)));
+      }
+
+      // Sintetizar notificación para invitaciones pendientes en este cliente (para que la campana y HUD se enteren)
+      try {
+        const { getNotifications, addNotification } = await import('./notifications');
+        const notifs = getNotifications();
+        const allUsers = (await import('./storage')).getUsers();
+
+        for (const pm of mappedMembers) {
+          if (pm.status === 'pending') {
+            const exists = notifs.some(
+              (n) => n.type === 'challenge_invitation' && n.challengeId === pm.challengeId && n.userId === pm.userId
+            );
+            if (!exists) {
+              const ch = localChallengesMap.get(pm.challengeId);
+              const creator = allUsers.find((u) => u.id === ch?.createdBy);
+              addNotification({
+                type: 'challenge_invitation',
+                title: 'Invitación a Reto',
+                message: `${creator?.name || 'Un compañero'} te ha invitado a participar en el reto "${ch?.title || 'Reto'}"`,
+                userId: pm.userId,
+                projectId: 'habits',
+                challengeId: pm.challengeId,
+                invitationStatus: 'pending',
+                actorName: creator?.name,
+                actorAvatar: creator?.avatar,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // non-blocking
       }
     }
 

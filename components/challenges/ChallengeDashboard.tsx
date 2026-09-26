@@ -174,12 +174,12 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
       if (currentUser.role === 'admin') return true;
       // El creador siempre tiene acceso
       if (c.createdBy === currentUser.id) return true;
-      // Miembros con aceptación confirmada (o retrocompatibles) tienen acceso
+      // Miembros con aceptación confirmada tienen acceso
       return members.some(
         (m) =>
           m.challengeId === c.id &&
           m.userId === currentUser.id &&
-          (!m.status || m.status === 'accepted')
+          m.status === 'accepted'
       );
     });
   }, [challenges, members, currentUser]);
@@ -206,10 +206,18 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     return found || accessibleChallenges[0] || null;
   }, [accessibleChallenges, selectedChallengeId]);
 
-  // Miembros del reto seleccionado
-  const challengeMembers = useMemo(() => {
+  // Todos los miembros del reto seleccionado (para el modal de gestión de participantes)
+  const allChallengeMembers = useMemo(() => {
     if (!currentChallenge) return [];
     return members.filter((m) => m.challengeId === currentChallenge.id);
+  }, [members, currentChallenge?.id]);
+
+  // Miembros activos que han aceptado el reto (para leaderboard, matriz y KPIs)
+  const challengeMembers = useMemo(() => {
+    if (!currentChallenge) return [];
+    return members.filter(
+      (m) => m.challengeId === currentChallenge.id && (!m.status || m.status === 'accepted')
+    );
   }, [members, currentChallenge?.id]);
 
   // Hábitos del reto seleccionado
@@ -385,11 +393,11 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
 
     // Si es nuevo, añadir al creador como owner y a los invitados desde startDate
     if (isNew) {
-      await addChallengeMember(challengeId, currentUser.id, 'owner', newChallenge.startDate);
+      await addChallengeMember(challengeId, currentUser.id, 'owner', newChallenge.startDate, 'accepted');
       if (invitedUserIds) {
         for (const uId of invitedUserIds) {
           if (uId !== currentUser.id) {
-            await addChallengeMember(challengeId, uId, 'member', newChallenge.startDate);
+            await addChallengeMember(challengeId, uId, 'member', newChallenge.startDate, 'pending');
           }
         }
       }
@@ -794,7 +802,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
           isOpen={isMembersModalOpen}
           onClose={() => setIsMembersModalOpen(false)}
           challenge={currentChallenge}
-          members={challengeMembers}
+          members={allChallengeMembers}
           users={users}
           currentUser={currentUser}
           onAddMember={handleAddMember}

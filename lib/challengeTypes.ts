@@ -35,6 +35,7 @@ export interface ChallengeMember {
   role: ChallengeRole;                 // 'owner' | 'member'
   status?: ChallengeMemberStatus;      // 'accepted' | 'pending' | 'declined' (default 'accepted' para retrocompatibilidad)
   joinedAt: string;                    // 'YYYY-MM-DD' o ISO UTC
+  acceptedAt?: string;                 // ISO UTC cuando el usuario confirmó/aceptó la invitación
 }
 
 export interface ChallengeHabit {

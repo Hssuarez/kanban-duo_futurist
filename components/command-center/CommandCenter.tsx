@@ -315,7 +315,12 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
       (c) =>
         currentUser.role === 'admin' ||
         c.createdBy === currentUser.id ||
-        allMembers.some((m) => m.challengeId === c.id && m.userId === currentUser.id)
+        allMembers.some(
+          (m) =>
+            m.challengeId === c.id &&
+            m.userId === currentUser.id &&
+            (!m.status || m.status === 'accepted')
+        )
     );
 
     const allGoals = getLocalGoals(currentUser.id);

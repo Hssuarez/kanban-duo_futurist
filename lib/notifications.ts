@@ -167,6 +167,29 @@ export function markAsRead(notificationId: string) {
   saveNotifications(updated);
 }
 
+export function updateNotificationInvitationStatus(
+  challengeOrProjectId: string,
+  userId: string,
+  status: 'accepted' | 'declined'
+) {
+  const current = getNotifications();
+  let modified = false;
+  const updated = current.map((n) => {
+    if (
+      (n.challengeId === challengeOrProjectId || n.projectId === challengeOrProjectId) &&
+      (n.userId === userId || n.userId === 'all') &&
+      n.invitationStatus === 'pending'
+    ) {
+      modified = true;
+      return { ...n, invitationStatus: status, read: true };
+    }
+    return n;
+  });
+  if (modified) {
+    saveNotifications(updated);
+  }
+}
+
 export function markAllAsRead(userId: string, projectId?: string) {
   const current = getNotifications();
   const updated = current.map((n) => {
