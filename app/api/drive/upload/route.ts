@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     // 3. ZERO-TRUST: Verificar usuario en base de datos
     const { data: dbUser, error: uErr } = await supabase
       .from('users')
-      .select('id, name, is_active')
+      .select('id, name, is_active, role')
       .eq('id', requestingUserId)
       .single();
 
@@ -88,25 +88,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. ZERO-TRUST: Verificar membresía aceptada en el reto
-    const { data: member, error: mErr } = await supabase
-      .from('challenge_members')
-      .select('id, status, role')
-      .eq('challenge_id', challengeId)
-      .eq('user_id', dbUser.id)
-      .single();
-
-    if (mErr || !member || member.status !== 'accepted') {
-      return NextResponse.json(
-        { success: false, error: 'Acceso denegado: El usuario no es participante activo de este reto.' },
-        { status: 403 }
-      );
-    }
-
-    // 5. Verificar que el reto exista
+    // 4. Verificar que el reto exista
     const { data: challenge, error: cErr } = await supabase
       .from('challenges')
-      .select('id, title, start_date, end_date')
+      .select('id, title, start_date, end_date, created_by')
       .eq('id', challengeId)
       .single();
 
@@ -114,6 +99,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'El reto especificado no existe.' },
         { status: 404 }
+      );
+    }
+
+    const isCreator = challenge.created_by === dbUser.id;
+    const isAdmin = dbUser.role === 'admin';
+
+    // 5. ZERO-TRUST: Verificar membresía aceptada en el reto
+    let { data: member, error: mErr } = await supabase
+      .from('challenge_members')
+      .select('id, status, role')
+      .eq('challenge_id', challengeId)
+      .eq('user_id', dbUser.id)
+      .maybeSingle();
+
+    // Auto-curación de membresía para Creador / Admin si faltaba en Supabase
+    if ((!member || member.status !== 'accepted') && (isCreator || isAdmin)) {
+      const nowIso = new Date().toISOString();
+      const newMemberId = `cm-${challengeId}-${dbUser.id}`;
+      await supabase.from('challenge_members').upsert({
+        id: newMemberId,
+        challenge_id: challengeId,
+        user_id: dbUser.id,
+        role: isCreator ? 'owner' : 'member',
+        status: 'accepted',
+        joined_at: challenge.start_date || nowIso.slice(0, 10),
+        accepted_at: nowIso,
+      });
+      member = { id: newMemberId, status: 'accepted', role: isCreator ? 'owner' : 'member' };
+    }
+
+    if (!member || member.status !== 'accepted') {
+      return NextResponse.json(
+        { success: false, error: 'Acceso denegado: El usuario no es participante activo de este reto.' },
+        { status: 403 }
       );
     }
 

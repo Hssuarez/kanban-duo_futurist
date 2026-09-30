@@ -1773,19 +1773,6 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
             resolvedStatus = (isCreator || isDemo) ? 'accepted' : 'pending';
           }
 
-          // Si es un reto no-demo y el usuario es invitado (no creador):
-          // Si no tiene acceptedAt ni local?.acceptedAt ni m.accepted_at:
-          // Verificar si ha completado check-ins; si no tiene check-ins ni confirmación manual,
-          // su estado legítimo es 'pending' (corrige registros auto-aceptados por el bug previo)
-          if (!isDemo && !isCreator && !m.accepted_at && !local?.acceptedAt) {
-            const hasLogs = allLogs.some(
-              (l) => l.challengeId === m.challenge_id && l.userId === m.user_id && l.status === 'completed'
-            );
-            if (!hasLogs && resolvedStatus !== 'declined') {
-              resolvedStatus = 'pending';
-            }
-          }
-
           return {
             id: m.id,
             challengeId: m.challenge_id,
@@ -1797,36 +1784,33 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           };
         });
 
-      if (cloudMembers.length > 0) {
-        saveLocalChallengeMembers(mappedMembers);
-      } else {
-        const memberMap = new Map<string, ChallengeMember>();
-        mappedMembers.forEach((m) => memberMap.set(m.id, m));
-        const currentMembers = getLocalChallengeMembers();
-        for (const m of currentMembers) {
-          if (activeChallengeIds.has(m.challengeId) && !memberMap.has(m.id)) {
-            memberMap.set(m.id, m);
-            try {
-              const payload: any = {
-                id: m.id,
-                challenge_id: m.challengeId,
-                user_id: m.userId,
-                role: m.role,
-                joined_at: m.joinedAt,
-                status: m.status || (m.role === 'owner' ? 'accepted' : 'pending'),
-              };
-              const { error } = await (client.from('challenge_members') as any).upsert(payload);
-              if (error) {
-                delete payload.status;
-                await (client.from('challenge_members') as any).upsert(payload);
-              }
-            } catch (e) {
-              console.warn('Sync pending member exception:', e);
+      // Siempre fusionar miembros de la nube con los miembros locales pendientes
+      const memberMap = new Map<string, ChallengeMember>();
+      mappedMembers.forEach((m) => memberMap.set(m.id, m));
+      const currentMembers = getLocalChallengeMembers();
+      for (const m of currentMembers) {
+        if (activeChallengeIds.has(m.challengeId) && !memberMap.has(m.id)) {
+          memberMap.set(m.id, m);
+          try {
+            const payload: any = {
+              id: m.id,
+              challenge_id: m.challengeId,
+              user_id: m.userId,
+              role: m.role,
+              joined_at: m.joinedAt,
+              status: m.status || (m.role === 'owner' ? 'accepted' : 'pending'),
+            };
+            const { error } = await (client.from('challenge_members') as any).upsert(payload);
+            if (error) {
+              delete payload.status;
+              await (client.from('challenge_members') as any).upsert(payload);
             }
+          } catch (e) {
+            console.warn('Sync pending member exception:', e);
           }
         }
-        saveLocalChallengeMembers(Array.from(memberMap.values()).filter((m) => activeChallengeIds.has(m.challengeId)));
       }
+      saveLocalChallengeMembers(Array.from(memberMap.values()).filter((m) => activeChallengeIds.has(m.challengeId)));
 
       // Sintetizar notificación para invitaciones pendientes en este cliente (para que la campana y HUD se enteren)
       try {
