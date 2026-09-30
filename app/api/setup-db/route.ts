@@ -334,9 +334,12 @@ async function handleMigration() {
 
       await client.query(sql);
 
+      const bucketsRes = await client.query('SELECT * FROM storage.buckets');
+
       return NextResponse.json({
         success: true,
         message: 'Tablas de Habit Core, Retos Compartidos e Invitaciones verificadas exitosamente en Supabase.',
+        buckets: bucketsRes.rows,
         timestamp: new Date().toISOString(),
       });
     } finally {

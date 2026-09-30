@@ -247,7 +247,8 @@ export async function POST(req: NextRequest) {
           'Google Drive reportó restricción de cuota de cuenta de servicio. Conmutando a Supabase Storage con la misma estructura jerárquica...'
         );
 
-        // Subir a Supabase Storage
+        // Subir a Supabase Storage con auto-creación de bucket si fuera necesario
+        let sDataResult = null;
         const { data: sData, error: sErr } = await supabase.storage
           .from('challenge-evidence')
           .upload(storagePath, fileBuffer, {
@@ -256,8 +257,25 @@ export async function POST(req: NextRequest) {
           });
 
         if (sErr || !sData) {
-          console.error('Fallo también en Supabase Storage:', sErr);
-          throw new Error(sErr?.message || errMsg || 'Fallo al almacenar la imagen de evidencia.');
+          await supabase.storage.createBucket('challenge-evidence', {
+            public: true,
+            fileSizeLimit: 12582912,
+          }).catch(() => {});
+
+          const retry = await supabase.storage
+            .from('challenge-evidence')
+            .upload(storagePath, fileBuffer, {
+              contentType: file.type || 'image/jpeg',
+              upsert: true,
+            });
+
+          if (retry.error || !retry.data) {
+            console.error('Fallo en Supabase Storage tras reintento:', retry.error);
+            throw new Error(retry.error?.message || errMsg || 'Fallo al almacenar la imagen de evidencia.');
+          }
+          sDataResult = retry.data;
+        } else {
+          sDataResult = sData;
         }
 
         storageProvider = 'supabase-storage';
