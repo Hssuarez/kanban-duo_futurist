@@ -285,6 +285,51 @@ async function handleMigration() {
 
         DROP POLICY IF EXISTS "Public access challenge_activities" ON public.challenge_activities;
         CREATE POLICY "Public access challenge_activities" ON public.challenge_activities FOR ALL USING (true) WITH CHECK (true);
+
+        -- 12. Bucket de Almacenamiento Supabase Storage para Evidencias
+        INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+        VALUES (
+          'challenge-evidence',
+          'challenge-evidence',
+          true,
+          12582912,
+          ARRAY['image/jpeg', 'image/png', 'image/webp']
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          public = true,
+          file_size_limit = 12582912,
+          allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
+
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Public Access Challenge Evidence'
+          ) THEN
+            CREATE POLICY "Public Access Challenge Evidence" ON storage.objects
+            FOR SELECT USING (bucket_id = 'challenge-evidence');
+          END IF;
+
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow Upload Challenge Evidence'
+          ) THEN
+            CREATE POLICY "Allow Upload Challenge Evidence" ON storage.objects
+            FOR INSERT WITH CHECK (bucket_id = 'challenge-evidence');
+          END IF;
+
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow Update Challenge Evidence'
+          ) THEN
+            CREATE POLICY "Allow Update Challenge Evidence" ON storage.objects
+            FOR UPDATE USING (bucket_id = 'challenge-evidence');
+          END IF;
+
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow Delete Challenge Evidence'
+          ) THEN
+            CREATE POLICY "Allow Delete Challenge Evidence" ON storage.objects
+            FOR DELETE USING (bucket_id = 'challenge-evidence');
+          END IF;
+        END $$;
       `;
 
       await client.query(sql);

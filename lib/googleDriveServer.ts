@@ -85,6 +85,8 @@ export async function findOrCreateFolder(
       fields: 'files(id, name)',
       spaces: 'drive',
       pageSize: 1,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
 
     if (res.data.files && res.data.files.length > 0 && res.data.files[0].id) {
@@ -101,6 +103,7 @@ export async function findOrCreateFolder(
         parents: [parentFolderId],
       },
       fields: 'id',
+      supportsAllDrives: true,
     });
 
     if (!createRes.data.id) {
@@ -165,6 +168,7 @@ export async function uploadEvidenceFile(
       body: stream,
     },
     fields: 'id, name, size',
+    supportsAllDrives: true,
   });
 
   if (!response.data.id) {
@@ -186,7 +190,10 @@ export async function deleteEvidenceFile(
   fileId: string
 ): Promise<boolean> {
   try {
-    await drive.files.delete({ fileId });
+    await drive.files.delete({
+      fileId,
+      supportsAllDrives: true,
+    });
     return true;
   } catch (err: any) {
     // If already deleted or not found (404), treat as successfully removed
@@ -209,6 +216,7 @@ export async function getFileStream(
   const meta = await drive.files.get({
     fileId,
     fields: 'mimeType, size, name',
+    supportsAllDrives: true,
   });
 
   const mimeType = meta.data.mimeType || 'image/jpeg';
@@ -216,7 +224,7 @@ export async function getFileStream(
 
   // 2. Fetch media stream
   const media = await drive.files.get(
-    { fileId, alt: 'media' },
+    { fileId, alt: 'media', supportsAllDrives: true },
     { responseType: 'stream' }
   );
 

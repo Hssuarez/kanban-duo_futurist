@@ -91,13 +91,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Si hay archivo en Drive y no es mock, eliminarlo físicamente
-    if (targetFileId && !targetFileId.startsWith('mock-') && isGoogleDriveConfigured()) {
-      try {
-        const drive = getGoogleDriveClient();
-        await deleteEvidenceFile(drive, targetFileId);
-      } catch (driveErr) {
-        console.warn(`No se pudo eliminar el archivo en Google Drive (${targetFileId}):`, driveErr);
+    // 4. Si hay archivo en Supabase Storage o Google Drive y no es mock, eliminarlo físicamente
+    if (targetFileId) {
+      if (targetFileId.startsWith('supabase-')) {
+        const storagePath = decodeURIComponent(targetFileId.replace('supabase-', ''));
+        try {
+          await supabase.storage.from('challenge-evidence').remove([storagePath]);
+        } catch (sErr) {
+          console.warn(`No se pudo eliminar el archivo en Supabase Storage (${storagePath}):`, sErr);
+        }
+      } else if (!targetFileId.startsWith('mock-') && isGoogleDriveConfigured()) {
+        try {
+          const drive = getGoogleDriveClient();
+          await deleteEvidenceFile(drive, targetFileId);
+        } catch (driveErr) {
+          console.warn(`No se pudo eliminar el archivo en Google Drive (${targetFileId}):`, driveErr);
+        }
       }
     }
 

@@ -202,33 +202,76 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 8. FLUJO REAL: GOOGLE DRIVE SERVICIO PRIVADO
-    const drive = getGoogleDriveClient();
+    // 8. FLUJO DE ALMACENAMIENTO (Google Drive con auto-fallback a Supabase Storage)
+    let uploadResult: { fileId: string; fileName: string; size: number } | null = null;
+    let storageProvider: 'google-drive' | 'supabase-storage' = 'google-drive';
 
-    // Resolver estructura de carpetas: /KanbanDuo_Evidencias/[USUARIO]/[RETO]/
-    const { challengeFolderId } = await ensureUserChallengeFolder(
-      drive,
-      dbUser.name,
-      challenge.title
-    );
-
-    // Generar nombre determinístico y amigable
     const originalExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const safeHabit = sanitizeName(habit.title);
     const safeUser = sanitizeName(dbUser.name);
     const shortHash = Math.random().toString(36).substring(2, 8);
     const fileName = `${dateKey}_${safeHabit}_${safeUser}_${shortHash}.${originalExt}`;
+    const storagePath = `${safeUser}/${sanitizeName(challenge.title)}/${fileName}`;
 
-    // Subir a Drive
-    const uploadResult = await uploadEvidenceFile(
-      drive,
-      fileBuffer,
-      fileName,
-      file.type || 'image/jpeg',
-      challengeFolderId
-    );
+    let drive: any = null;
 
-    const evidenceUrl = `/api/drive/file/${uploadResult.fileId}`;
+    try {
+      drive = getGoogleDriveClient();
+
+      // Resolver estructura de carpetas: /KanbanDuo_Evidencias/[USUARIO]/[RETO]/
+      const { challengeFolderId } = await ensureUserChallengeFolder(
+        drive,
+        dbUser.name,
+        challenge.title
+      );
+
+      // Subir a Drive
+      uploadResult = await uploadEvidenceFile(
+        drive,
+        fileBuffer,
+        fileName,
+        file.type || 'image/jpeg',
+        challengeFolderId
+      );
+    } catch (driveErr: any) {
+      const errMsg = driveErr?.message || '';
+      const isQuotaOrDriveRestriction =
+        errMsg.includes('storage quota') ||
+        errMsg.includes('Service Accounts do not have storage quota') ||
+        errMsg.includes('storageQuotaExceeded') ||
+        errMsg.includes('Shared drive not found') ||
+        driveErr?.code === 403;
+
+      if (isQuotaOrDriveRestriction) {
+        console.warn(
+          'Google Drive reportó restricción de cuota de cuenta de servicio. Conmutando a Supabase Storage con la misma estructura jerárquica...'
+        );
+
+        // Subir a Supabase Storage
+        const { data: sData, error: sErr } = await supabase.storage
+          .from('challenge-evidence')
+          .upload(storagePath, fileBuffer, {
+            contentType: file.type || 'image/jpeg',
+            upsert: true,
+          });
+
+        if (sErr || !sData) {
+          console.error('Fallo también en Supabase Storage:', sErr);
+          throw new Error(sErr?.message || errMsg || 'Fallo al almacenar la imagen de evidencia.');
+        }
+
+        storageProvider = 'supabase-storage';
+        uploadResult = {
+          fileId: `supabase-${storagePath}`,
+          fileName,
+          size: fileBuffer.length,
+        };
+      } else {
+        throw driveErr;
+      }
+    }
+
+    const evidenceUrl = `/api/drive/file/${encodeURIComponent(uploadResult.fileId)}`;
 
     // 9. Actualizar Supabase (Atomicidad)
     const { error: upsertErr } = await supabase.from('challenge_logs').upsert({
@@ -248,15 +291,21 @@ export async function POST(req: NextRequest) {
 
     // 10. COMPENSACIÓN / ROLLBACK SI SUPABASE FALLA
     if (upsertErr) {
-      console.error('Error actualizando Supabase tras subir a Drive. Compensando rollback en Drive:', upsertErr);
-      await deleteEvidenceFile(drive, uploadResult.fileId).catch((delErr) =>
-        console.error('Error al compensar borrado en Drive tras fallo de Supabase:', delErr)
-      );
+      console.error('Error actualizando Supabase tras subir archivo. Compensando rollback:', upsertErr);
+      if (storageProvider === 'supabase-storage') {
+        await supabase.storage.from('challenge-evidence').remove([storagePath]).catch((delErr) =>
+          console.error('Error compensando borrado en Supabase Storage:', delErr)
+        );
+      } else if (drive && uploadResult) {
+        await deleteEvidenceFile(drive, uploadResult.fileId).catch((delErr) =>
+          console.error('Error al compensar borrado en Drive tras fallo de Supabase:', delErr)
+        );
+      }
 
       return NextResponse.json(
         {
           success: false,
-          error: 'Error al registrar la evidencia en base de datos. Se canceló la subida a Drive.',
+          error: 'Error al registrar la evidencia en base de datos. Se canceló la subida.',
           details: upsertErr.message,
         },
         { status: 500 }
@@ -264,14 +313,20 @@ export async function POST(req: NextRequest) {
     }
 
     // 11. LIMPIEZA SEGURA DE EVIDENCIA ANTERIOR
-    if (previousFileId && previousFileId !== uploadResult.fileId && !previousFileId.startsWith('mock-')) {
-      deleteEvidenceFile(drive, previousFileId).catch((delPrevErr) =>
-        console.warn(`No se pudo eliminar el archivo anterior en Drive (${previousFileId}):`, delPrevErr)
-      );
+    if (previousFileId && previousFileId !== uploadResult.fileId) {
+      if (previousFileId.startsWith('supabase-')) {
+        const prevPath = decodeURIComponent(previousFileId.replace('supabase-', ''));
+        supabase.storage.from('challenge-evidence').remove([prevPath]).catch(() => {});
+      } else if (!previousFileId.startsWith('mock-') && drive) {
+        deleteEvidenceFile(drive, previousFileId).catch((delPrevErr) =>
+          console.warn(`No se pudo eliminar el archivo anterior en Drive (${previousFileId}):`, delPrevErr)
+        );
+      }
     }
 
     return NextResponse.json({
       success: true,
+      provider: storageProvider,
       evidence: {
         fileId: uploadResult.fileId,
         fileName: uploadResult.fileName,

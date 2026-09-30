@@ -5,6 +5,7 @@ import {
   getGoogleDriveClient,
   getFileStream,
 } from '@/lib/googleDriveServer';
+import { getServerSupabase } from '@/lib/supabaseServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,35 @@ export async function GET(
       return new Response('File ID missing', { status: 400 });
     }
 
-    // 1. Soporte para modo desarrollo / archivos de prueba
+    // 1. Soporte para archivos almacenados en Supabase Storage
+    if (fileId.startsWith('supabase-')) {
+      const storagePath = decodeURIComponent(fileId.replace('supabase-', ''));
+      const supabase = getServerSupabase();
+      if (!supabase) {
+        return new Response('Base de datos no disponible en el servidor', { status: 503 });
+      }
+
+      const { data, error } = await supabase.storage
+        .from('challenge-evidence')
+        .download(storagePath);
+
+      if (error || !data) {
+        return new Response('Imagen de evidencia no encontrada en Supabase Storage', { status: 404 });
+      }
+
+      const buffer = Buffer.from(await data.arrayBuffer());
+      return new Response(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': data.type || 'image/jpeg',
+          'Cache-Control': 'private, max-age=86400, stale-while-revalidate=604800',
+          'X-Content-Type-Options': 'nosniff',
+          'Content-Length': String(buffer.length),
+        },
+      });
+    }
+
+    // 2. Soporte para modo desarrollo / archivos de prueba
     if (fileId.startsWith('mock-')) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400" fill="#090d16">
         <defs>
