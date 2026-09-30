@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Challenge, ChallengeMode } from '@/lib/challengeTypes';
 import { User } from '@/lib/types';
-import { X, Trophy, Handshake, Calendar, Check, Sparkles, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Trophy, Handshake, Calendar, Check, Sparkles, Trash2, AlertTriangle, Search, UserPlus, Users } from 'lucide-react';
 import { getBogotaToday } from '@/lib/habitCalculations';
 
 interface ChallengeModalProps {
@@ -58,6 +58,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
   const [endDate, setEndDate] = useState(() => calculateEndDate(getBogotaToday(), 30));
   const [habitTitle, setHabitTitle] = useState('Entrenar');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -89,10 +90,27 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
       setEndDate(calculateEndDate(today, 30));
       setDurationDays(30);
       setHabitTitle('Entrenar');
-      setSelectedUserIds(users.map((u) => u.id));
+      setSelectedUserIds([]); // No seleccionados por defecto a petición del usuario
+      setSearchQuery('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingChallenge, isOpen]);
+
+  // Lista de usuarios disponibles para invitar (excluye al creador actual ya que es añadido automáticamente como owner)
+  const availableUsers = useMemo(() => {
+    return users.filter((u) => u.id !== currentUser.id && u.isActive !== false);
+  }, [users, currentUser.id]);
+
+  // Filtrado reactivo por nombre o correo
+  const filteredUsers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return availableUsers;
+    return availableUsers.filter((u) => {
+      const matchName = u.name ? u.name.toLowerCase().includes(q) : false;
+      const matchEmail = u.email ? u.email.toLowerCase().includes(q) : false;
+      return matchName || matchEmail;
+    });
+  }, [availableUsers, searchQuery]);
 
   if (!isOpen || !mounted) return null;
 
@@ -394,35 +412,135 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
             </div>
           )}
 
-          {/* Invite Members */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono font-medium text-zinc-300 block">
-              Participantes Iniciales
-            </label>
-            <div className="flex flex-wrap gap-2 pt-1">
-              {users.map((u) => {
-                const isSelected = selectedUserIds.includes(u.id);
-                return (
+          {/* Invite Members (Only on new challenge creation) */}
+          {!editingChallenge && (
+            <div className="space-y-2 pt-2 border-t border-white/[0.06]">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-mono font-medium text-zinc-300 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Invitar Participantes</span>
+                  {selectedUserIds.length > 0 && (
+                    <span className="text-[10px] font-mono text-cyan-400 font-semibold">
+                      ({selectedUserIds.length} {selectedUserIds.length === 1 ? 'invitado' : 'invitados'})
+                    </span>
+                  )}
+                </label>
+                <span className="text-[10px] font-mono text-zinc-400">
+                  Tú ({currentUser.name}) ya estás incluido
+                </span>
+              </div>
+
+              {/* Chips de usuarios seleccionados */}
+              {selectedUserIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-cyan-950/20 border border-cyan-500/20 max-h-24 overflow-y-auto custom-scrollbar">
+                  {selectedUserIds.map((userId) => {
+                    const u = users.find((user) => user.id === userId);
+                    if (!u) return null;
+                    return (
+                      <span
+                        key={u.id}
+                        className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-0.5 rounded-lg bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 text-xs font-mono"
+                      >
+                        <span className="w-4 h-4 rounded-full bg-cyan-800 flex items-center justify-center text-[9px] font-bold text-white shrink-0">
+                          {u.name.slice(0, 1).toUpperCase()}
+                        </span>
+                        <span className="truncate max-w-[130px]">{u.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleUserSelection(u.id)}
+                          className="text-cyan-400 hover:text-rose-400 transition-colors ml-0.5 cursor-pointer"
+                          title={`Quitar a ${u.name}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Buscador de usuarios por nombre o correo */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por nombre o correo (ej. pepe, nancy@...)"
+                  className="w-full bg-zinc-900/90 border border-white/[0.08] focus:border-cyan-400 text-white rounded-xl pl-8 pr-8 py-2 text-xs focus:outline-none transition-colors font-mono placeholder:text-zinc-500"
+                />
+                {searchQuery && (
                   <button
-                    key={u.id}
                     type="button"
-                    onClick={() => toggleUserSelection(u.id)}
-                    className={`px-2.5 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-all ${
-                      isSelected
-                        ? 'bg-cyan-950/60 border-cyan-500/50 text-cyan-300'
-                        : 'bg-zinc-900/40 border-white/[0.06] text-zinc-500 hover:bg-zinc-900'
-                    }`}
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-0.5"
+                    title="Limpiar búsqueda"
                   >
-                    <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-[9px] font-bold">
-                      {u.name.slice(0, 1)}
-                    </div>
-                    <span>{u.name}</span>
-                    {isSelected && <Check className="w-3 h-3 text-cyan-400" />}
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                );
-              })}
+                )}
+              </div>
+
+              {/* Lista filtrada de compañeros disponibles */}
+              <div className="max-h-36 overflow-y-auto space-y-1 custom-scrollbar pr-0.5">
+                {filteredUsers.length === 0 ? (
+                  <div className="text-center py-3 text-xs font-mono text-zinc-500 bg-zinc-900/30 rounded-xl border border-white/[0.04]">
+                    {searchQuery ? `No se encontraron participantes con "${searchQuery}"` : 'No hay otros compañeros disponibles para invitar.'}
+                  </div>
+                ) : (
+                  filteredUsers.map((u) => {
+                    const isSelected = selectedUserIds.includes(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => toggleUserSelection(u.id)}
+                        className={`w-full flex items-center justify-between p-2 rounded-xl border text-xs transition-all text-left cursor-pointer ${
+                          isSelected
+                            ? 'bg-cyan-950/40 border-cyan-500/40 text-cyan-200'
+                            : 'bg-zinc-900/40 hover:bg-zinc-900/90 border-white/[0.04] text-zinc-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                              isSelected
+                                ? 'bg-cyan-500 text-zinc-950 font-bold'
+                                : 'bg-zinc-800 text-zinc-300 border border-white/[0.08]'
+                            }`}
+                          >
+                            {u.name.slice(0, 1).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex flex-col">
+                            <span className="font-medium truncate leading-tight">{u.name}</span>
+                            {u.email && (
+                              <span className="text-[10px] font-mono text-zinc-500 truncate leading-tight">
+                                {u.email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 flex items-center gap-1.5 ml-2">
+                          {isSelected ? (
+                            <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-[10px] font-mono flex items-center gap-1">
+                              <Check className="w-3 h-3 text-cyan-400" />
+                              <span>Invitado</span>
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 text-[10px] font-mono flex items-center gap-1">
+                              <UserPlus className="w-3 h-3" />
+                              <span>Invitar</span>
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Footer Submit Button */}
           <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2">
