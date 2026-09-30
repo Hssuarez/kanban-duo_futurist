@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Project, User } from '@/lib/types';
 import {
   X,
@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Info,
   Layers,
+  Search,
 } from 'lucide-react';
 
 const COLOR_PALETTE = [
@@ -169,11 +170,23 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
   const creatorId = editingProject ? editingProject.createdBy : currentUser.id;
 
-  const filteredUsers = users.filter((u) => {
-    if (!memberFilter.trim()) return true;
-    const q = memberFilter.toLowerCase();
-    return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
-  });
+  // Filtrado de usuarios: al crear nuevo proyecto NO se muestra ninguno si la búsqueda está vacía
+  const filteredUsers = useMemo(() => {
+    const q = memberFilter.trim().toLowerCase();
+    if (!q) {
+      if (isEditing) {
+        // En modo edición, mostrar únicamente los miembros ya vinculados al proyecto
+        return users.filter((u) => selectedMembers.includes(u.id));
+      }
+      // Al crear nuevo proyecto, lista vacía hasta que el usuario empiece a buscar
+      return [];
+    }
+    return users.filter(
+      (u) =>
+        u.isActive &&
+        (u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+    );
+  }, [users, memberFilter, isEditing, selectedMembers]);
 
   return (
     <div
@@ -288,84 +301,138 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               <label className="block text-xs font-medium text-zinc-300">
                 Miembros del equipo
               </label>
-              <span className="text-[11px] text-zinc-500">
-                {selectedMembers.length} seleccionados
+              <span className="text-[11px] text-zinc-500 font-mono">
+                {selectedMembers.length} {selectedMembers.length === 1 ? 'miembro' : 'miembros'}
               </span>
             </div>
 
-            <input
-              type="text"
-              value={memberFilter}
-              onChange={(e) => setMemberFilter(e.target.value)}
-              placeholder="Filtrar por nombre o email..."
-              className="w-full px-3 py-1.5 text-xs bg-zinc-950/70 border border-zinc-800 rounded-lg text-white placeholder:text-zinc-500 mb-2 focus:outline-none focus:border-zinc-500"
-            />
+            {/* Chips de miembros invitados seleccionados (excluyendo creador) */}
+            {selectedMembers.filter((id) => id !== creatorId).length > 0 && (
+              <div className="flex flex-wrap gap-1.5 p-2 mb-2 rounded-xl bg-cyan-950/20 border border-cyan-500/20 max-h-24 overflow-y-auto custom-scrollbar">
+                {selectedMembers
+                  .filter((id) => id !== creatorId)
+                  .map((userId) => {
+                    const u = users.find((user) => user.id === userId);
+                    if (!u) return null;
+                    return (
+                      <span
+                        key={u.id}
+                        className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-0.5 rounded-lg bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 text-xs font-mono animate-fade-in"
+                      >
+                        <span className="w-4 h-4 rounded-full bg-cyan-800 flex items-center justify-center text-[9px] font-bold text-white shrink-0">
+                          {u.name.slice(0, 1).toUpperCase()}
+                        </span>
+                        <span className="truncate max-w-[130px]">{u.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleMember(u.id)}
+                          className="text-cyan-400 hover:text-rose-400 transition-colors ml-0.5 cursor-pointer"
+                          title={`Quitar a ${u.name}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+              </div>
+            )}
+
+            {/* Buscador de usuarios por nombre o correo */}
+            <div className="relative mb-2">
+              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={memberFilter}
+                onChange={(e) => setMemberFilter(e.target.value)}
+                placeholder="Buscar por nombre o correo para invitar..."
+                className="w-full pl-8 pr-8 py-2 text-xs bg-zinc-950/70 border border-zinc-800 focus:border-cyan-400 rounded-lg text-white placeholder:text-zinc-500 focus:outline-none transition-colors font-mono"
+              />
+              {memberFilter && (
+                <button
+                  type="button"
+                  onClick={() => setMemberFilter('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-0.5"
+                  title="Limpiar búsqueda"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
             <div className="p-2 mb-2 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-[11px] font-mono text-cyan-300/90 leading-tight">
               Los nuevos miembros añadidos recibirán una invitación y deberán aceptar para acceder a las tareas del proyecto.
             </div>
 
-            <div className="max-h-48 overflow-y-auto space-y-1 pr-0.5 divide-y divide-white/[0.04]">
-              {filteredUsers.map((user) => {
-                const isChecked = selectedMembers.includes(user.id);
-                const isCreator = user.id === creatorId;
-                const isActive = editingProject?.memberIds?.includes(user.id);
-                const isPending = editingProject?.pendingMemberIds?.includes(user.id);
-
-                return (
-                  <div
-                    key={user.id}
-                    onClick={() => toggleMember(user.id)}
-                    className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                      isChecked
-                        ? 'bg-zinc-800/40 text-zinc-100'
-                        : 'hover:bg-zinc-800/20 text-zinc-400'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="relative">
-                        <img
-                          src={user.avatar}
-                          alt={user.name}
-                          className="w-6 h-6 rounded-full object-cover ring-1 ring-white/10"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs font-medium truncate">{user.name}</span>
-                          {isCreator ? (
-                            <span className="text-[10px] bg-amber-950/60 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-medium">
-                              Creador
-                            </span>
-                          ) : isActive ? (
-                            <span className="text-[10px] bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded font-medium">
-                              Activo
-                            </span>
-                          ) : isPending ? (
-                            <span className="text-[10px] bg-amber-950/60 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-medium flex items-center gap-0.5">
-                              ⏳ Pendiente
-                            </span>
-                          ) : isChecked ? (
-                            <span className="text-[10px] bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.2 rounded font-medium">
-                              Invitar
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="text-[11px] text-zinc-500 truncate">{user.email}</p>
-                      </div>
-                    </div>
-
-                    <div className="text-xs">
-                      {isChecked ? (
-                        <Check className="w-4 h-4 text-cyan-400 stroke-[2.5]" />
-                      ) : (
-                        <span className="w-4 h-4 rounded border border-zinc-700 block" />
-                      )}
-                    </div>
+            {/* Resultados: solo cuando se digita una búsqueda o cuando se está editando */}
+            {(memberFilter.trim().length > 0 || isEditing) && (
+              <div className="max-h-48 overflow-y-auto space-y-1 pr-0.5 divide-y divide-white/[0.04] custom-scrollbar animate-fade-in">
+                {filteredUsers.length === 0 ? (
+                  <div className="text-center py-3 text-xs font-mono text-zinc-500 bg-zinc-900/30 rounded-xl border border-white/[0.04]">
+                    No se encontraron usuarios con "{memberFilter}"
                   </div>
-                );
-              })}
-            </div>
+                ) : (
+                  filteredUsers.map((user) => {
+                    const isChecked = selectedMembers.includes(user.id);
+                    const isCreator = user.id === creatorId;
+                    const isActive = editingProject?.memberIds?.includes(user.id);
+                    const isPending = editingProject?.pendingMemberIds?.includes(user.id);
+
+                    return (
+                      <div
+                        key={user.id}
+                        onClick={() => toggleMember(user.id)}
+                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                          isChecked
+                            ? 'bg-zinc-800/40 text-zinc-100'
+                            : 'hover:bg-zinc-800/20 text-zinc-400'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="relative">
+                            <img
+                              src={user.avatar}
+                              alt={user.name}
+                              className="w-6 h-6 rounded-full object-cover ring-1 ring-white/10"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-medium truncate">{user.name}</span>
+                              {isCreator ? (
+                                <span className="text-[10px] bg-amber-950/60 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-medium">
+                                  Creador
+                                </span>
+                              ) : isActive ? (
+                                <span className="text-[10px] bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded font-medium">
+                                  Activo
+                                </span>
+                              ) : isPending ? (
+                                <span className="text-[10px] bg-amber-950/60 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-medium flex items-center gap-0.5">
+                                  ⏳ Pendiente
+                                </span>
+                              ) : isChecked ? (
+                                <span className="text-[10px] bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.2 rounded font-medium">
+                                  Invitar
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="text-[11px] text-zinc-500 truncate">{user.email}</p>
+                          </div>
+                        </div>
+
+                        <div className="text-xs">
+                          {isChecked ? (
+                            <Check className="w-4 h-4 text-cyan-400 stroke-[2.5]" />
+                          ) : (
+                            <span className="w-4 h-4 rounded border border-zinc-700 block" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
 
           {/* Delete Danger Zone */}
