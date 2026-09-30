@@ -190,6 +190,22 @@ async function handleMigration() {
           UNIQUE (challenge_habit_id, user_id, date_key)
         );
 
+        -- Garantizar columnas de evidencia fotográfica en challenge_logs
+        ALTER TABLE IF EXISTS public.challenge_logs 
+        ADD COLUMN IF NOT EXISTS evidence_url TEXT;
+
+        ALTER TABLE IF EXISTS public.challenge_logs 
+        ADD COLUMN IF NOT EXISTS evidence_file_id TEXT;
+
+        ALTER TABLE IF EXISTS public.challenge_logs 
+        ADD COLUMN IF NOT EXISTS evidence_uploaded_at TIMESTAMPTZ;
+
+        ALTER TABLE IF EXISTS public.challenge_logs 
+        ADD COLUMN IF NOT EXISTS evidence_uploaded_by TEXT;
+
+        ALTER TABLE IF EXISTS public.challenge_logs 
+        ADD COLUMN IF NOT EXISTS evidence_status TEXT NOT NULL DEFAULT 'none';
+
         -- 9. Tabla de Objetivos de Reto (Challenge Goals)
         CREATE TABLE IF NOT EXISTS public.challenge_goals (
           id TEXT PRIMARY KEY,

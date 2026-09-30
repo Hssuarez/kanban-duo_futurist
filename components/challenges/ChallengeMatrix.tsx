@@ -12,6 +12,7 @@ import {
 import { User } from '@/lib/types';
 import { HabitCell } from '../habits/HabitCell';
 import { Habit, HabitLogStatus } from '@/lib/habitTypes';
+import { ChallengeEvidenceModal } from './ChallengeEvidenceModal';
 import {
   Flame,
   Settings2,
@@ -56,6 +57,15 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
   const [viewMode, setViewMode] = useState<MatrixViewMode>('standard');
   const [showMetrics, setShowMetrics] = useState<boolean>(true);
   const [memberColStyle, setMemberColStyle] = useState<'full' | 'avatar' | 'hidden'>('full');
+  const [activeEvidenceTarget, setActiveEvidenceTarget] = useState<{
+    challengeId: string;
+    challengeTitle: string;
+    challengeHabitId: string;
+    habitTitle: string;
+    dateKey: string;
+    targetUser: User;
+    log?: ChallengeLog;
+  } | null>(null);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -370,13 +380,17 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
           {/* Table Body: Member Rows */}
           <tbody className="divide-y divide-white/[0.04]">
             {members.map((member) => {
-              const user =
+              const user: User =
                 users.find((u) => u.id === member.userId) || {
                   id: member.userId,
                   name: 'Participante',
-                  username: 'user',
-                  role: 'user',
+                  email: '',
                   avatar: '',
+                  color: '#06b6d4',
+                  role: 'member',
+                  passwordHash: '',
+                  isActive: true,
+                  createdAt: '',
                 };
 
               const compliance = memberCompliances.find((c) => c.member.id === member.id);
@@ -464,6 +478,11 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                       cellStatus = log.status;
                     }
 
+                    const hasEvidence = Boolean(
+                      log && (log.evidenceStatus === 'uploaded' || log.evidenceFileId || log.evidenceUrl)
+                    );
+                    const canInteract = isCurrentUser || hasEvidence;
+
                     return (
                       <td
                         key={day.dateKey}
@@ -474,13 +493,17 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                       >
                         <div
                           className={`flex items-center justify-center ${
-                            !isCurrentUser || isOutside
+                            !canInteract || isOutside
                               ? 'pointer-events-none cursor-default opacity-90'
+                              : hasEvidence && !isCurrentUser
+                              ? 'cursor-pointer'
                               : ''
                           }`}
                           title={
                             isOutside
                               ? 'Fecha fuera del período del reto'
+                              : hasEvidence
+                              ? `${user.name} adjuntó evidencia fotográfica · Clic para ver foto`
                               : !isCurrentUser
                               ? `${user.name}: Solo lectura (protegido por RLS)`
                               : undefined
@@ -493,6 +516,19 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                             status={cellStatus}
                             isToday={day.isToday}
                             isFuture={day.isFuture}
+                            hasEvidence={hasEvidence}
+                            evidenceStatus={log?.evidenceStatus}
+                            onOpenEvidence={() => {
+                              setActiveEvidenceTarget({
+                                challengeId: challenge.id,
+                                challengeTitle: challenge.title,
+                                challengeHabitId: primaryHabit.id,
+                                habitTitle: primaryHabit.title,
+                                dateKey: day.dateKey,
+                                targetUser: user,
+                                log,
+                              });
+                            }}
                             onToggle={(hId, dKey) => {
                               if (isCurrentUser && !isOutside && !day.isFuture) {
                                 onToggleLog(challenge.id, primaryHabit.id, currentUser.id, dKey);
@@ -530,6 +566,28 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Modal de Evidencias Fotográficas (Drive Privado + Auditor) */}
+      {activeEvidenceTarget && (
+        <ChallengeEvidenceModal
+          isOpen={true}
+          onClose={() => setActiveEvidenceTarget(null)}
+          challengeId={activeEvidenceTarget.challengeId}
+          challengeTitle={activeEvidenceTarget.challengeTitle}
+          challengeHabitId={activeEvidenceTarget.challengeHabitId}
+          habitTitle={activeEvidenceTarget.habitTitle}
+          dateKey={activeEvidenceTarget.dateKey}
+          targetUser={activeEvidenceTarget.targetUser}
+          currentUser={currentUser}
+          log={activeEvidenceTarget.log}
+          onEvidenceUpdated={(updatedLog) => {
+            setActiveEvidenceTarget((prev) => (prev ? { ...prev, log: updatedLog } : null));
+          }}
+          onEvidenceDeleted={() => {
+            setActiveEvidenceTarget((prev) => (prev ? { ...prev, log: undefined } : null));
+          }}
+        />
+      )}
     </div>
   );
 };

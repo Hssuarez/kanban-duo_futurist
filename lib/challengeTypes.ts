@@ -48,6 +48,8 @@ export interface ChallengeHabit {
   createdAt: string;
 }
 
+export type EvidenceStatus = 'none' | 'uploading' | 'uploaded' | 'failed';
+
 export interface ChallengeLog {
   id: string;                  // `clog-{challengeId}-{challengeHabitId}-{userId}-{dateKey}`
   challengeId: string;
@@ -57,6 +59,12 @@ export interface ChallengeLog {
   status: HabitLogStatus;      // 'completed' | 'empty' | 'not_applicable'
   numericValue?: number;
   notes?: string;
+  // Campos de Evidencia Fotográfica (Google Drive)
+  evidenceUrl?: string | null;        // Referencia interna o enlace de visualización (/api/drive/file/[fileId])
+  evidenceFileId?: string | null;     // ID único del archivo en Google Drive
+  evidenceUploadedAt?: string | null; // Timestamp ISO UTC de subida
+  evidenceUploadedBy?: string | null; // ID del usuario autenticado que subió la evidencia
+  evidenceStatus?: EvidenceStatus; // Estado: 'none' | 'uploading' | 'uploaded' | 'failed'
   createdAt: string;
   updatedAt: string;
 }

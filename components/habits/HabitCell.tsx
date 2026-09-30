@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Slash, X } from 'lucide-react';
+import { Check, Slash, X, Camera } from 'lucide-react';
 import { Habit, HabitLogStatus } from '@/lib/habitTypes';
 
 interface HabitCellProps {
@@ -13,6 +13,9 @@ interface HabitCellProps {
   isFuture: boolean;
   onToggle: (habitId: string, dateKey: string) => void;
   onSetStatus?: (habitId: string, dateKey: string, status: HabitLogStatus) => void;
+  hasEvidence?: boolean;
+  evidenceStatus?: 'none' | 'uploading' | 'uploaded' | 'failed';
+  onOpenEvidence?: (habitId: string, dateKey: string) => void;
 }
 
 export const HabitCell: React.FC<HabitCellProps> = ({
@@ -24,12 +27,21 @@ export const HabitCell: React.FC<HabitCellProps> = ({
   isFuture,
   onToggle,
   onSetStatus,
+  hasEvidence,
+  evidenceStatus,
+  onOpenEvidence,
 }) => {
   const [animating, setAnimating] = useState(false);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isFuture) return;
+
+    // Si ya tiene evidencia y hay callback, abrir modal de evidencia
+    if (hasEvidence && onOpenEvidence) {
+      onOpenEvidence(habit.id, dateKey);
+      return;
+    }
 
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {
       try {
@@ -88,7 +100,9 @@ export const HabitCell: React.FC<HabitCellProps> = ({
       disabled={isFuture}
       title={`${habit.title} · ${dateKey} (${
         isCompleted
-          ? 'Completado'
+          ? hasEvidence
+            ? 'Completado · 📷 Con evidencia fotográfica (Clic para ver)'
+            : 'Completado'
           : isFailed
           ? 'Fallido'
           : isSkipped
@@ -99,10 +113,34 @@ export const HabitCell: React.FC<HabitCellProps> = ({
           ? 'Día futuro'
           : 'Pendiente - Clic para marcar, clic derecho para opciones'
       })`}
-      className={`relative w-6 h-6 sm:w-7 sm:h-7 rounded-md border flex items-center justify-center transition-all duration-150 select-none ${cellStyle} ${
+      className={`group/cell relative w-6 h-6 sm:w-7 sm:h-7 rounded-md border flex items-center justify-center transition-all duration-150 select-none ${cellStyle} ${
         animating ? 'scale-110 ring-2 ring-cyan-400 shadow-[0_0_16px_rgba(6,182,212,0.6)]' : 'active:scale-95'
       }`}
     >
+      {/* Indicador de evidencia existente */}
+      {hasEvidence && (
+        <span
+          className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-cyan-400 text-zinc-950 flex items-center justify-center shadow-[0_0_8px_rgba(6,182,212,0.9)] z-10 pointer-events-none"
+          title="Evidencia fotográfica adjunta"
+        >
+          <Camera className="w-2 h-2 stroke-[2.5]" />
+        </span>
+      )}
+
+      {/* Botón flotante para adjuntar evidencia si está completado pero no tiene evidencia */}
+      {isCompleted && !hasEvidence && onOpenEvidence && (
+        <span
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenEvidence(habit.id, dateKey);
+          }}
+          className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-zinc-800 text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950 border border-white/20 hover:border-cyan-400 opacity-0 group-hover/cell:opacity-100 flex items-center justify-center cursor-pointer transition-all z-10"
+          title="Adjuntar evidencia fotográfica"
+        >
+          <Camera className="w-2 h-2" />
+        </span>
+      )}
+
       {isCompleted ? (
         <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-300 stroke-[3] animate-scale-in" />
       ) : isFailed ? (

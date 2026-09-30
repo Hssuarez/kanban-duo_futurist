@@ -11,6 +11,7 @@ import {
   ChallengeActivity,
   ChallengeGoal,
   ChallengeMemberStatus,
+  EvidenceStatus,
 } from './challengeTypes';
 import { getOrInitSupabase } from './supabaseClient';
 import { notifySync } from './storage';
@@ -270,6 +271,11 @@ export function handleRemoteChallengeLogRealtime(payload: {
       status: raw.status || 'completed',
       numericValue: raw.numeric_value,
       notes: raw.notes,
+      evidenceUrl: raw.evidence_url || null,
+      evidenceFileId: raw.evidence_file_id || null,
+      evidenceUploadedAt: raw.evidence_uploaded_at || null,
+      evidenceUploadedBy: raw.evidence_uploaded_by || null,
+      evidenceStatus: raw.evidence_status || (raw.evidence_file_id ? 'uploaded' : 'none'),
       createdAt: raw.created_at || new Date().toISOString(),
       updatedAt: raw.updated_at || new Date().toISOString(),
     };
@@ -1227,6 +1233,72 @@ export async function toggleChallengeLog(
   return { log: resultingLog, newStatus };
 }
 
+/**
+ * Actualiza de forma atómica y local el estado de la evidencia en un log de reto,
+ * notificando a todos los componentes suscriptos mediante notifySync('challenge_logs').
+ */
+export function updateLocalChallengeLogEvidence(
+  challengeId: string,
+  challengeHabitId: string,
+  userId: string,
+  dateKey: string,
+  evidence: {
+    evidenceUrl?: string | null;
+    evidenceFileId?: string | null;
+    evidenceUploadedAt?: string | null;
+    evidenceUploadedBy?: string | null;
+    evidenceStatus: EvidenceStatus;
+  }
+): ChallengeLog | null {
+  const currentLogs = getLocalChallengeLogs();
+  const logIndex = currentLogs.findIndex(
+    (l) =>
+      l.challengeId === challengeId &&
+      l.userId === userId &&
+      l.dateKey === dateKey &&
+      (!challengeHabitId || l.challengeHabitId === challengeHabitId)
+  );
+
+  let updatedLog: ChallengeLog;
+
+  if (logIndex >= 0) {
+    const existing = currentLogs[logIndex];
+    updatedLog = {
+      ...existing,
+      evidenceUrl: evidence.evidenceUrl !== undefined ? evidence.evidenceUrl : existing.evidenceUrl,
+      evidenceFileId: evidence.evidenceFileId !== undefined ? evidence.evidenceFileId : existing.evidenceFileId,
+      evidenceUploadedAt:
+        evidence.evidenceUploadedAt !== undefined ? evidence.evidenceUploadedAt : existing.evidenceUploadedAt,
+      evidenceUploadedBy:
+        evidence.evidenceUploadedBy !== undefined ? evidence.evidenceUploadedBy : existing.evidenceUploadedBy,
+      evidenceStatus: evidence.evidenceStatus,
+      updatedAt: new Date().toISOString(),
+    };
+    currentLogs[logIndex] = updatedLog;
+  } else {
+    // Si no existía el log pero se subió evidencia, crearlo como completado
+    updatedLog = {
+      id: `clog-${challengeId}-${challengeHabitId}-${userId}-${dateKey}`,
+      challengeId,
+      challengeHabitId,
+      userId,
+      dateKey,
+      status: 'completed',
+      evidenceUrl: evidence.evidenceUrl || null,
+      evidenceFileId: evidence.evidenceFileId || null,
+      evidenceUploadedAt: evidence.evidenceUploadedAt || new Date().toISOString(),
+      evidenceUploadedBy: evidence.evidenceUploadedBy || userId,
+      evidenceStatus: evidence.evidenceStatus,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    currentLogs.push(updatedLog);
+  }
+
+  saveLocalChallengeLogs(currentLogs);
+  return updatedLog;
+}
+
 // ========================================================
 // RECENT ACTIVITIES (Discreto, anti-spam)
 // ========================================================
@@ -1846,6 +1918,11 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           status: l.status || 'completed',
           numericValue: l.numeric_value,
           notes: l.notes,
+          evidenceUrl: l.evidence_url || null,
+          evidenceFileId: l.evidence_file_id || null,
+          evidenceUploadedAt: l.evidence_uploaded_at || null,
+          evidenceUploadedBy: l.evidence_uploaded_by || null,
+          evidenceStatus: l.evidence_status || (l.evidence_file_id ? 'uploaded' : 'none'),
           createdAt: l.created_at || new Date().toISOString(),
           updatedAt: l.updated_at || new Date().toISOString(),
         }));

@@ -14,6 +14,7 @@
     "canvas-confetti": "^1.9.3",
     "clsx": "^2.1.1",
     "cobe": "^2.0.1",
+    "googleapis": "^182.0.0",
     "lucide-react": "^0.460.0",
     "next": "14.2.18",
     "pg": "^8.23.0",
