@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Challenge, ChallengeMember } from '@/lib/challengeTypes';
 import { User } from '@/lib/types';
-import { X, Users, UserPlus, UserMinus, ShieldCheck } from 'lucide-react';
+import { X, Users, UserPlus, UserMinus, ShieldCheck, Search } from 'lucide-react';
 
 interface ChallengeMembersModalProps {
   isOpen: boolean;
@@ -28,10 +28,38 @@ export const ChallengeMembersModal: React.FC<ChallengeMembersModalProps> = ({
   onRemoveMember,
 }) => {
   const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('');
+    }
+  }, [isOpen]);
+
+  // Compañeros disponibles que no estén ya activos o invitados
+  const availableUsers = useMemo(() => {
+    return users.filter(
+      (u) =>
+        u.id !== currentUser.id &&
+        u.isActive !== false &&
+        !members.some((m) => m.userId === u.id && m.status !== 'declined')
+    );
+  }, [users, members, currentUser.id]);
+
+  // Filtrado solo cuando se digita una búsqueda
+  const searchedUsers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return availableUsers.filter((u) => {
+      const matchName = u.name ? u.name.toLowerCase().includes(q) : false;
+      const matchEmail = u.email ? u.email.toLowerCase().includes(q) : false;
+      return matchName || matchEmail;
+    });
+  }, [availableUsers, searchQuery]);
 
   if (!isOpen || !mounted) return null;
 
@@ -192,39 +220,85 @@ export const ChallengeMembersModal: React.FC<ChallengeMembersModalProps> = ({
             </div>
           )}
 
-          {/* 3. Invitar Compañeros */}
+          {/* 3. Invitar Compañeros con Buscador */}
           {isOwner && (
             <div className="pt-2 border-t border-white/[0.06] space-y-2">
-              <h4 className="text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider">
-                Invitar Compañeros
-              </h4>
-
-              <div className="space-y-1.5">
-                {users
-                  .filter((u) => !members.some((m) => m.userId === u.id && m.status !== 'declined'))
-                  .map((u) => (
-                    <div
-                      key={u.id}
-                      className="flex items-center justify-between gap-2 p-2 rounded-xl bg-zinc-900/40 hover:bg-zinc-900 border border-white/[0.04] transition-all"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300">
-                          {u.name.slice(0, 1)}
-                        </div>
-                        <span className="text-xs text-zinc-200 truncate">{u.name}</span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => onAddMember(u.id)}
-                        className="px-2.5 py-1 text-xs font-mono text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/30 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <UserPlus className="w-3 h-3" />
-                        <span>Invitar</span>
-                      </button>
-                    </div>
-                  ))}
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <UserPlus className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Invitar Compañeros</span>
+                </h4>
               </div>
+
+              {/* Buscador de compañeros por nombre o correo */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por nombre o correo para invitar..."
+                  className="w-full bg-zinc-900/90 border border-white/[0.08] focus:border-cyan-400 text-white rounded-xl pl-8 pr-8 py-2 text-xs focus:outline-none transition-colors font-mono placeholder:text-zinc-500"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-0.5"
+                    title="Limpiar búsqueda"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Resultados SOLO cuando se digita una búsqueda */}
+              {searchQuery.trim().length > 0 && (
+                <div className="max-h-40 overflow-y-auto space-y-1.5 custom-scrollbar pr-0.5 animate-fade-in">
+                  {searchedUsers.length === 0 ? (
+                    <div className="text-center py-3 text-xs font-mono text-zinc-500 bg-zinc-900/30 rounded-xl border border-white/[0.04]">
+                      No se encontraron compañeros con "{searchQuery}"
+                    </div>
+                  ) : (
+                    searchedUsers.map((u) => (
+                      <div
+                        key={u.id}
+                        className="flex items-center justify-between gap-2 p-2 rounded-xl bg-zinc-900/60 hover:bg-zinc-900 border border-white/[0.04] transition-all"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-zinc-800 border border-white/[0.08] overflow-hidden flex items-center justify-center text-[10px] font-bold text-zinc-300 shrink-0">
+                            {u.avatar ? (
+                              <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                            ) : (
+                              u.name.slice(0, 1).toUpperCase()
+                            )}
+                          </div>
+                          <div className="min-w-0 flex flex-col">
+                            <span className="text-xs text-zinc-200 truncate font-medium">{u.name}</span>
+                            {u.email && (
+                              <span className="text-[10px] font-mono text-zinc-500 truncate">
+                                {u.email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onAddMember(u.id);
+                            setSearchQuery('');
+                          }}
+                          className="px-2.5 py-1 text-xs font-mono text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/30 rounded-lg transition-colors flex items-center gap-1 cursor-pointer shrink-0 active:scale-95"
+                        >
+                          <UserPlus className="w-3 h-3" />
+                          <span>Invitar</span>
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
