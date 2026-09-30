@@ -707,12 +707,13 @@ export function getLocalChallengeMembers(challengeId?: string): ChallengeMember[
         return m;
       }
 
-      if (m.acceptedAt) {
-        if (m.status !== 'accepted') {
-          migrated = true;
-          return { ...m, status: 'accepted' as ChallengeMemberStatus };
-        }
+      if (m.status === 'accepted') {
         return m;
+      }
+
+      if (m.acceptedAt) {
+        migrated = true;
+        return { ...m, status: 'accepted' as ChallengeMemberStatus };
       }
 
       const hasCompletedLogs = allLogs.some(
@@ -720,17 +721,8 @@ export function getLocalChallengeMembers(challengeId?: string): ChallengeMember[
       );
 
       if (hasCompletedLogs) {
-        if (m.status !== 'accepted') {
-          migrated = true;
-          return { ...m, status: 'accepted' as ChallengeMemberStatus };
-        }
-        return m;
-      }
-
-      // Si no ha completado check-ins ni aceptado manualmente, su estado debe ser 'pending'
-      if (m.status !== 'pending') {
         migrated = true;
-        return { ...m, status: 'pending' as ChallengeMemberStatus };
+        return { ...m, status: 'accepted' as ChallengeMemberStatus };
       }
 
       return m;
@@ -856,45 +848,77 @@ export async function addChallengeMember(
 
 export async function acceptChallengeInvitation(challengeId: string, userId: string): Promise<boolean> {
   const members = getLocalChallengeMembers();
-  const index = members.findIndex((m) => m.challengeId === challengeId && m.userId === userId);
-  if (index === -1) return false;
+  let index = members.findIndex((m) => m.challengeId === challengeId && m.userId === userId);
 
   const today = getBogotaToday();
   const acceptedAt = new Date().toISOString();
-  const updatedMember: ChallengeMember = {
-    ...members[index],
-    status: 'accepted',
-    joinedAt: today,
-    acceptedAt,
-  };
 
-  members[index] = updatedMember;
+  let updatedMember: ChallengeMember;
+
+  if (index === -1) {
+    updatedMember = {
+      id: `cm-${challengeId}-${userId}`,
+      challengeId,
+      userId,
+      role: 'member',
+      status: 'accepted',
+      joinedAt: today,
+      acceptedAt,
+    };
+    members.push(updatedMember);
+  } else {
+    updatedMember = {
+      ...members[index],
+      status: 'accepted',
+      joinedAt: members[index].joinedAt || today,
+      acceptedAt,
+    };
+    members[index] = updatedMember;
+  }
+
   saveLocalChallengeMembers(members);
 
+  // 1. Sincronizar en Supabase mediante match por challenge_id y user_id
   const client = await getOrInitSupabase();
   if (client) {
     try {
-      const payload: any = {
-        id: updatedMember.id,
-        challenge_id: challengeId,
-        user_id: userId,
-        role: updatedMember.role,
-        joined_at: updatedMember.joinedAt,
-      };
-      const { error } = await client.from('challenge_members').upsert({
-        ...payload,
-        status: 'accepted',
-        accepted_at: acceptedAt,
-      });
-      if (error) {
-        await client.from('challenge_members').upsert({
-          ...payload,
+      const { data: updData, error: updErr } = await client
+        .from('challenge_members')
+        .update({
           status: 'accepted',
-        });
+          accepted_at: acceptedAt,
+        })
+        .match({ challenge_id: challengeId, user_id: userId })
+        .select();
+
+      if (updErr || !updData || updData.length === 0) {
+        await client.from('challenge_members').upsert(
+          {
+            id: updatedMember.id,
+            challenge_id: challengeId,
+            user_id: userId,
+            role: updatedMember.role || 'member',
+            status: 'accepted',
+            joined_at: updatedMember.joinedAt,
+            accepted_at: acceptedAt,
+          },
+          { onConflict: 'challenge_id,user_id' }
+        );
       }
     } catch (e) {
       console.warn('Sync acceptChallengeInvitation Supabase:', e);
     }
+  }
+
+  // 2. Respaldo por API Server (service_role) para garantizar persistencia
+  try {
+    fetch('/api/challenges/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challengeId, userId, acceptedAt }),
+    }).catch(() => {});
+  } catch (e) {
+    // Silencioso
   }
 
   // Actualizar notificaciones asociadas para marcarlas como aceptadas y leídas
@@ -1763,24 +1787,38 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           const ch = localChallengesMap.get(m.challenge_id);
           const isCreator = ch?.createdBy === m.user_id || m.role === 'owner';
           const isDemo = m.challenge_id === 'ch-gym-30d';
+          const hasCompletedLogs = allLogs.some(
+            (l) => l.challengeId === m.challenge_id && l.userId === m.user_id && l.status === 'completed'
+          );
 
           let resolvedStatus: ChallengeMemberStatus;
-          if (m.status === 'pending' || m.status === 'accepted' || m.status === 'declined') {
-            resolvedStatus = m.status;
-          } else if (local?.status) {
-            resolvedStatus = local.status;
+          if (isCreator || isDemo) {
+            resolvedStatus = 'accepted';
+          } else if (m.status === 'accepted' || local?.status === 'accepted' || hasCompletedLogs) {
+            resolvedStatus = 'accepted';
+          } else if (m.status === 'declined' || local?.status === 'declined') {
+            resolvedStatus = 'declined';
           } else {
-            resolvedStatus = (isCreator || isDemo) ? 'accepted' : 'pending';
+            resolvedStatus = 'pending';
+          }
+
+          // Auto-curación en Supabase si el estado local o calculado es accepted pero la nube tenía pending
+          if (resolvedStatus === 'accepted' && m.status !== 'accepted') {
+            client
+              .from('challenge_members')
+              .update({ status: 'accepted', accepted_at: m.accepted_at || new Date().toISOString() })
+              .eq('id', m.id)
+              .then(() => {});
           }
 
           return {
             id: m.id,
             challengeId: m.challenge_id,
             userId: m.user_id,
-            role: m.role || 'member',
+            role: isCreator ? 'owner' : (m.role || 'member'),
             status: resolvedStatus,
             joinedAt: m.joined_at || new Date().toISOString().slice(0, 10),
-            acceptedAt: m.accepted_at || local?.acceptedAt,
+            acceptedAt: m.accepted_at || local?.acceptedAt || (resolvedStatus === 'accepted' ? new Date().toISOString() : undefined),
           };
         });
 

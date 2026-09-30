@@ -113,9 +113,21 @@ export async function POST(req: NextRequest) {
       .eq('user_id', dbUser.id)
       .maybeSingle();
 
-    // Auto-curación de membresía para Creador / Admin si faltaba en Supabase
-    if ((!member || member.status !== 'accepted') && (isCreator || isAdmin)) {
-      const nowIso = new Date().toISOString();
+    const nowIso = new Date().toISOString();
+
+    // Auto-curación y activación de membresía:
+    // Si el usuario ya fue invitado al reto (existe fila en challenge_members) y está subiendo evidencia,
+    // o si es el creador/admin del reto, confirmamos automáticamente su participación activa en Supabase:
+    if (member && member.status !== 'accepted') {
+      await supabase
+        .from('challenge_members')
+        .update({
+          status: 'accepted',
+          accepted_at: nowIso,
+        })
+        .eq('id', member.id);
+      member.status = 'accepted';
+    } else if (!member && (isCreator || isAdmin)) {
       const newMemberId = `cm-${challengeId}-${dbUser.id}`;
       await supabase.from('challenge_members').upsert({
         id: newMemberId,
@@ -125,7 +137,7 @@ export async function POST(req: NextRequest) {
         status: 'accepted',
         joined_at: challenge.start_date || nowIso.slice(0, 10),
         accepted_at: nowIso,
-      });
+      }, { onConflict: 'challenge_id,user_id' });
       member = { id: newMemberId, status: 'accepted', role: isCreator ? 'owner' : 'member' };
     }
 
@@ -152,7 +164,6 @@ export async function POST(req: NextRequest) {
     }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const nowIso = new Date().toISOString();
     const logId = `clog-${challengeId}-${challengeHabitId}-${dbUser.id}-${dateKey}`;
 
     // 7. MODO DESARROLLO / DRIVE NO CONFIGURADO
