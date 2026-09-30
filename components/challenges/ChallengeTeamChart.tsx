@@ -18,37 +18,44 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
   logs,
 }) => {
   const [metric, setMetric] = useState<'count' | 'percentage' | 'cumulative'>('count');
-  const [hoveredDay, setHoveredDay] = useState<any | null>(null);
+  const [hoveredDateKey, setHoveredDateKey] = useState<string | null>(null);
 
   const totalMembers = Math.max(members.length, 1);
 
-  // Calcular cumplimiento de participantes por día
-  let runningCumulative = 0;
-  const dailyCompliance = days.map((day) => {
-    // Miembros únicos que completaron su check-in en este día
-    const completedUserIds = new Set(
-      logs.filter((l) => l.dateKey === day.dateKey && l.status === 'completed').map((l) => l.userId)
-    );
-    const completedMembersCount = completedUserIds.size;
-    const percentage = totalMembers > 0 ? Math.round((completedMembersCount / totalMembers) * 100) : 0;
+  // Calcular cumplimiento de participantes por día con useMemo para evitar re-cálculos innecesarios
+  const dailyCompliance = useMemo(() => {
+    let runningCumulative = 0;
+    return days.map((day) => {
+      // Miembros únicos que completaron su check-in en este día
+      const completedUserIds = new Set(
+        logs.filter((l) => l.dateKey === day.dateKey && l.status === 'completed').map((l) => l.userId)
+      );
+      const completedMembersCount = completedUserIds.size;
+      const percentage = totalMembers > 0 ? Math.round((completedMembersCount / totalMembers) * 100) : 0;
 
-    if (!day.isFuture) {
-      runningCumulative += completedMembersCount;
-    }
+      if (!day.isFuture) {
+        runningCumulative += completedMembersCount;
+      }
 
-    return {
-      dayNumber: day.dayNumber,
-      dateKey: day.dateKey,
-      dayName: day.dayName,
-      completedMembersCount,
-      totalMembers,
-      percentage,
-      cumulativeCount: runningCumulative,
-      isToday: day.isToday,
-      isPast: day.isPast,
-      isFuture: day.isFuture,
-    };
-  });
+      return {
+        dayNumber: day.dayNumber,
+        dateKey: day.dateKey,
+        dayName: day.dayName,
+        completedMembersCount,
+        totalMembers,
+        percentage,
+        cumulativeCount: runningCumulative,
+        isToday: day.isToday,
+        isPast: day.isPast,
+        isFuture: day.isFuture,
+      };
+    });
+  }, [days, logs, totalMembers]);
+
+  const hoveredDay = useMemo(
+    () => (hoveredDateKey ? dailyCompliance.find((d) => d.dateKey === hoveredDateKey) : null),
+    [dailyCompliance, hoveredDateKey]
+  );
 
   // Escala Y según la métrica seleccionada
   const yLabels =
@@ -120,10 +127,10 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
         </div>
       </div>
 
-      {/* Tooltip display */}
-      <div className="h-6 flex items-center mb-2 px-1">
+      {/* Tooltip display - Altura estrictamente fija para prevenir bucle por layout shift */}
+      <div className="h-8 min-h-[32px] max-h-[32px] shrink-0 flex items-center mb-2 px-1 overflow-hidden pointer-events-none select-none">
         {hoveredDay ? (
-          <div className="inline-flex items-center gap-2 text-xs font-mono animate-fade-in bg-zinc-900 border border-cyan-500/30 px-2.5 py-1 rounded-lg">
+          <div className="inline-flex items-center gap-2 text-xs font-mono bg-zinc-900/90 border border-cyan-500/40 px-2.5 py-1 rounded-lg shadow-sm">
             <span className="text-white font-semibold">{hoveredDay.dateKey}</span>
             <span className="text-cyan-400 font-bold">
               {hoveredDay.completedMembersCount} de {totalMembers} participantes cumplieron
@@ -136,7 +143,7 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
             )}
           </div>
         ) : (
-          <div className="text-[11px] font-mono text-zinc-500">
+          <div className="text-[11px] font-mono text-zinc-500 truncate">
             Pasa el cursor sobre un día para ver los participantes que cumplieron el reto.
           </div>
         )}
@@ -161,9 +168,9 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
             <div className="w-full border-b border-white/[0.08]" />
           </div>
 
-          <div className="absolute inset-0 flex items-end gap-1 overflow-x-auto custom-scrollbar z-10 px-0.5">
+          <div className="absolute inset-0 flex items-end gap-1 overflow-x-auto overflow-y-hidden custom-scrollbar z-10 px-0.5">
             {dailyCompliance.map((d) => {
-              const isHovered = hoveredDay?.dateKey === d.dateKey;
+              const isHovered = hoveredDateKey === d.dateKey;
 
               let heightPct = 0;
               if (metric === 'count' || metric === 'percentage') {
@@ -179,23 +186,23 @@ export const ChallengeTeamChart: React.FC<ChallengeTeamChartProps> = ({
               return (
                 <div
                   key={d.dateKey}
-                  onMouseEnter={() => setHoveredDay(d)}
-                  onMouseLeave={() => setHoveredDay(null)}
-                  className="flex-1 min-w-[12px] sm:min-w-[16px] flex flex-col items-center justify-end h-full group cursor-pointer"
+                  onMouseEnter={() => setHoveredDateKey(d.dateKey)}
+                  onMouseLeave={() => setHoveredDateKey((prev) => (prev === d.dateKey ? null : prev))}
+                  className="flex-1 min-w-[12px] sm:min-w-[16px] flex flex-col items-center justify-end h-full cursor-pointer select-none"
                 >
                   {visualHeight === 0 && !d.isFuture && (
                     <div
-                      className={`w-full h-1 rounded-full mb-0.5 ${
-                        d.isToday ? 'bg-cyan-400 animate-pulse' : 'bg-zinc-800'
+                      className={`w-full h-1 rounded-full mb-0.5 transition-colors ${
+                        d.isToday ? 'bg-cyan-400 animate-pulse' : isHovered ? 'bg-zinc-600' : 'bg-zinc-800'
                       }`}
                     />
                   )}
 
                   {visualHeight > 0 && (
                     <div
-                      className={`w-full rounded-t-md transition-all duration-300 bg-gradient-to-t from-cyan-600 to-cyan-400 ${
+                      className={`w-full rounded-t-md transition-colors duration-150 bg-gradient-to-t from-cyan-600 to-cyan-400 ${
                         d.isToday ? 'ring-1 ring-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.6)]' : ''
-                      } ${isHovered ? 'scale-y-105 brightness-125' : ''}`}
+                      } ${isHovered ? 'brightness-125 shadow-[0_0_12px_rgba(6,182,212,0.8)] ring-1 ring-cyan-200' : ''}`}
                       style={{ height: `${visualHeight}%` }}
                     />
                   )}
