@@ -5,15 +5,23 @@ import { Readable } from 'stream';
 // key: `parentFolderId:sanitizedName` -> value: `folderId`
 const folderCache = new Map<string, string>();
 
+function cleanEnv(val: string | undefined): string {
+  if (!val) return '';
+  return val
+    .trim()
+    .replace(/^["'`]|["'`]$/g, '')
+    .trim();
+}
+
 /**
  * Checks whether Google Drive OAuth 2.0 credentials are fully configured in the environment.
  */
 export function isGoogleDriveConfigured(): boolean {
   return Boolean(
-    process.env.GOOGLE_CLIENT_ID &&
-      process.env.GOOGLE_CLIENT_SECRET &&
-      process.env.GOOGLE_REFRESH_TOKEN &&
-      process.env.GOOGLE_DRIVE_FOLDER_ID
+    cleanEnv(process.env.GOOGLE_CLIENT_ID) &&
+      cleanEnv(process.env.GOOGLE_CLIENT_SECRET) &&
+      cleanEnv(process.env.GOOGLE_REFRESH_TOKEN) &&
+      cleanEnv(process.env.GOOGLE_DRIVE_FOLDER_ID)
   );
 }
 
@@ -39,9 +47,9 @@ export function sanitizeName(name: string): string {
  * consuming its personal storage quota (Google One / Gemini Pro).
  */
 export function getGoogleDriveClient(): drive_v3.Drive {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+  const clientId = cleanEnv(process.env.GOOGLE_CLIENT_ID);
+  const clientSecret = cleanEnv(process.env.GOOGLE_CLIENT_SECRET);
+  const refreshToken = cleanEnv(process.env.GOOGLE_REFRESH_TOKEN);
 
   if (!clientId || !clientSecret || !refreshToken) {
     throw new Error(
@@ -49,7 +57,11 @@ export function getGoogleDriveClient(): drive_v3.Drive {
     );
   }
 
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+  const oauth2Client = new google.auth.OAuth2(
+    clientId,
+    clientSecret,
+    'https://developers.google.com/oauthplayground'
+  );
 
   oauth2Client.setCredentials({
     refresh_token: refreshToken,
@@ -129,7 +141,7 @@ export async function ensureUserChallengeFolder(
   userName: string,
   challengeTitle: string
 ): Promise<{ userFolderId: string; challengeFolderId: string }> {
-  const rootFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  const rootFolderId = cleanEnv(process.env.GOOGLE_DRIVE_FOLDER_ID);
   if (!rootFolderId) {
     throw new Error('GOOGLE_DRIVE_FOLDER_ID is missing from environment.');
   }

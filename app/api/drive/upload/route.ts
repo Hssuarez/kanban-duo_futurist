@@ -231,10 +231,15 @@ export async function POST(req: NextRequest) {
       );
     } catch (driveErr: any) {
       console.error('Error al subir a Google Drive Personal:', driveErr);
+      const errMsg = driveErr?.message || '';
+      let userFriendlyError = `Error al subir la evidencia a Google Drive: ${errMsg || 'Fallo de conexión o credenciales inválidas.'}`;
+      if (errMsg.includes('invalid_client')) {
+        userFriendlyError = 'Error de autenticación con Google (invalid_client): Verifica que GOOGLE_CLIENT_SECRET y GOOGLE_CLIENT_ID en Vercel coincidan exactamente con tu cliente OAuth en Google Cloud (sin comillas ni espacios adicionales).';
+      }
       return NextResponse.json(
         {
           success: false,
-          error: `Error al subir la evidencia a Google Drive: ${driveErr?.message || 'Fallo de conexión o credenciales inválidas.'}`,
+          error: userFriendlyError,
         },
         { status: 500 }
       );
