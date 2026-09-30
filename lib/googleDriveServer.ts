@@ -6,12 +6,13 @@ import { Readable } from 'stream';
 const folderCache = new Map<string, string>();
 
 /**
- * Checks whether Google Drive credentials are fully configured in the environment.
+ * Checks whether Google Drive OAuth 2.0 credentials are fully configured in the environment.
  */
 export function isGoogleDriveConfigured(): boolean {
   return Boolean(
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-      process.env.GOOGLE_PRIVATE_KEY &&
+    process.env.GOOGLE_CLIENT_ID &&
+      process.env.GOOGLE_CLIENT_SECRET &&
+      process.env.GOOGLE_REFRESH_TOKEN &&
       process.env.GOOGLE_DRIVE_FOLDER_ID
   );
 }
@@ -33,28 +34,28 @@ export function sanitizeName(name: string): string {
 }
 
 /**
- * Creates an authorized Google Drive client using a Service Account.
+ * Creates an authorized Google Drive client using OAuth 2.0 with a persistent Refresh Token.
+ * All uploads and folder operations are executed on behalf of the personal Google account (@gmail.com),
+ * consuming its personal storage quota (Google One / Gemini Pro).
  */
 export function getGoogleDriveClient(): drive_v3.Drive {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  let privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-  if (!email || !privateKey) {
-    throw new Error('Google Drive Service Account credentials are not configured in environment.');
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error(
+      'Google Drive OAuth 2.0 credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN) are not configured in environment.'
+    );
   }
 
-  // Handle escaped \n in environment variables
-  if (privateKey.includes('\\n')) {
-    privateKey = privateKey.replace(/\\n/g, '\n');
-  }
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
 
-  const auth = new google.auth.JWT({
-    email,
-    key: privateKey,
-    scopes: ['https://www.googleapis.com/auth/drive'],
+  oauth2Client.setCredentials({
+    refresh_token: refreshToken,
   });
 
-  return google.drive({ version: 'v3', auth });
+  return google.drive({ version: 'v3', auth: oauth2Client });
 }
 
 /**
