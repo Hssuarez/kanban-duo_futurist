@@ -27,6 +27,7 @@ import {
   Cloud,
 } from 'lucide-react';
 import { ChallengeCloudSyncStatus } from '@/lib/challengeStorage';
+import { getBogotaToday } from '@/lib/habitCalculations';
 
 interface ChallengeHeroHeaderProps {
   challenge: Challenge;
@@ -47,6 +48,8 @@ interface ChallengeHeroHeaderProps {
   onBackToHabits?: () => void;
   cloudStatus?: ChallengeCloudSyncStatus;
   onOpenMigrationModal?: () => void;
+  evidenceCount?: number;
+  todayKey?: string;
 }
 
 export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
@@ -68,7 +71,10 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
   onBackToHabits,
   cloudStatus,
   onOpenMigrationModal,
+  evidenceCount,
+  todayKey,
 }) => {
+  const effectiveToday = todayKey || getBogotaToday();
   // SVG circular gauge properties
   const radius = 32;
   const circumference = 2 * Math.PI * radius;
@@ -102,9 +108,35 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
 
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 font-semibold">
-                  En curso
-                </span>
+                {(() => {
+                  let heroStatusBadge = {
+                    label: 'En curso',
+                    bg: 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30',
+                  };
+                  if (challenge.endDate && challenge.endDate < effectiveToday) {
+                    heroStatusBadge = {
+                      label: 'Finalizado',
+                      bg: 'bg-zinc-900 text-zinc-400 border-white/[0.08]',
+                    };
+                  } else if (challenge.startDate && challenge.startDate > effectiveToday) {
+                    heroStatusBadge = {
+                      label: 'Próximo',
+                      bg: 'bg-cyan-950/60 text-cyan-400 border-cyan-500/30',
+                    };
+                  } else if (challenge.status === 'completed') {
+                    heroStatusBadge = {
+                      label: 'Finalizado',
+                      bg: 'bg-zinc-900 text-zinc-400 border-white/[0.08]',
+                    };
+                  }
+                  return (
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full border font-semibold ${heroStatusBadge.bg}`}
+                    >
+                      {heroStatusBadge.label}
+                    </span>
+                  );
+                })()}
                 <span className="text-xs font-mono text-zinc-500">
                   {challenge.durationDays} días de reto
                 </span>
@@ -353,11 +385,18 @@ export const ChallengeHeroHeader: React.FC<ChallengeHeroHeaderProps> = ({
         <div className="flex items-center gap-1 p-0.5 bg-zinc-950/90 rounded-xl border border-white/[0.08] overflow-x-auto custom-scrollbar">
           {(
             [
-              { id: 'matrix', label: 'Matriz' },
-              { id: 'progress', label: 'Progreso' },
-              { id: 'goals', label: 'Objetivos' },
-              { id: 'tasks', label: 'Tareas' },
-            ] as const
+              { id: 'matrix' as const, label: 'Matriz' },
+              { id: 'progress' as const, label: 'Progreso' },
+              {
+                id: 'gallery' as const,
+                label:
+                  typeof evidenceCount === 'number' && evidenceCount > 0
+                    ? `📸 Evidencias (${evidenceCount})`
+                    : '📸 Evidencias',
+              },
+              { id: 'goals' as const, label: 'Objetivos' },
+              { id: 'tasks' as const, label: 'Tareas' },
+            ]
           ).map((tab) => (
             <button
               key={tab.id}

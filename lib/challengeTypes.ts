@@ -134,6 +134,7 @@ export interface ChallengeDayInfo {
 export type ChallengeSubTab =
   | 'matrix'
   | 'progress'
+  | 'gallery'
   | 'habits'
   | 'goals'
   | 'tasks'

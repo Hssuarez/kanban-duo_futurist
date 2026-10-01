@@ -59,6 +59,8 @@ import { ChallengeGoalModal } from './ChallengeGoalModal';
 import { ChallengeModal } from './ChallengeModal';
 import { ChallengeMembersModal } from './ChallengeMembersModal';
 import { ChallengeMigrationModal } from './ChallengeMigrationModal';
+import { ChallengeEvidenceGallery } from './ChallengeEvidenceGallery';
+import { ChallengeEvidenceModal } from './ChallengeEvidenceModal';
 import { Plus, Trophy, Check, X } from 'lucide-react';
 
 interface ChallengeDashboardProps {
@@ -243,6 +245,39 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     if (!currentChallenge) return [];
     return goals.filter((g) => g.challengeId === currentChallenge.id);
   }, [goals, currentChallenge?.id]);
+
+  // Conteo de evidencias fotográficas para el reto seleccionado
+  const evidenceCount = useMemo(() => {
+    if (!currentChallenge) return 0;
+    return challengeLogs.filter(
+      (l) => Boolean(l.evidenceUrl) || Boolean(l.evidenceFileId)
+    ).length;
+  }, [challengeLogs, currentChallenge]);
+
+  // Estado para visualización y auditoría centralizada de evidencias fotográficas
+  const [dashboardEvidenceTarget, setDashboardEvidenceTarget] = useState<{
+    challengeId: string;
+    challengeTitle: string;
+    challengeHabitId: string;
+    habitTitle: string;
+    dateKey: string;
+    targetUser: User;
+    log?: ChallengeLog;
+  } | null>(null);
+
+  const handleOpenEvidence = (log: ChallengeLog, user: User, habitTitle?: string) => {
+    if (!currentChallenge) return;
+    const habit = habits.find((h) => h.id === log.challengeHabitId);
+    setDashboardEvidenceTarget({
+      challengeId: currentChallenge.id,
+      challengeTitle: currentChallenge.title,
+      challengeHabitId: log.challengeHabitId,
+      habitTitle: habitTitle || habit?.title || 'Hábito',
+      dateKey: log.dateKey,
+      targetUser: user,
+      log,
+    });
+  };
 
   // Días del reto sincronizados con el mes del calendario
   const challengeDays = useMemo(() => {
@@ -628,6 +663,10 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
             challenges={accessibleChallenges}
             selectedChallengeId={selectedChallengeId}
             members={members}
+            logs={logs}
+            habits={habits}
+            users={users}
+            todayKey={todayKey}
             onSelectChallenge={(id) => {
               setSelectedChallengeId(id);
               saveLastSelectedChallengeId(id);
@@ -661,6 +700,8 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
             onBackToHabits={onBackToHabits}
             cloudStatus={cloudStatus}
             onOpenMigrationModal={() => setIsMigrationModalOpen(true)}
+            evidenceCount={evidenceCount}
+            todayKey={todayKey}
           />
 
           {/* 3. Main Workspace Grid: Matrix (Protagonist) + Leaderboard & Feed */}
@@ -725,6 +766,9 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
                 <ChallengeActivityFeed
                   activities={challengeActivities}
                   users={users}
+                  logs={challengeLogs}
+                  currentUserId={currentUser.id}
+                  onOpenEvidence={handleOpenEvidence}
                 />
 
                 {/* Progreso del Equipo Semanal */}
@@ -736,6 +780,20 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
                 />
               </div>
             </div>
+          )}
+
+          {/* Sub-pestaña: Muro de Evidencias (Galería Fotográfica Google Drive) */}
+          {currentSubTab === 'gallery' && currentChallenge && (
+            <ChallengeEvidenceGallery
+              challenge={currentChallenge}
+              members={challengeMembers}
+              users={users}
+              habits={challengeHabits}
+              logs={challengeLogs}
+              currentUser={currentUser}
+              onOpenEvidence={handleOpenEvidence}
+              onGoToMatrix={() => setCurrentSubTab('matrix')}
+            />
           )}
 
           {/* Otras sub-pestañas: Progreso, Hábitos, Objetivos, Tareas */}
@@ -828,6 +886,30 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
         onClose={() => setIsMigrationModalOpen(false)}
         onSyncSuccess={loadChallengeData}
       />
+
+      {/* Modal Centralizado de Evidencias Fotográficas (Google Drive) */}
+      {dashboardEvidenceTarget && (
+        <ChallengeEvidenceModal
+          isOpen={true}
+          onClose={() => setDashboardEvidenceTarget(null)}
+          challengeId={dashboardEvidenceTarget.challengeId}
+          challengeTitle={dashboardEvidenceTarget.challengeTitle}
+          challengeHabitId={dashboardEvidenceTarget.challengeHabitId}
+          habitTitle={dashboardEvidenceTarget.habitTitle}
+          dateKey={dashboardEvidenceTarget.dateKey}
+          targetUser={dashboardEvidenceTarget.targetUser}
+          currentUser={currentUser}
+          log={dashboardEvidenceTarget.log}
+          onEvidenceUpdated={(updatedLog) => {
+            setDashboardEvidenceTarget((prev) => (prev ? { ...prev, log: updatedLog } : null));
+            loadChallengeData();
+          }}
+          onEvidenceDeleted={() => {
+            setDashboardEvidenceTarget(null);
+            loadChallengeData();
+          }}
+        />
+      )}
     </div>
   );
 };

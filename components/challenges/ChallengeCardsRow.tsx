@@ -1,13 +1,20 @@
 'use client';
 
 import React from 'react';
-import { Challenge, ChallengeMember } from '@/lib/challengeTypes';
-import { Users, ChevronRight, Sparkles } from 'lucide-react';
+import { Challenge, ChallengeMember, ChallengeLog, ChallengeHabit } from '@/lib/challengeTypes';
+import { User } from '@/lib/types';
+import { Users, ChevronRight } from 'lucide-react';
+import { calculateChallengeSummaryKpis } from '@/lib/challengeCalculations';
+import { getBogotaToday } from '@/lib/habitCalculations';
 
 interface ChallengeCardsRowProps {
   challenges: Challenge[];
   selectedChallengeId: string;
   members: ChallengeMember[];
+  logs?: ChallengeLog[];
+  habits?: ChallengeHabit[];
+  users?: User[];
+  todayKey?: string;
   onSelectChallenge: (challengeId: string) => void;
 }
 
@@ -25,20 +32,50 @@ export const ChallengeCardsRow: React.FC<ChallengeCardsRowProps> = ({
   challenges,
   selectedChallengeId,
   members,
+  logs = [],
+  habits = [],
+  users = [],
+  todayKey,
   onSelectChallenge,
 }) => {
+  const effectiveToday = todayKey || getBogotaToday();
+
   return (
     <div className="flex items-stretch gap-3 overflow-x-auto custom-scrollbar pb-2 pt-1 font-sans">
       {challenges.map((ch) => {
         const isSelected = ch.id === selectedChallengeId;
-        const chMembers = members.filter((m) => m.challengeId === ch.id);
+        const chMembers = members.filter(
+          (m) => m.challengeId === ch.id && (!m.status || m.status === 'accepted')
+        );
+        const chLogs = logs.filter((l) => l.challengeId === ch.id);
+        const chHabits = habits.filter((h) => h.challengeId === ch.id);
 
-        // Estado badge
+        // Cálculo dinámico de progreso real
+        let progressPct = 0;
+        if (chMembers.length > 0 && chLogs.length > 0) {
+          const kpis = calculateChallengeSummaryKpis(
+            ch,
+            chMembers,
+            users,
+            chLogs,
+            chHabits,
+            effectiveToday
+          );
+          progressPct = kpis.completionRate;
+        }
+
+        // Estado dinámico basado en las fechas del reto y hora de Bogotá
         let statusBadge = {
           label: 'En curso',
           bg: 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30',
         };
-        if (ch.status === 'upcoming') {
+
+        if (ch.endDate && ch.endDate < effectiveToday) {
+          statusBadge = {
+            label: 'Finalizado',
+            bg: 'bg-zinc-900 text-zinc-400 border-white/[0.08]',
+          };
+        } else if (ch.startDate && ch.startDate > effectiveToday) {
           statusBadge = {
             label: 'Próximo',
             bg: 'bg-cyan-950/60 text-cyan-400 border-cyan-500/30',
@@ -49,12 +86,6 @@ export const ChallengeCardsRow: React.FC<ChallengeCardsRowProps> = ({
             bg: 'bg-zinc-900 text-zinc-400 border-white/[0.08]',
           };
         }
-
-        // Porcentaje aproximado según status
-        let progressPct = 86;
-        if (ch.id === 'ch-lectura-30d') progressPct = 72;
-        if (ch.id === 'ch-hidrata-21d') progressPct = 0;
-        if (ch.id === 'ch-sueno-31d') progressPct = 100;
 
         return (
           <div
@@ -107,7 +138,9 @@ export const ChallengeCardsRow: React.FC<ChallengeCardsRowProps> = ({
             <div className="flex items-center justify-between pt-1 border-t border-white/[0.04] text-[11px] font-mono text-zinc-400">
               <div className="flex items-center gap-1.5">
                 <Users className="w-3 h-3 text-cyan-400" />
-                <span>{chMembers.length || 4} participantes</span>
+                <span>
+                  {chMembers.length} {chMembers.length === 1 ? 'participante' : 'participantes'}
+                </span>
               </div>
 
               <div
