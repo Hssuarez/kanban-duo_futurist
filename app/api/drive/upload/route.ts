@@ -301,10 +301,15 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error en /api/drive/upload:', error);
+    let errorMessage = error.message || 'Error inesperado durante la subida de evidencia.';
+    if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('invalid_grant')) {
+      errorMessage =
+        'El Refresh Token de Google Drive expiró (ocurre cada 7 días si la app está en modo "Testing"). Pasa la app a "Producción" en Google Cloud Console y renueva el GOOGLE_REFRESH_TOKEN en Vercel.';
+    }
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Error inesperado durante la subida de evidencia.',
+        error: errorMessage,
       },
       { status: 500 }
     );
