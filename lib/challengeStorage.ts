@@ -31,14 +31,38 @@ const STORAGE_KEYS = {
   PENDING_UPLOAD_LOG_IDS: 'kanban_duo_pending_upload_challenge_logs_v1',
 };
 
-// Limpieza proactiva de lápidas antiguas que pudieran causar interferencia en sesiones previas
+export const LEGACY_DELETED_DEMO_IDS = [
+  'ch-lectura-30d',
+  'ch-hidrata-21d',
+  'ch-sueno-31d',
+  'ch-gym-30d',
+];
+
+// Limpieza proactiva de lápidas antiguas y retos demo eliminados en cualquier sesión/navegador
 if (typeof window !== 'undefined') {
   try {
     localStorage.removeItem('kanban_duo_deleted_challenge_log_keys_v1');
+    const delRaw = localStorage.getItem(STORAGE_KEYS.DELETED_IDS);
+    const deleted: string[] = delRaw ? JSON.parse(delRaw) : [];
+    if (!deleted.includes('ch-gym-30d')) {
+      deleted.push('ch-gym-30d');
+      localStorage.setItem(STORAGE_KEYS.DELETED_IDS, JSON.stringify(deleted));
+    }
+    // Purgar ch-gym-30d si estaba almacenado en kanban_duo_challenges_v2
+    const chRaw = localStorage.getItem(STORAGE_KEYS.CHALLENGES);
+    if (chRaw) {
+      const chs: Challenge[] = JSON.parse(chRaw);
+      const filtered = chs.filter((c) => !LEGACY_DELETED_DEMO_IDS.includes(c.id));
+      if (filtered.length !== chs.length) {
+        localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(filtered));
+      }
+    }
+    // Si ch-gym-30d estaba guardado como último seleccionado, limpiarlo
+    if (localStorage.getItem(STORAGE_KEYS.LAST_SELECTED) === 'ch-gym-30d') {
+      localStorage.removeItem(STORAGE_KEYS.LAST_SELECTED);
+    }
   } catch {}
 }
-
-export const LEGACY_DELETED_DEMO_IDS = ['ch-lectura-30d', 'ch-hidrata-21d', 'ch-sueno-31d'];
 
 // ========================================================
 // ESTADO DE SINCRONIZACIÓN CLOUD (SUPABASE)
@@ -301,114 +325,17 @@ export function handleRemoteChallengeLogRealtime(payload: {
 }
 
 // ========================================================
-// SEMILLAS INICIALES (Inspiradas en media_1789683755426.jpg)
+// SEMILLAS INICIALES (Vacías por defecto en producción)
 // ========================================================
 
-export const DEFAULT_CHALLENGES: Challenge[] = [
-  {
-    id: 'ch-gym-30d',
-    createdBy: 'user-admin',
-    title: '30 DÍAS GYM',
-    description: 'Entrenar al menos 5 veces por semana y mantener la consistencia.',
-    icon: '🏋️',
-    color: '#06b6d4',
-    startDate: '2026-09-01',
-    endDate: '2026-09-30',
-    durationDays: 30,
-    mode: 'competitive',
-    status: 'active',
-    targetGoal: '20 sesiones de entrenamiento',
-    createdAt: '2026-09-01T10:00:00.000Z',
-    updatedAt: '2026-09-01T10:00:00.000Z',
-  },
-];
+export const DEFAULT_CHALLENGES: Challenge[] = [];
+export const DEFAULT_CHALLENGE_MEMBERS: ChallengeMember[] = [];
+export const DEFAULT_CHALLENGE_HABITS: ChallengeHabit[] = [];
+export const DEFAULT_CHALLENGE_GOALS: ChallengeGoal[] = [];
+export const DEFAULT_CHALLENGE_ACTIVITIES: ChallengeActivity[] = [];
 
-export const DEFAULT_CHALLENGE_MEMBERS: ChallengeMember[] = [
-  // Miembros de 'ch-gym-30d' (incluyendo usuarios reales del sistema ya activos)
-  { id: 'cm-1', challengeId: 'ch-gym-30d', userId: 'user-admin', role: 'owner', status: 'accepted', joinedAt: '2026-09-01' },
-  { id: 'cm-2', challengeId: 'ch-gym-30d', userId: 'user-alex', role: 'member', status: 'accepted', joinedAt: '2026-09-01' },
-  { id: 'cm-3', challengeId: 'ch-gym-30d', userId: 'user-beatriz', role: 'member', status: 'accepted', joinedAt: '2026-09-01' },
-  { id: 'cm-4', challengeId: 'ch-gym-30d', userId: 'user-2', role: 'member', status: 'accepted', joinedAt: '2026-09-01' },
-  { id: 'cm-5', challengeId: 'ch-gym-30d', userId: 'user-3', role: 'member', status: 'accepted', joinedAt: '2026-09-03' },
-];
-
-export const DEFAULT_CHALLENGE_HABITS: ChallengeHabit[] = [
-  { id: 'chab-1', challengeId: 'ch-gym-30d', title: 'Entrenar', icon: '🏋️', targetValue: 1, displayOrder: 1, createdAt: '2026-09-01' },
-  { id: 'chab-2', challengeId: 'ch-gym-30d', title: 'Tomar agua', icon: '💧', targetValue: 8, displayOrder: 2, createdAt: '2026-09-01' },
-];
-
-export const DEFAULT_CHALLENGE_GOALS: ChallengeGoal[] = [
-  { id: 'cg-1', challengeId: 'ch-gym-30d', title: 'Completar 20 sesiones de gym', targetValue: 20, currentValue: 18, unit: 'sesiones', isCompleted: false, createdAt: '2026-09-01' },
-  { id: 'cg-2', challengeId: 'ch-gym-30d', title: 'Mantener 7 días consecutivos', targetValue: 7, currentValue: 7, unit: 'días', isCompleted: true, createdAt: '2026-09-01' },
-  { id: 'cg-3', challengeId: 'ch-gym-30d', title: 'Alcanzar 80% de consistencia', targetValue: 80, currentValue: 86, unit: '%', isCompleted: true, createdAt: '2026-09-01' },
-  { id: 'cg-4', challengeId: 'ch-gym-30d', title: 'Completar los 30 días', targetValue: 30, currentValue: 20, unit: 'días', isCompleted: false, createdAt: '2026-09-01' },
-];
-
-export const DEFAULT_CHALLENGE_ACTIVITIES: ChallengeActivity[] = [
-  { id: 'ca-1', challengeId: 'ch-gym-30d', userId: 'user-alex', actionType: 'check_in', message: 'Alex completó Entrenar', habitTitle: 'Entrenar', createdAt: '2026-09-17T20:24:00.000Z' },
-  { id: 'ca-2', challengeId: 'ch-gym-30d', userId: 'user-beatriz', actionType: 'check_in', message: 'Beatriz completó Tomar agua', habitTitle: 'Tomar agua', createdAt: '2026-09-17T19:15:00.000Z' },
-  { id: 'ca-3', challengeId: 'ch-gym-30d', userId: 'user-2', actionType: 'check_in', message: 'Jesús completó Entrenar', habitTitle: 'Entrenar', createdAt: '2026-09-17T18:42:00.000Z' },
-  { id: 'ca-4', challengeId: 'ch-gym-30d', userId: 'user-admin', actionType: 'check_in', message: 'Diana completó Entrenar', habitTitle: 'Entrenar', createdAt: '2026-09-17T18:10:00.000Z' },
-  { id: 'ca-5', challengeId: 'ch-gym-30d', userId: 'user-3', actionType: 'joined', message: 'Mariana se unió al reto', createdAt: '2026-09-03T10:30:00.000Z' },
-];
-
-// Genera logs realistas para los miembros en ch-gym-30d (días 1 al 17 de Septiembre)
 export function generateSeedChallengeLogs(): ChallengeLog[] {
-  const logs: ChallengeLog[] = [];
-  const members = ['user-admin', 'user-alex', 'user-beatriz', 'user-2', 'user-3'];
-
-  // Probabilidades de cumplimiento que producen porcentajes realistas
-  const memberProbabilities: Record<string, number> = {
-    'user-admin': 94,
-    'user-alex': 88,
-    'user-beatriz': 84,
-    'user-2': 76,
-    'user-3': 72,
-  };
-
-  for (let d = 1; d <= 17; d++) {
-    const dayStr = String(d).padStart(2, '0');
-    const dateKey = `2026-09-${dayStr}`;
-
-    members.forEach((userId, mIdx) => {
-      // Mariana se unió el día 3
-      if (userId === 'user-3' && d < 3) return;
-
-      const prob = memberProbabilities[userId] || 80;
-      const pseudo = (d * 23 + mIdx * 17) % 100;
-      const isCompleted = pseudo < prob;
-
-      // Hábito 1: Entrenar
-      if (isCompleted) {
-        logs.push({
-          id: `clog-ch-gym-30d-chab-1-${userId}-${dateKey}`,
-          challengeId: 'ch-gym-30d',
-          challengeHabitId: 'chab-1',
-          userId,
-          dateKey,
-          status: 'completed',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-      }
-
-      // Hábito 2: Tomar agua
-      if (pseudo < prob + 5) {
-        logs.push({
-          id: `clog-ch-gym-30d-chab-2-${userId}-${dateKey}`,
-          challengeId: 'ch-gym-30d',
-          challengeHabitId: 'chab-2',
-          userId,
-          dateKey,
-          status: 'completed',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    });
-  }
-
-  return logs;
+  return [];
 }
 
 // ========================================================
@@ -464,24 +391,6 @@ export function getLocalChallenges(): Challenge[] {
       (c) => !deletedIds.includes(c.id) && !LEGACY_DELETED_DEMO_IDS.includes(c.id)
     );
 
-    // Auto-migración si existía fecha de octubre para ch-gym-30d
-    let migrated = false;
-    challenges = challenges.map((c) => {
-      if (c.id === 'ch-gym-30d' && c.startDate === '2026-10-01') {
-        migrated = true;
-        return {
-          ...c,
-          startDate: '2026-09-01',
-          endDate: '2026-09-30',
-        };
-      }
-      return c;
-    });
-
-    if (migrated) {
-      localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(challenges));
-    }
-
     return challenges;
   } catch {
     return DEFAULT_CHALLENGES.filter(
@@ -494,8 +403,10 @@ export function saveLocalChallenges(challenges: Challenge[]): void {
   if (typeof window === 'undefined') return;
   const deletedIds = getDeletedChallengeIds();
   try {
-    // Asegurar que ningún reto en la lista esté en deletedIds
-    const filtered = challenges.filter((c) => !deletedIds.includes(c.id));
+    // Asegurar que ningún reto en la lista esté en deletedIds o demo legacy
+    const filtered = challenges.filter(
+      (c) => !deletedIds.includes(c.id) && !LEGACY_DELETED_DEMO_IDS.includes(c.id)
+    );
     localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(filtered));
     notifySync('challenges');
   } catch (e) {
@@ -652,22 +563,13 @@ export function getLocalChallengeMembers(challengeId?: string): ChallengeMember[
       localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
     }
 
-    // Auto-migración de joinedAt de octubre a septiembre si existían datos cacheados
-    let migrated = false;
-    members = members.map((m) => {
-      if (m.challengeId === 'ch-gym-30d' && (m.joinedAt || '').startsWith('2026-10-')) {
-        migrated = true;
-        return {
-          ...m,
-          joinedAt: m.joinedAt.replace('2026-10-', '2026-09-'),
-        };
-      }
-      return m;
-    });
+    // Filtrar permanentemente miembros de retos eliminados o demo legacy
+    members = members.filter((m) => !LEGACY_DELETED_DEMO_IDS.includes(m.challengeId));
 
     // Auto-migración para todos los retos: si un miembro tiene joinedAt > challenge.startDate,
     // normalizar a startDate para no bloquear check-ins previos
     const allChallenges = getLocalChallenges();
+    let migrated = false;
     members = members.map((m) => {
       const ch = allChallenges.find((c) => c.id === m.challengeId);
       if (ch && m.joinedAt && m.joinedAt > ch.startDate) {
@@ -677,24 +579,21 @@ export function getLocalChallengeMembers(challengeId?: string): ChallengeMember[
       return m;
     });
 
-    // Auto-migración y resolución rigurosa de estados de invitación:
-    // 1. Reto demo ch-gym-30d: Alex y Beatriz siempre accepted
-    // 2. Retos creados por usuarios:
-    //    - Creador/Owner: siempre 'accepted'
-    //    - Invitados (role === 'member'):
-    //      - Si ya tiene acceptedAt: 'accepted'
-    //      - Si ya tiene status 'declined': 'declined'
-    //      - Si ya tiene logs completados en challenge_logs: mantener 'accepted'
-    //      - Si NO tiene logs ni acceptedAt: debe ser 'pending' para requerir confirmación explícita
+    // Auto-migración y resolución rigurosa de estados de invitación en retos de usuarios:
+    // - Creador/Owner: siempre 'accepted'
+    // - Invitados (role === 'member'):
+    //   - Si ya tiene acceptedAt: 'accepted'
+    //   - Si ya tiene status 'declined': 'declined'
+    //   - Si ya tiene logs completados en challenge_logs: mantener 'accepted'
+    //   - Si NO tiene logs ni acceptedAt: debe ser 'pending' para requerir confirmación explícita
     const rawLogs = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.LOGS) : null;
     const allLogs: any[] = rawLogs ? JSON.parse(rawLogs) : [];
 
     members = members.map((m) => {
       const ch = allChallenges.find((c) => c.id === m.challengeId);
       const isCreator = ch?.createdBy === m.userId || m.role === 'owner';
-      const isDemo = m.challengeId === 'ch-gym-30d';
 
-      if (isDemo || isCreator) {
+      if (isCreator) {
         if (m.status !== 'accepted') {
           migrated = true;
           return { ...m, status: 'accepted' as ChallengeMemberStatus };
@@ -727,16 +626,6 @@ export function getLocalChallengeMembers(challengeId?: string): ChallengeMember[
 
       return m;
     });
-
-    // Asegurar que los miembros del sistema tengan su fila en ch-gym-30d
-    if (!members.some((m) => m.challengeId === 'ch-gym-30d' && m.userId === 'user-alex')) {
-      members.push({ id: 'cm-ch-gym-alex', challengeId: 'ch-gym-30d', userId: 'user-alex', role: 'member', status: 'accepted', joinedAt: '2026-09-01' });
-      migrated = true;
-    }
-    if (!members.some((m) => m.challengeId === 'ch-gym-30d' && m.userId === 'user-beatriz')) {
-      members.push({ id: 'cm-ch-gym-beatriz', challengeId: 'ch-gym-30d', userId: 'user-beatriz', role: 'member', status: 'accepted', joinedAt: '2026-09-01' });
-      migrated = true;
-    }
 
     if (migrated) {
       localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
@@ -1047,19 +936,22 @@ export function getLocalChallengeHabits(challengeId?: string): ChallengeHabit[] 
       localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(habits));
     }
 
+    habits = habits.filter((h) => !LEGACY_DELETED_DEMO_IDS.includes(h.challengeId));
+
     if (challengeId) {
       return habits.filter((h) => h.challengeId === challengeId);
     }
     return habits;
   } catch {
-    return DEFAULT_CHALLENGE_HABITS;
+    return [];
   }
 }
 
 export function saveLocalChallengeHabits(habits: ChallengeHabit[]): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(habits));
+    const filtered = habits.filter((h) => !LEGACY_DELETED_DEMO_IDS.includes(h.challengeId));
+    localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(filtered));
     notifySync('challenges');
   } catch (e) {
     console.error('Error guardando challenge habits:', e);
@@ -1111,19 +1003,7 @@ export function getLocalChallengeLogs(challengeId?: string): ChallengeLog[] {
       localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
     }
 
-    // Auto-migración de logs de octubre a septiembre
-    let migrated = false;
-    logs = logs.map((l) => {
-      if (l.challengeId === 'ch-gym-30d' && l.dateKey.startsWith('2026-10-')) {
-        migrated = true;
-        return { ...l, dateKey: l.dateKey.replace('2026-10-', '2026-09-') };
-      }
-      return l;
-    });
-
-    if (migrated) {
-      localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
-    }
+    logs = logs.filter((l) => !LEGACY_DELETED_DEMO_IDS.includes(l.challengeId));
 
     if (challengeId) {
       return logs.filter((l) => l.challengeId === challengeId);
@@ -1140,6 +1020,7 @@ export function saveLocalChallengeLogs(logs: ChallengeLog[]): void {
     // Deduplicación estricta por (challengeId, userId, dateKey)
     const uniqueMap = new Map<string, ChallengeLog>();
     logs.forEach((l) => {
+      if (LEGACY_DELETED_DEMO_IDS.includes(l.challengeId)) return;
       const dedupeKey = `${l.challengeId}_${l.userId}_${l.dateKey}`;
       const existing = uniqueMap.get(dedupeKey);
       if (!existing || l.status === 'completed') {
@@ -1786,13 +1667,12 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           const local = localMap.get(m.id);
           const ch = localChallengesMap.get(m.challenge_id);
           const isCreator = ch?.createdBy === m.user_id || m.role === 'owner';
-          const isDemo = m.challenge_id === 'ch-gym-30d';
           const hasCompletedLogs = allLogs.some(
             (l) => l.challengeId === m.challenge_id && l.userId === m.user_id && l.status === 'completed'
           );
 
           let resolvedStatus: ChallengeMemberStatus;
-          if (isCreator || isDemo) {
+          if (isCreator) {
             resolvedStatus = 'accepted';
           } else if (m.status === 'accepted' || local?.status === 'accepted' || hasCompletedLogs) {
             resolvedStatus = 'accepted';

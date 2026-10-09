@@ -38,6 +38,7 @@ import {
   syncCloudChallenges,
   getChallengeCloudSyncStatus,
   ChallengeCloudSyncStatus,
+  LEGACY_DELETED_DEMO_IDS,
 } from '@/lib/challengeStorage';
 import {
   getChallengeDays,
@@ -86,9 +87,9 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
   const [selectedChallengeId, setSelectedChallengeId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const saved = getLastSelectedChallengeId();
-      if (saved) return saved;
+      if (saved && !LEGACY_DELETED_DEMO_IDS.includes(saved)) return saved;
     }
-    return 'ch-gym-30d';
+    return '';
   });
   const [members, setMembers] = useState<ChallengeMember[]>([]);
   const [habits, setHabits] = useState<ChallengeHabit[]>([]);
@@ -132,7 +133,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     // Asegurar que haya un reto seleccionado válido y priorizar el guardado por el usuario
     if (loadedChallenges.length > 0) {
       const savedId = getLastSelectedChallengeId();
-      if (savedId && loadedChallenges.some((c) => c.id === savedId)) {
+      if (savedId && loadedChallenges.some((c) => c.id === savedId) && !LEGACY_DELETED_DEMO_IDS.includes(savedId)) {
         if (selectedChallengeId !== savedId) {
           setSelectedChallengeId(savedId);
         }
@@ -141,6 +142,8 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
         setSelectedChallengeId(validId);
         saveLastSelectedChallengeId(validId);
       }
+    } else {
+      setSelectedChallengeId('');
     }
   }, [selectedChallengeId]);
 
@@ -149,13 +152,13 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
     syncCloudChallenges().then((cloudList) => {
       loadChallengeData();
       // Si el usuario en este navegador nuevo / incógnito no tenía selección previa guardada,
-      // y la nube trajo retos personalizados (distintos al placeholder default), seleccionar el más reciente.
+      // seleccionar el primer reto válido disponible de la nube.
       const saved = getLastSelectedChallengeId();
-      if (!saved && cloudList && cloudList.length > 0) {
-        const customChallenge = cloudList.find((c) => c.id !== 'ch-gym-30d') || cloudList[0];
-        if (customChallenge) {
-          setSelectedChallengeId(customChallenge.id);
-          saveLastSelectedChallengeId(customChallenge.id);
+      if ((!saved || LEGACY_DELETED_DEMO_IDS.includes(saved)) && cloudList && cloudList.length > 0) {
+        const validChallenge = cloudList.find((c) => !LEGACY_DELETED_DEMO_IDS.includes(c.id));
+        if (validChallenge) {
+          setSelectedChallengeId(validChallenge.id);
+          saveLastSelectedChallengeId(validChallenge.id);
         }
       }
     });
