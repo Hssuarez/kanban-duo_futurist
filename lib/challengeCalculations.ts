@@ -161,13 +161,17 @@ export function calculateMemberCompliance(
 
   // Mapa rápido de logs del miembro para este reto
   const memberLogSet = new Set<string>();
+  const completedHabitCheckSet = new Set<string>();
   logs.forEach((l) => {
     if (l.challengeId === challenge.id && l.userId === member.userId && l.status === 'completed') {
       memberLogSet.add(`${l.challengeHabitId}_${l.dateKey}`);
       // Indexar también por dateKey para matching infalible de check-ins del reto
       memberLogSet.add(l.dateKey);
+      completedHabitCheckSet.add(`${l.challengeHabitId || 'h'}_${l.dateKey}`);
     }
   });
+
+  const points = completedHabitCheckSet.size;
 
   const habitsToTrack = challengeHabits.length > 0 ? challengeHabits : [{ id: 'default', challengeId: challenge.id, title: 'Hábito', icon: '🎯', displayOrder: 1, createdAt: '' }];
 
@@ -240,6 +244,7 @@ export function calculateMemberCompliance(
     bestStreak,
     rankPosition: 1,
     isTied: false,
+    points,
   };
 }
 
@@ -321,10 +326,12 @@ export function calculateChallengeLeaderboard(
 
   // Ordenamiento determinístico:
   // 1º Porcentaje desc
-  // 2º Racha activa desc
-  // 3º Mejor racha desc
+  // 2º Puntos desc
+  // 3º Racha activa desc
+  // 4º Mejor racha desc
   complianceList.sort((a, b) => {
     if (b.percentage !== a.percentage) return b.percentage - a.percentage;
+    if (b.points !== a.points) return b.points - a.points;
     if (b.currentStreak !== a.currentStreak) return b.currentStreak - a.currentStreak;
     return b.bestStreak - a.bestStreak;
   });
@@ -339,6 +346,7 @@ export function calculateChallengeLeaderboard(
       const curr = complianceList[i];
       const isExactTie =
         prev.percentage === curr.percentage &&
+        prev.points === curr.points &&
         prev.currentStreak === curr.currentStreak &&
         prev.bestStreak === curr.bestStreak;
 

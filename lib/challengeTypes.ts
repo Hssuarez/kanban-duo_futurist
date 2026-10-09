@@ -103,6 +103,7 @@ export interface ChallengeMemberCompliance {
   bestStreak: number;          // Mejor racha en el reto
   rankPosition: number;        // 1, 2, 3... (empates reciben el mismo número)
   isTied: boolean;             // True si comparte la posición con otro participante
+  points: number;              // Total de checks completados en el reto (1 check = 1 punto exacto)
 }
 
 // Resumen analítico global del reto (KPIs para cabecera HUD)

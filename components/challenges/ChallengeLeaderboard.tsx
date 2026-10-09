@@ -8,7 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   Handshake,
-  Check,
+  Star,
   Zap,
   ShieldCheck,
   Target,
@@ -25,38 +25,70 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
   leaderboard,
 }) => {
   const isCompetitive = challenge.mode === 'competitive';
-  const [sortBy, setSortBy] = useState<'compliance' | 'streak' | 'completed'>('compliance');
-  const [isSortOpen, setIsSortOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<'compliance' | 'points' | 'streak'>('compliance');
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
 
-  // Ordenar lista según criterio seleccionado
+  // Máximo puntaje y racha para normalizar barras de progreso visuales
+  const maxPoints = useMemo(
+    () => Math.max(...leaderboard.map((m) => m.points || 0), 1),
+    [leaderboard]
+  );
+  const maxStreak = useMemo(
+    () => Math.max(...leaderboard.map((m) => m.currentStreak || 0), 1),
+    [leaderboard]
+  );
+
+  // Ordenar lista según criterio seleccionado con cálculo determinístico de posiciones
   const sortedLeaderboard = useMemo(() => {
     const list = [...leaderboard];
     if (sortBy === 'compliance') {
-      list.sort((a, b) => b.percentage - a.percentage || b.currentStreak - a.currentStreak);
+      list.sort(
+        (a, b) =>
+          b.percentage - a.percentage ||
+          b.points - a.points ||
+          b.currentStreak - a.currentStreak
+      );
+    } else if (sortBy === 'points') {
+      list.sort(
+        (a, b) =>
+          b.points - a.points ||
+          b.percentage - a.percentage ||
+          b.currentStreak - a.currentStreak
+      );
     } else if (sortBy === 'streak') {
-      list.sort((a, b) => b.currentStreak - a.currentStreak || b.percentage - a.percentage);
-    } else if (sortBy === 'completed') {
-      list.sort((a, b) => b.completedDays - a.completedDays || b.percentage - a.percentage);
+      list.sort(
+        (a, b) =>
+          b.currentStreak - a.currentStreak ||
+          b.points - a.points ||
+          b.percentage - a.percentage
+      );
     }
 
-    return list.map((item, idx) => ({
-      ...item,
-      rankPosition: idx + 1,
-    }));
+    let curRank = 1;
+    return list.map((item, idx) => {
+      if (idx > 0) {
+        const prev = list[idx - 1];
+        const isTied =
+          sortBy === 'points'
+            ? prev.points === item.points
+            : sortBy === 'streak'
+            ? prev.currentStreak === item.currentStreak
+            : prev.percentage === item.percentage;
+        if (!isTied) {
+          curRank = idx + 1;
+        }
+      }
+      return {
+        ...item,
+        rankPosition: curRank,
+      };
+    });
   }, [leaderboard, sortBy]);
-
-  const sortLabel =
-    sortBy === 'compliance'
-      ? 'Por cumplimiento'
-      : sortBy === 'streak'
-      ? 'Por racha'
-      : 'Por check-ins';
 
   return (
     <div className="bg-[#070c18]/80 backdrop-blur-xl border border-white/[0.08] hover:border-cyan-500/25 rounded-2xl p-4 sm:p-5 shadow-sm transition-colors flex flex-col font-sans relative">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.06]">
+      {/* Header con Pestañas Cyberpunk */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
           {isCompetitive ? (
             <Trophy className="w-4 h-4 text-amber-400" />
@@ -68,66 +100,46 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
           </h4>
         </div>
 
-        {/* Dropdown de ordenamiento interactivo */}
-        <div className="relative">
+        {/* Pestañas de Ordenamiento Cyberpunk */}
+        <div className="flex items-center gap-1 bg-zinc-950/80 p-0.5 sm:p-1 rounded-xl border border-white/[0.08] text-[11px] font-mono self-start sm:self-auto">
           <button
             type="button"
-            onClick={() => setIsSortOpen((prev) => !prev)}
-            className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 px-2.5 py-1 rounded-lg border border-white/[0.08] transition-colors cursor-pointer"
+            onClick={() => setSortBy('compliance')}
+            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+              sortBy === 'compliance'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
+            }`}
           >
-            <span>{sortLabel}</span>
-            <ChevronDown className="w-3 h-3 text-cyan-400" />
+            <Trophy className="w-3.5 h-3.5 text-cyan-400" />
+            <span>% Éxito</span>
           </button>
 
-          {isSortOpen && (
-            <div className="absolute right-0 top-full mt-1.5 w-44 bg-zinc-950 border border-white/[0.1] rounded-xl shadow-xl z-30 p-1 font-mono text-xs animate-fade-in">
-              <button
-                type="button"
-                onClick={() => {
-                  setSortBy('compliance');
-                  setIsSortOpen(false);
-                }}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors ${
-                  sortBy === 'compliance'
-                    ? 'bg-cyan-950/60 text-cyan-300 font-bold'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                }`}
-              >
-                <span>Cumplimiento (%)</span>
-                {sortBy === 'compliance' && <Check className="w-3 h-3 text-cyan-400" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSortBy('streak');
-                  setIsSortOpen(false);
-                }}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors ${
-                  sortBy === 'streak'
-                    ? 'bg-cyan-950/60 text-cyan-300 font-bold'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                }`}
-              >
-                <span>Racha activa</span>
-                {sortBy === 'streak' && <Check className="w-3 h-3 text-cyan-400" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSortBy('completed');
-                  setIsSortOpen(false);
-                }}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors ${
-                  sortBy === 'completed'
-                    ? 'bg-cyan-950/60 text-cyan-300 font-bold'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                }`}
-              >
-                <span>Check-ins totales</span>
-                {sortBy === 'completed' && <Check className="w-3 h-3 text-cyan-400" />}
-              </button>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setSortBy('points')}
+            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+              sortBy === 'points'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
+            }`}
+          >
+            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+            <span>Puntos</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSortBy('streak')}
+            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+              sortBy === 'streak'
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold shadow-[0_0_10px_rgba(244,63,94,0.2)]'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 text-rose-400" />
+            <span>Racha</span>
+          </button>
         </div>
       </div>
 
@@ -154,10 +166,27 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
             }
           }
 
-          // Gradiente de barra
+          // Normalización de barras según modo
+          const pointsBarPercent = Math.min(100, Math.round(((item.points || 0) / maxPoints) * 100));
+          const streakBarPercent = Math.min(100, Math.round(((item.currentStreak || 0) / maxStreak) * 100));
+
+          // Gradiente de barra dinámico
           let barGradient = 'from-cyan-500 to-emerald-400';
-          if (item.percentage < 75) barGradient = 'from-amber-500 to-cyan-400';
-          if (item.percentage < 60) barGradient = 'from-rose-500 to-amber-400';
+          if (sortBy === 'points') {
+            barGradient = 'from-amber-500 via-amber-400 to-yellow-300';
+          } else if (sortBy === 'streak') {
+            barGradient = 'from-rose-500 to-amber-400';
+          } else {
+            if (item.percentage < 75) barGradient = 'from-amber-500 to-cyan-400';
+            if (item.percentage < 60) barGradient = 'from-rose-500 to-amber-400';
+          }
+
+          const currentBarPercent =
+            sortBy === 'points'
+              ? pointsBarPercent
+              : sortBy === 'streak'
+              ? streakBarPercent
+              : item.percentage;
 
           return (
             <div
@@ -207,15 +236,17 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
                         </span>
 
                         {/* Cyberpunk Dynamic Badges */}
-                        {item.rankPosition === 1 && item.percentage > 0 && isCompetitive && (
-                          <span
-                            className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0"
-                            title="Líder del Reto"
-                          >
-                            <Zap className="w-2.5 h-2.5 fill-amber-300" />
-                            <span>Líder</span>
-                          </span>
-                        )}
+                        {item.rankPosition === 1 &&
+                          (sortBy === 'points' ? item.points > 0 : item.percentage > 0) &&
+                          isCompetitive && (
+                            <span
+                              className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0"
+                              title="Líder del Reto"
+                            >
+                              <Zap className="w-2.5 h-2.5 fill-amber-300" />
+                              <span>Líder</span>
+                            </span>
+                          )}
 
                         {item.percentage === 100 && item.completedDays > 0 && (
                           <span
@@ -228,40 +259,101 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
                         )}
                       </div>
 
-                      <span className="text-xs font-mono font-bold text-cyan-300 ml-2">
-                        {item.percentage}%
-                      </span>
+                      <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                        {sortBy === 'points' ? (
+                          <span className="text-xs font-mono font-bold text-amber-300 flex items-center gap-1">
+                            <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                            {item.points} <span className="text-[10px] text-amber-500/80 font-normal">PTS</span>
+                          </span>
+                        ) : sortBy === 'streak' ? (
+                          <span className="text-xs font-mono font-bold text-rose-300 flex items-center gap-1">
+                            <Flame className="w-3 h-3 text-rose-400" />
+                            {item.currentStreak} <span className="text-[10px] text-rose-500/80 font-normal">días</span>
+                          </span>
+                        ) : (
+                          <span className="text-xs font-mono font-bold text-cyan-300">
+                            {item.percentage}%
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Progress bar */}
                     <div className="w-full h-1.5 rounded-full bg-zinc-900 overflow-hidden">
                       <div
                         className={`h-full rounded-full bg-gradient-to-r ${barGradient} transition-all duration-500`}
-                        style={{ width: `${item.percentage}%` }}
+                        style={{ width: `${currentBarPercent}%` }}
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Right: Streak & Chevron */}
+                {/* Right: Métricas secundarias y Chevron */}
                 <div className="flex items-center gap-2 shrink-0">
-                  <div
-                    className={`flex items-center gap-1 font-mono text-xs font-bold px-1.5 py-0.5 rounded-md ${
-                      item.currentStreak >= 7
-                        ? 'text-amber-300 bg-amber-950/50 border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.25)]'
-                        : 'text-zinc-400'
-                    }`}
-                    title={`Racha actual: ${item.currentStreak} días (Mejor: ${item.bestStreak}d)`}
-                  >
-                    <Flame
-                      className={`w-3.5 h-3.5 ${
-                        item.currentStreak > 0
-                          ? 'text-amber-400 fill-amber-400/30 animate-pulse'
-                          : 'text-zinc-600'
-                      }`}
-                    />
-                    <span>{item.currentStreak}</span>
-                  </div>
+                  {sortBy === 'points' ? (
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="hidden sm:flex items-center gap-1 font-mono text-[11px] text-cyan-300 bg-cyan-950/40 border border-cyan-500/20 px-1.5 py-0.5 rounded-md"
+                        title={`Efectividad: ${item.percentage}%`}
+                      >
+                        <span>{item.percentage}%</span>
+                      </div>
+                      <div
+                        className={`flex items-center gap-1 font-mono text-xs font-bold px-1.5 py-0.5 rounded-md ${
+                          item.currentStreak >= 7
+                            ? 'text-amber-300 bg-amber-950/50 border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.25)]'
+                            : 'text-zinc-400'
+                        }`}
+                        title={`Racha actual: ${item.currentStreak} días (Mejor: ${item.bestStreak}d)`}
+                      >
+                        <Flame
+                          className={`w-3.5 h-3.5 ${
+                            item.currentStreak > 0
+                              ? 'text-amber-400 fill-amber-400/30 animate-pulse'
+                              : 'text-zinc-600'
+                          }`}
+                        />
+                        <span>{item.currentStreak}</span>
+                      </div>
+                    </div>
+                  ) : sortBy === 'streak' ? (
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="flex items-center gap-1 font-mono text-[11px] text-amber-300 bg-amber-950/40 border border-amber-500/20 px-1.5 py-0.5 rounded-md"
+                        title={`Puntos acumulados: ${item.points} PTS`}
+                      >
+                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                        <span>{item.points}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="hidden sm:flex items-center gap-1 font-mono text-[11px] text-amber-300/90 bg-amber-950/30 border border-amber-500/20 px-1.5 py-0.5 rounded-md"
+                        title={`Puntos acumulados: ${item.points} PTS`}
+                      >
+                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                        <span>{item.points}</span>
+                      </div>
+                      <div
+                        className={`flex items-center gap-1 font-mono text-xs font-bold px-1.5 py-0.5 rounded-md ${
+                          item.currentStreak >= 7
+                            ? 'text-amber-300 bg-amber-950/50 border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.25)]'
+                            : 'text-zinc-400'
+                        }`}
+                        title={`Racha actual: ${item.currentStreak} días (Mejor: ${item.bestStreak}d)`}
+                      >
+                        <Flame
+                          className={`w-3.5 h-3.5 ${
+                            item.currentStreak > 0
+                              ? 'text-amber-400 fill-amber-400/30 animate-pulse'
+                              : 'text-zinc-600'
+                          }`}
+                        />
+                        <span>{item.currentStreak}</span>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="text-zinc-500 hover:text-cyan-300 transition-colors">
                     {isExpanded ? (
@@ -275,9 +367,17 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
 
               {/* Expanded Member Stats Breakdown */}
               {isExpanded && (
-                <div className="px-3 pb-3 pt-1 border-t border-white/[0.04] bg-black/40 text-[11px] font-mono grid grid-cols-3 gap-2 animate-fade-in">
+                <div className="px-3 pb-3 pt-1 border-t border-white/[0.04] bg-black/40 text-[11px] font-mono grid grid-cols-2 sm:grid-cols-4 gap-2 animate-fade-in">
                   <div className="bg-zinc-950/70 p-2 rounded-lg border border-white/[0.05]">
-                    <span className="text-zinc-500 block text-[9px] uppercase">Cumplidos</span>
+                    <span className="text-zinc-500 block text-[9px] uppercase">Puntos Totales</span>
+                    <span className="text-amber-300 font-bold flex items-center gap-1">
+                      <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                      {item.points} <span className="text-zinc-500 font-normal">pts</span>
+                    </span>
+                  </div>
+
+                  <div className="bg-zinc-950/70 p-2 rounded-lg border border-white/[0.05]">
+                    <span className="text-zinc-500 block text-[9px] uppercase">Días Cumplidos</span>
                     <span className="text-white font-bold">
                       {item.completedDays}{' '}
                       <span className="text-zinc-500 font-normal">/ {item.expectedDays}d</span>
