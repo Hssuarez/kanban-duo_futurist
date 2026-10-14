@@ -1056,19 +1056,10 @@ export async function syncCloudHabits(userId?: string): Promise<boolean> {
     }
     const { data: cloudHabits, error: hErr } = await habitsQuery;
 
-    // Auto-setup de tablas en Supabase si aún no existen (código PGRST205)
+    // Advertencia controlada si las tablas de Habit Core no existen en Supabase (PGRST205)
     if (hErr && (hErr.code === 'PGRST205' || hErr.message?.includes('schema cache'))) {
-      console.log('⚠️ Tablas de habit core ausentes en Supabase. Intentando auto-creación vía /api/setup-db...');
-      try {
-        const setupRes = await fetch('/api/setup-db', { method: 'POST' });
-        const setupData = await setupRes.json();
-        if (setupData.success) {
-          console.log('✅ Tablas creadas con éxito en Supabase. Reintentando sincronización...');
-          return syncCloudHabits(userId);
-        }
-      } catch (err) {
-        console.warn('Auto-setup error:', err);
-      }
+      console.warn('⚠️ Tablas de Habit Core ausentes o no disponibles en Supabase (PGRST205). Requiere ejecución de migraciones en servidor.');
+      return false;
     }
 
     // 2. Logs

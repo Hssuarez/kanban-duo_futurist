@@ -1,13 +1,70 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  return handleMigration();
+function isAuthorized(req: NextRequest): boolean {
+  const configuredSecret = (process.env.SETUP_DB_SECRET || process.env.CRON_SECRET || '').trim();
+  if (!configuredSecret) {
+    return false;
+  }
+
+  const authHeader = req.headers.get('authorization') || '';
+  const customHeader = req.headers.get('x-setup-secret') || '';
+  let providedSecret = '';
+
+  if (customHeader) {
+    providedSecret = customHeader.trim();
+  } else if (authHeader) {
+    const parts = authHeader.split(' ');
+    if (parts.length === 2 && /^Bearer$/i.test(parts[0])) {
+      providedSecret = parts[1].trim();
+    } else {
+      providedSecret = authHeader.trim();
+    }
+  }
+
+  if (!providedSecret) {
+    return false;
+  }
+
+  const configuredBuffer = Buffer.from(configuredSecret, 'utf8');
+  const providedBuffer = Buffer.from(providedSecret, 'utf8');
+
+  if (configuredBuffer.length !== providedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(configuredBuffer, providedBuffer);
 }
 
-export async function POST() {
+export async function GET() {
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Método no permitido. Este endpoint solo acepta peticiones POST autenticadas.',
+    },
+    {
+      status: 405,
+      headers: {
+        Allow: 'POST',
+      },
+    }
+  );
+}
+
+export async function POST(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Acceso no autorizado al endpoint de configuración.',
+      },
+      { status: 403 }
+    );
+  }
+
   return handleMigration();
 }
 
@@ -24,9 +81,6 @@ async function handleMigration() {
   const user = process.env.NEXT_PUBLIC_SUPABASE_POSTGRES_USER || process.env.POSTGRES_USER;
   const password = process.env.NEXT_PUBLIC_SUPABASE_POSTGRES_PASSWORD || process.env.POSTGRES_PASSWORD;
   const database = process.env.NEXT_PUBLIC_SUPABASE_POSTGRES_DATABASE || process.env.POSTGRES_DATABASE || 'postgres';
-
-  // Permitir certificados autofirmados / cadenas de Supabase en entorno serverless
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
   let pool: Pool;
   if (connString) {
@@ -50,8 +104,7 @@ async function handleMigration() {
     return NextResponse.json(
       {
         success: false,
-        error: 'No Postgres connection credentials available in environment',
-        detectedKeys: Object.keys(process.env).filter((k) => k.includes('POSTGRES') || k.includes('SUPABASE')),
+        error: 'No hay credenciales de conexión a Postgres disponibles en el servidor.',
       },
       { status: 500 }
     );
