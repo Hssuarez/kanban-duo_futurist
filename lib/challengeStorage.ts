@@ -38,29 +38,12 @@ export const LEGACY_DELETED_DEMO_IDS = [
   'ch-gym-30d',
 ];
 
-// Limpieza proactiva de lápidas antiguas y retos demo eliminados en cualquier sesión/navegador
+// Limpieza segura de claves transitorias de versiones anteriores
 if (typeof window !== 'undefined') {
   try {
     localStorage.removeItem('kanban_duo_deleted_challenge_log_keys_v1');
-    const delRaw = localStorage.getItem(STORAGE_KEYS.DELETED_IDS);
-    const deleted: string[] = delRaw ? JSON.parse(delRaw) : [];
-    if (!deleted.includes('ch-gym-30d')) {
-      deleted.push('ch-gym-30d');
-      localStorage.setItem(STORAGE_KEYS.DELETED_IDS, JSON.stringify(deleted));
-    }
-    // Purgar ch-gym-30d si estaba almacenado en kanban_duo_challenges_v2
-    const chRaw = localStorage.getItem(STORAGE_KEYS.CHALLENGES);
-    if (chRaw) {
-      const chs: Challenge[] = JSON.parse(chRaw);
-      const filtered = chs.filter((c) => !LEGACY_DELETED_DEMO_IDS.includes(c.id));
-      if (filtered.length !== chs.length) {
-        localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(filtered));
-      }
-    }
-    // Si ch-gym-30d estaba guardado como último seleccionado, limpiarlo
-    if (localStorage.getItem(STORAGE_KEYS.LAST_SELECTED) === 'ch-gym-30d') {
-      localStorage.removeItem(STORAGE_KEYS.LAST_SELECTED);
-    }
+    localStorage.removeItem('kanban_duo_challenges');
+    localStorage.removeItem('kanban_duo_challenges_v1');
   } catch {}
 }
 
@@ -376,6 +359,8 @@ export function getLocalChallenges(): Challenge[] {
             localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(challenges));
           }
         }
+        localStorage.removeItem('kanban_duo_challenges');
+        localStorage.removeItem('kanban_duo_challenges_v1');
       } catch (e) {
         console.warn('Error migrando retos legacy:', e);
       }
@@ -1017,11 +1002,11 @@ export function getLocalChallengeLogs(challengeId?: string): ChallengeLog[] {
 export function saveLocalChallengeLogs(logs: ChallengeLog[]): void {
   if (typeof window === 'undefined') return;
   try {
-    // Deduplicación estricta por (challengeId, userId, dateKey)
+    // Deduplicación estricta por (challengeId, challengeHabitId, userId, dateKey)
     const uniqueMap = new Map<string, ChallengeLog>();
     logs.forEach((l) => {
       if (LEGACY_DELETED_DEMO_IDS.includes(l.challengeId)) return;
-      const dedupeKey = `${l.challengeId}_${l.userId}_${l.dateKey}`;
+      const dedupeKey = `${l.challengeId}_${l.challengeHabitId || 'h'}_${l.userId}_${l.dateKey}`;
       const existing = uniqueMap.get(dedupeKey);
       if (!existing || l.status === 'completed') {
         uniqueMap.set(dedupeKey, l);
@@ -1051,9 +1036,13 @@ export async function toggleChallengeLog(
 
   const currentLogs = getLocalChallengeLogs();
 
-  // Búsqueda exhaustiva por reto, usuario y fecha para eliminar duplicados o discrepancias de habitId
+  // Búsqueda específica por reto, hábito concreto, usuario y fecha
   const matchingLogs = currentLogs.filter(
-    (l) => l.challengeId === challengeId && l.userId === userId && l.dateKey === dateKey
+    (l) =>
+      l.challengeId === challengeId &&
+      (l.challengeHabitId === challengeHabitId || (!l.challengeHabitId && !challengeHabitId)) &&
+      l.userId === userId &&
+      l.dateKey === dateKey
   );
   const isCurrentlyCompleted = matchingLogs.some((l) => l.status === 'completed') || matchingLogs.length > 0;
 
@@ -1061,20 +1050,26 @@ export async function toggleChallengeLog(
   let newStatus: HabitLogStatus | 'removed';
 
   if (isCurrentlyCompleted) {
-    // ACCIÓN: DESMARCAR (Eliminación definitiva)
+    // ACCIÓN: DESMARCAR (Eliminación definitiva de este hábito específico)
     newStatus = 'removed';
     const removedIds = matchingLogs.map((l) => l.id);
 
-    // 1. Filtrar localmente de inmediato
+    // 1. Filtrar localmente de inmediato conservando los demás hábitos del mismo día
     const remainingLogs = currentLogs.filter(
-      (l) => !(l.challengeId === challengeId && l.userId === userId && l.dateKey === dateKey)
+      (l) =>
+        !(
+          l.challengeId === challengeId &&
+          (l.challengeHabitId === challengeHabitId || (!l.challengeHabitId && !challengeHabitId)) &&
+          l.userId === userId &&
+          l.dateKey === dateKey
+        )
     );
     saveLocalChallengeLogs(remainingLogs);
 
     // 2. Limpiar de la cola pendiente si estaba
     removedIds.forEach((id) => removePendingUploadLogId(id));
 
-    // 3. Purgar de Supabase (por ID exacto y por combinación reto/usuario/fecha)
+    // 3. Purgar de Supabase solo este hábito específico
     const client = await getOrInitSupabase();
     if (client) {
       try {
@@ -1085,6 +1080,7 @@ export async function toggleChallengeLog(
           .from('challenge_logs')
           .delete()
           .eq('challenge_id', challengeId)
+          .eq('challenge_habit_id', challengeHabitId)
           .eq('user_id', userId)
           .eq('date_key', dateKey);
       } catch (e) {
@@ -1544,23 +1540,7 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
     };
 
     if (cloudChallenges) {
-      // 1.1. Si Supabase tiene algún reto que fue eliminado en este dispositivo o es un demo legacy eliminado, purgarlo de la base de datos
-      const idsToPurgeFromCloud = Array.from(new Set([...deletedIds, ...LEGACY_DELETED_DEMO_IDS]));
-      for (const delId of idsToPurgeFromCloud) {
-        if (cloudChallenges.some((c: any) => c.id === delId)) {
-          console.log('🗑️ Purgando de Supabase reto eliminado:', delId);
-          try {
-            await client.from('challenge_logs').delete().eq('challenge_id', delId);
-            await client.from('challenge_habits').delete().eq('challenge_id', delId);
-            await client.from('challenge_members').delete().eq('challenge_id', delId);
-            await client.from('challenge_goals').delete().eq('challenge_id', delId);
-            await client.from('challenge_activities').delete().eq('challenge_id', delId);
-            await client.from('challenges').delete().eq('id', delId);
-          } catch (e) {
-            console.warn('Error purgando reto eliminado de Supabase:', e);
-          }
-        }
-      }
+      // 1.1. Mapear los retos válidos que existen en Supabase (sin purgas destructivas automáticas)
 
       // 1.2. Mapear los retos válidos que existen en Supabase
       const validCloud = cloudChallenges.filter(

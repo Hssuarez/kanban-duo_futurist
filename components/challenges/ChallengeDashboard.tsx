@@ -709,9 +709,9 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
 
           {/* 3. Main Workspace Grid: Matrix (Protagonist) + Leaderboard & Feed */}
           {currentSubTab === 'matrix' && (
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-5 items-start">
-              {/* Left Column (3/4): Consistency Matrix + Daily Progress + Goals & Tasks */}
-              <div className="xl:col-span-3 space-y-5 min-w-0">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+              {/* Left Column: Consistency Matrix + Daily Progress + Goals & Tasks */}
+              <div className="xl:col-span-7 2xl:col-span-8 space-y-5 min-w-0">
                 {/* HERO PROTAGONIST: Matriz de Consistencia Multi-Usuario */}
                 <ChallengeMatrix
                   challenge={currentChallenge}
@@ -757,8 +757,8 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Right Column (1/4): Leaderboard + Live Feed + Weekly Progress */}
-              <div className="xl:col-span-1 space-y-5 min-w-0">
+              {/* Right Column: Leaderboard + Live Feed + Weekly Progress */}
+              <div className="xl:col-span-5 2xl:col-span-4 space-y-5 min-w-0">
                 {/* Leaderboard Configurable (Competitivo / Colaborativo) */}
                 <ChallengeLeaderboard
                   challenge={currentChallenge}
