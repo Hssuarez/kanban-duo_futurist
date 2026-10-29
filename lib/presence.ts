@@ -10,13 +10,17 @@ const listeners = new Set<(onlineIds: string[]) => void>();
 // Local BroadcastChannel so tabs on the same browser also sync presence in real time
 let localPresenceChannel: BroadcastChannel | null = null;
 if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-  localPresenceChannel = new BroadcastChannel('kanban_presence_local_v1');
-  localPresenceChannel.addEventListener('message', (event) => {
-    if (event.data?.type === 'presence_sync' && Array.isArray(event.data.onlineIds)) {
-      event.data.onlineIds.forEach((id: string) => onlineUserIds.add(id));
-      notifyListeners();
-    }
-  });
+  try {
+    localPresenceChannel = new BroadcastChannel('kanban_presence_local_v1');
+    localPresenceChannel.addEventListener('message', (event) => {
+      if (event.data?.type === 'presence_sync' && Array.isArray(event.data.onlineIds)) {
+        event.data.onlineIds.forEach((id: string) => onlineUserIds.add(id));
+        notifyListeners();
+      }
+    });
+  } catch {
+    localPresenceChannel = null;
+  }
 }
 
 function notifyListeners() {

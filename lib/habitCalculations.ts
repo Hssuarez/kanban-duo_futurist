@@ -13,21 +13,37 @@ import {
   WeekCompliance,
 } from './habitTypes';
 
-// Formato YYYY-MM-DD en zona horaria America/Bogota
+// Formato YYYY-MM-DD en zona horaria America/Bogota (compatible con todas las versiones de iOS WebKit)
 export function getBogotaToday(): string {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Bogota',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  return formatter.format(new Date());
+  const now = new Date();
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = formatter.formatToParts(now);
+    const year = parts.find((p) => p.type === 'year')?.value;
+    const month = parts.find((p) => p.type === 'month')?.value;
+    const day = parts.find((p) => p.type === 'day')?.value;
+    if (year && month && day) {
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+  } catch {}
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 // Obtener año y mes actual en Bogotá [YYYY, MM (1-12)]
 export function getBogotaYearMonth(): [number, number] {
   const today = getBogotaToday();
-  const [y, m] = today.split('-').map(Number);
+  const parts = today.split('-').map(Number);
+  const now = new Date();
+  const y = Number.isFinite(parts[0]) && parts[0] > 2000 ? parts[0] : now.getFullYear();
+  const m = Number.isFinite(parts[1]) && parts[1] >= 1 && parts[1] <= 12 ? parts[1] : now.getMonth() + 1;
   return [y, m];
 }
 

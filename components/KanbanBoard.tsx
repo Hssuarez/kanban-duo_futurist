@@ -108,10 +108,17 @@ export const KanbanBoard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    initializeDefaultUsers().then(() => {
-      refreshData();
-      setMounted(true);
-    });
+    refreshData();
+    setMounted(true);
+
+    initializeDefaultUsers()
+      .catch((err) => {
+        console.warn('Error inicializando datos por defecto:', err);
+      })
+      .finally(() => {
+        refreshData();
+        setMounted(true);
+      });
 
     const unsubscribe = subscribeToSync((_type) => {
       refreshData();
@@ -124,7 +131,7 @@ export const KanbanBoard: React.FC = () => {
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // Don't capture when typing in inputs/textareas unless Ctrl+K is explicitly pressed
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if ((e.metaKey || e.ctrlKey) && typeof e.key === 'string' && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
       }

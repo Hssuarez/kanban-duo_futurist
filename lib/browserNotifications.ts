@@ -6,22 +6,35 @@
 export type BrowserNotificationStatus = 'granted' | 'denied' | 'default' | 'unsupported';
 
 export function isBrowserNotificationSupported(): boolean {
-  return typeof window !== 'undefined' && 'Notification' in window;
+  try {
+    return typeof window !== 'undefined' && 'Notification' in window && typeof window.Notification !== 'undefined';
+  } catch {
+    return false;
+  }
 }
 
 export function getBrowserNotificationPermission(): BrowserNotificationStatus {
   if (!isBrowserNotificationSupported()) return 'unsupported';
-  return Notification.permission;
+  try {
+    return Notification.permission || 'default';
+  } catch {
+    return 'unsupported';
+  }
 }
 
 export async function requestBrowserNotificationPermission(): Promise<BrowserNotificationStatus> {
   if (!isBrowserNotificationSupported()) return 'unsupported';
   try {
+    if (typeof Notification.requestPermission !== 'function') return 'unsupported';
     const permission = await Notification.requestPermission();
     return permission;
   } catch (err) {
     console.error('Error requesting notification permission:', err);
-    return Notification.permission || 'denied';
+    try {
+      return Notification.permission || 'denied';
+    } catch {
+      return 'denied';
+    }
   }
 }
 

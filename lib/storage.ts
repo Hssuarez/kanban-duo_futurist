@@ -312,7 +312,11 @@ const STORAGE_KEYS = {
 // Broadcast Channel for live multi-tab and local in-tab sync
 let syncChannel: BroadcastChannel | null = null;
 if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-  syncChannel = new BroadcastChannel('kanban_duo_channel_v2');
+  try {
+    syncChannel = new BroadcastChannel('kanban_duo_channel_v2');
+  } catch {
+    syncChannel = null;
+  }
 }
 
 const localListeners = new Set<(type: string) => void>();
@@ -338,11 +342,15 @@ export function subscribeToSync(callback: (type: string) => void) {
     }
   };
   if (syncChannel) {
-    syncChannel.addEventListener('message', handler);
+    try {
+      syncChannel.addEventListener('message', handler);
+    } catch {}
   }
   return () => {
     localListeners.delete(callback);
-    syncChannel?.removeEventListener('message', handler);
+    try {
+      syncChannel?.removeEventListener('message', handler);
+    } catch {}
   };
 }
 
@@ -368,11 +376,11 @@ export async function syncCloudUsers(): Promise<User[]> {
         const local = currentUsers.find((lu) => lu.id === u.id);
         return {
           id: u.id,
-          name: u.name,
-          email: u.email,
+          name: u.name || 'Usuario',
+          email: u.email || '',
           avatar: u.avatar || '',
           color: u.color || '#3b82f6',
-          role: u.role as UserRole,
+          role: (u.role as UserRole) || 'member',
           passwordHash: u.password_hash || '',
           isActive: u.is_active ?? true,
           createdAt: u.created_at || new Date().toISOString(),
@@ -387,13 +395,14 @@ export async function syncCloudUsers(): Promise<User[]> {
       const secLogs = getSecurityLogs();
       mapped.forEach((user) => {
         if (!user.lastLoginIp || !user.lastLoginDevice) {
+          const safeUserName = (user.name || '').toLowerCase();
           const userLog = secLogs.find(
             (l) =>
               (l.adminId === user.id ||
                 l.targetUserId === user.id ||
-                (l.adminName && l.adminName.toLowerCase().includes(user.name.toLowerCase()))) &&
+                (l.adminName && safeUserName && l.adminName.toLowerCase().includes(safeUserName))) &&
               (l.ip || l.deviceName) &&
-              l.action.toLowerCase().includes('inicio')
+              Boolean(l.action && l.action.toLowerCase().includes('inicio'))
           );
           if (userLog) {
             if (!user.lastLoginIp && userLog.ip) user.lastLoginIp = userLog.ip;

@@ -188,7 +188,11 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
         markerElevation: 0.015,
       };
 
-      globe = createGlobe(canvasRef.current, options);
+      try {
+        globe = createGlobe(canvasRef.current, options);
+      } catch {
+        globe = null;
+      }
 
       // 60FPS WebGL Render Loop with Clean Single-Arc Luminous Tracing & Pinpoint Star Sparks
       const render = () => {
@@ -285,17 +289,21 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
         }
 
         if (globe) {
-          globe.update({
-            phi: currentPhi + smoothNudge,
-            arcs: dynamicArcs,
-            markers: dynamicMarkers,
-          });
+          try {
+            globe.update({
+              phi: currentPhi + smoothNudge,
+              arcs: dynamicArcs,
+              markers: dynamicMarkers,
+            });
+          } catch {}
         }
 
         animationFrameId = requestAnimationFrame(render);
       };
 
-      animationFrameId = requestAnimationFrame(render);
+      if (globe) {
+        animationFrameId = requestAnimationFrame(render);
+      }
     }
 
     return () => {
@@ -304,7 +312,9 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
         cancelAnimationFrame(animationFrameId);
       }
       if (globe) {
-        globe.destroy();
+        try {
+          globe.destroy();
+        } catch {}
       }
     };
   }, []);
@@ -325,13 +335,16 @@ export const Globe: React.FC<GlobeProps> = ({ className = '', mousePosition }) =
         }}
       />
 
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full aspect-square pointer-events-none relative z-0"
-        style={{
-          contain: 'layout paint size',
-        }}
-      />
+      {/* Dedicated wrapper for cobe DOM reparenting so React reconciliation never conflicts */}
+      <div className="w-full h-full relative flex items-center justify-center pointer-events-none z-0">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full aspect-square pointer-events-none relative z-0"
+          style={{
+            contain: 'layout paint size',
+          }}
+        />
+      </div>
     </div>
   );
 };

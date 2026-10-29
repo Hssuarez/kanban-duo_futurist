@@ -210,10 +210,14 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [drawPackets]);
 
+  const midX = (binaryParams.containerWidth || 1200) / 2;
+  const midY = (binaryParams.containerHeight || 750) / 2;
+
   // Generador de arcos SVG según capa ('back': arco superior Y<=0, 'front': arco inferior Y>0, 'all': elipse completa)
   const renderTrackArc = (
     key: string,
-    centerXStr: string,
+    cxNum: number,
+    cyNum: number,
     rx: number,
     ry: number,
     strokeGrad: string,
@@ -229,8 +233,8 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
       return (
         <g key={key}>
           <ellipse
-            cx={centerXStr}
-            cy="50%"
+            cx={cxNum}
+            cy={cyNum}
             rx={rx}
             ry={ry}
             fill="none"
@@ -240,8 +244,8 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
             filter="url(#orbit-glow)"
           />
           <ellipse
-            cx={centerXStr}
-            cy="50%"
+            cx={cxNum}
+            cy={cyNum}
             rx={rx}
             ry={ry}
             fill="none"
@@ -254,14 +258,11 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
       );
     }
 
-    // Para 'back' o 'front' dibujamos arcos SVG exactos utilizando coordenadas relativas a 'cx'
-    // 'back': desde (cx - rx, 50%) hasta (cx + rx, 50%) pasando por el arco superior
-    // 'front': desde (cx + rx, 50%) hasta (cx - rx, 50%) pasando por el arco inferior
-    const sweepFlag = layer === 'back' ? 1 : 1;
+    // Para 'back' o 'front' dibujamos arcos SVG numéricos válidos (compatibles con iOS WebKit/Safari)
     const pathD =
       layer === 'back'
-        ? `M calc(${centerXStr} - ${rx}px) 50% A ${rx} ${ry} 0 0 1 calc(${centerXStr} + ${rx}px) 50%`
-        : `M calc(${centerXStr} + ${rx}px) 50% A ${rx} ${ry} 0 0 1 calc(${centerXStr} - ${rx}px) 50%`;
+        ? `M ${cxNum - rx} ${cyNum} A ${rx} ${ry} 0 0 1 ${cxNum + rx} ${cyNum}`
+        : `M ${cxNum + rx} ${cyNum} A ${rx} ${ry} 0 0 1 ${cxNum - rx} ${cyNum}`;
 
     return (
       <g key={key}>
@@ -329,7 +330,7 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
             {/* Puente Gravitacional (Líneas cósmicas onduladas que unen los dos polos) */}
             {(layer === 'back' || layer === 'all') && (
               <path
-                d={`M calc(50% + ${workspaceCenter.x}px) 50% Q 50% calc(50% - 26px) calc(50% + ${habitsCenter.x}px) 50%`}
+                d={`M ${midX + workspaceCenter.x} ${midY} Q ${midX} ${midY - 26} ${midX + habitsCenter.x} ${midY}`}
                 fill="none"
                 stroke="url(#bridge-grad)"
                 strokeWidth="1.3"
@@ -339,7 +340,7 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
             )}
             {(layer === 'front' || layer === 'all') && (
               <path
-                d={`M calc(50% + ${workspaceCenter.x}px) 50% Q 50% calc(50% + 22px) calc(50% + ${habitsCenter.x}px) 50%`}
+                d={`M ${midX + workspaceCenter.x} ${midY} Q ${midX} ${midY + 22} ${midX + habitsCenter.x} ${midY}`}
                 fill="none"
                 stroke="url(#bridge-grad)"
                 strokeWidth="1"
@@ -358,7 +359,8 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
 
                 return renderTrackArc(
                   `ws-${track.index}`,
-                  `50% + ${workspaceCenter.x}px`,
+                  midX + workspaceCenter.x,
+                  midY,
                   rx,
                   ry,
                   'url(#orbit-grad-workspace)',
@@ -380,7 +382,8 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
 
                 return renderTrackArc(
                   `hb-${track.index}`,
-                  `50% + ${habitsCenter.x}px`,
+                  midX + habitsCenter.x,
+                  midY,
                   rx,
                   ry,
                   'url(#orbit-grad-habits)',
@@ -408,7 +411,8 @@ export const CommandCenterOrbit: React.FC<CommandCenterOrbitProps> = ({
 
               return renderTrackArc(
                 `focus-${track.index}`,
-                '50%',
+                midX,
+                midY,
                 rx,
                 ry,
                 gradId,

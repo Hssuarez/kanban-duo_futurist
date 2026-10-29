@@ -7,16 +7,22 @@ let audioCtx: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
-  if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (AudioContextClass) {
-      audioCtx = new AudioContextClass();
+  try {
+    if (!audioCtx) {
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+      }
     }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+    return audioCtx;
+  } catch {
+    return null;
   }
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume().catch(() => {});
-  }
-  return audioCtx;
 }
 
 /**
@@ -224,50 +230,70 @@ const CC_WELCOMED_KEY = 'kanban_cc_welcomed_session';
 
 export function isSoundEnabled(): boolean {
   if (typeof window === 'undefined') return true;
-  const val = localStorage.getItem(SOUND_ENABLED_KEY);
-  return val === null ? true : val === 'true';
+  try {
+    const val = localStorage.getItem(SOUND_ENABLED_KEY);
+    return val === null ? true : val === 'true';
+  } catch {
+    return true;
+  }
 }
 
 export function setSoundEnabled(enabled: boolean): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(SOUND_ENABLED_KEY, String(enabled));
+  try {
+    localStorage.setItem(SOUND_ENABLED_KEY, String(enabled));
+  } catch {}
   if (!enabled) {
     stopAmbientWarpDrone();
     stopAdjutantAudio();
-    if ('speechSynthesis' in window) {
-      try {
+    try {
+      if (typeof window !== 'undefined' && window.speechSynthesis && typeof window.speechSynthesis.cancel === 'function') {
         window.speechSynthesis.cancel();
-      } catch {}
-    }
+      }
+    } catch {}
   }
 }
 
 export function getSoundLanguage(): 'es' | 'en' {
   if (typeof window === 'undefined') return 'es';
-  const val = localStorage.getItem(SOUND_LANG_KEY);
-  if (val === 'es' || val === 'en') return val;
-  const navLang = navigator.language?.toLowerCase() || 'es';
-  return navLang.startsWith('es') ? 'es' : 'en';
+  try {
+    const val = localStorage.getItem(SOUND_LANG_KEY);
+    if (val === 'es' || val === 'en') return val;
+    const navLang = (typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'es').toLowerCase();
+    return navLang.startsWith('es') ? 'es' : 'en';
+  } catch {
+    return 'es';
+  }
 }
 
 export function setSoundLanguage(lang: 'es' | 'en'): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(SOUND_LANG_KEY, lang);
+  try {
+    localStorage.setItem(SOUND_LANG_KEY, lang);
+  } catch {}
 }
 
 export function hasWelcomedThisSession(): boolean {
   if (typeof window === 'undefined') return false;
-  return sessionStorage.getItem(CC_WELCOMED_KEY) === 'true';
+  try {
+    return sessionStorage.getItem(CC_WELCOMED_KEY) === 'true';
+  } catch {
+    return false;
+  }
 }
 
 export function markWelcomedThisSession(): void {
   if (typeof window === 'undefined') return;
-  sessionStorage.setItem(CC_WELCOMED_KEY, 'true');
+  try {
+    sessionStorage.setItem(CC_WELCOMED_KEY, 'true');
+  } catch {}
 }
 
 export function clearWelcomedSession(): void {
   if (typeof window === 'undefined') return;
-  sessionStorage.removeItem(CC_WELCOMED_KEY);
+  try {
+    sessionStorage.removeItem(CC_WELCOMED_KEY);
+  } catch {}
 }
 
 /**
@@ -567,13 +593,21 @@ export function sanitizeVoiceText(input: string, maxChars: number = 45): string 
   return (lastSpace > 15 ? truncated.slice(0, lastSpace) : truncated).trim();
 }
 
-// Caché proactivo de voces del sistema para Chromium/Windows
+// Caché proactivo de voces del sistema para Chromium/Windows (protegido para iOS WKWebView/Safari)
 let cachedVoices: SpeechSynthesisVoice[] = [];
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  cachedVoices = window.speechSynthesis.getVoices();
-  window.speechSynthesis.onvoiceschanged = () => {
-    cachedVoices = window.speechSynthesis.getVoices();
-  };
+if (typeof window !== 'undefined') {
+  try {
+    if (window.speechSynthesis && typeof window.speechSynthesis.getVoices === 'function') {
+      cachedVoices = window.speechSynthesis.getVoices() || [];
+      window.speechSynthesis.onvoiceschanged = () => {
+        try {
+          if (window.speechSynthesis && typeof window.speechSynthesis.getVoices === 'function') {
+            cachedVoices = window.speechSynthesis.getVoices() || [];
+          }
+        } catch {}
+      };
+    }
+  } catch {}
 }
 
 /**
@@ -710,9 +744,11 @@ export function stopAdjutantAudio(): void {
   // 6. Cancelar síntesis de voz del navegador
   stopServoRumble();
   activeUtterance = null;
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  if (typeof window !== 'undefined') {
     try {
-      window.speechSynthesis.cancel();
+      if (window.speechSynthesis && typeof window.speechSynthesis.cancel === 'function') {
+        window.speechSynthesis.cancel();
+      }
     } catch {}
   }
 
