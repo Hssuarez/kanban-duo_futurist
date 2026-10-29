@@ -325,13 +325,13 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
             <tr className="border-b border-white/[0.06] bg-zinc-950/70 text-[11px] font-mono text-zinc-400">
               {/* Participant Column */}
               {memberColStyle === 'full' && (
-                <th className="py-3 px-3 min-w-[140px] sm:min-w-[160px] font-semibold text-zinc-300 sticky left-0 z-20 bg-zinc-950/95 backdrop-blur-md">
+                <th className="py-3 px-3 min-w-[140px] sm:min-w-[160px] font-semibold text-zinc-300 sticky left-0 z-30 bg-[#070c18] border-r border-white/[0.08] shadow-[2px_0_10px_rgba(0,0,0,0.7)]">
                   Participante
                 </th>
               )}
 
               {memberColStyle === 'avatar' && (
-                <th className="py-3 px-2 w-12 text-center font-semibold text-zinc-300 sticky left-0 z-20 bg-zinc-950/95 backdrop-blur-md">
+                <th className="py-3 px-2 w-12 text-center font-semibold text-zinc-300 sticky left-0 z-30 bg-[#070c18] border-r border-white/[0.08] shadow-[2px_0_10px_rgba(0,0,0,0.7)]">
                   👥
                 </th>
               )}
@@ -341,7 +341,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                 <th
                   key={day.dateKey}
                   data-day-col={day.dayNumber}
-                  className={`py-2 px-1 text-center font-mono font-medium transition-colors select-none min-w-[32px] sm:min-w-[35px] ${
+                  className={`py-2 px-1 text-center font-mono font-medium transition-colors select-none min-w-[32px] sm:min-w-[35px] relative z-0 ${
                     day.isToday
                       ? 'bg-cyan-950/40 text-cyan-300 ring-1 ring-cyan-500/40 font-bold shadow-[0_0_10px_rgba(6,182,212,0.2)]'
                       : day.isOutsideChallenge
@@ -366,13 +366,13 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
 
               {/* Metrics Columns */}
               {showMetrics && (
-                <th className="py-3 px-2 text-center font-semibold text-zinc-300 w-14 md:sticky md:right-14 z-20 bg-zinc-950/95 backdrop-blur-md">
+                <th className="py-3 px-2 text-center font-semibold text-zinc-300 w-14 md:sticky md:right-14 z-30 bg-[#070c18] border-l border-white/[0.08] shadow-[-2px_0_10px_rgba(0,0,0,0.7)]">
                   %
                 </th>
               )}
 
               {showMetrics && (
-                <th className="py-3 px-2 text-center font-semibold text-amber-300 w-14 md:sticky md:right-0 z-20 bg-zinc-950/95 backdrop-blur-md">
+                <th className="py-3 px-2 text-center font-semibold text-amber-300 w-14 md:sticky md:right-0 z-30 bg-[#070c18]">
                   Racha
                 </th>
               )}
@@ -414,7 +414,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                 >
                   {/* Full Participant Column */}
                   {memberColStyle === 'full' && (
-                    <td className="py-2.5 px-3 sticky left-0 z-10 bg-[#070c18] group-hover:bg-zinc-900/90 transition-colors">
+                    <td className="py-2.5 px-3 sticky left-0 z-20 bg-[#070c18] group-hover:bg-[#0c1424] border-r border-white/[0.08] shadow-[2px_0_10px_rgba(0,0,0,0.7)] transition-colors">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-7 h-7 rounded-full bg-zinc-800 border border-white/[0.08] overflow-hidden flex items-center justify-center text-xs font-bold text-zinc-300 shrink-0">
                           {user.avatar ? (
@@ -442,7 +442,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                   {/* Avatar Only Column (Mobile Compact) */}
                   {memberColStyle === 'avatar' && (
                     <td
-                      className="py-2 px-2 text-center sticky left-0 z-10 bg-[#070c18] group-hover:bg-zinc-900/90 transition-colors cursor-pointer"
+                      className="py-2 px-2 text-center sticky left-0 z-20 bg-[#070c18] group-hover:bg-[#0c1424] border-r border-white/[0.08] shadow-[2px_0_10px_rgba(0,0,0,0.7)] transition-colors cursor-pointer"
                       title={`${user.name} (${pct}%)`}
                     >
                       <div
@@ -491,7 +491,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                       <td
                         key={day.dateKey}
                         data-day-col={day.dayNumber}
-                        className={`py-1 px-0.5 sm:px-1 text-center transition-colors min-w-[32px] sm:min-w-[35px] ${
+                        className={`py-1 px-0.5 sm:px-1 text-center transition-colors min-w-[32px] sm:min-w-[35px] relative z-0 ${
                           day.isToday ? 'bg-cyan-950/20 ring-1 ring-cyan-500/20' : ''
                         }`}
                       >
@@ -551,7 +551,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                   {/* Percentage Column */}
                   {showMetrics && (
                     <td
-                      className={`py-2.5 px-2 text-center font-mono font-bold text-xs md:sticky md:right-14 z-10 bg-[#070c18] group-hover:bg-zinc-900/90 transition-colors ${pctColor}`}
+                      className={`py-2.5 px-2 text-center font-mono font-bold text-xs md:sticky md:right-14 z-20 bg-[#070c18] group-hover:bg-[#0c1424] border-l border-white/[0.08] shadow-[-2px_0_10px_rgba(0,0,0,0.7)] transition-colors ${pctColor}`}
                     >
                       {pct}%
                     </td>
@@ -559,7 +559,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
 
                   {/* Streak Column */}
                   {showMetrics && (
-                    <td className="py-2.5 px-2 text-center font-mono font-bold text-xs text-amber-300 md:sticky md:right-0 z-10 bg-[#070c18] group-hover:bg-zinc-900/90 transition-colors">
+                    <td className="py-2.5 px-2 text-center font-mono font-bold text-xs text-amber-300 md:sticky md:right-0 z-20 bg-[#070c18] group-hover:bg-[#0c1424] transition-colors">
                       <div className="inline-flex items-center gap-0.5 justify-center">
                         {(compliance?.currentStreak || 0) > 0 && (
                           <Flame className="w-3 h-3 text-amber-400 fill-amber-400/30 animate-pulse" />
