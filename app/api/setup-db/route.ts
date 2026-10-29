@@ -186,6 +186,7 @@ async function handleMigration() {
           description TEXT,
           icon TEXT NOT NULL DEFAULT '🏆',
           color TEXT NOT NULL DEFAULT '#06b6d4',
+          challenge_type TEXT,
           cover_image TEXT,
           start_date DATE NOT NULL,
           end_date DATE NOT NULL,
@@ -196,6 +197,9 @@ async function handleMigration() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+
+        ALTER TABLE IF EXISTS public.challenges
+        ADD COLUMN IF NOT EXISTS challenge_type TEXT;
 
         -- 6. Tabla de Miembros de Retos (Challenge Members)
         CREATE TABLE IF NOT EXISTS public.challenge_members (

@@ -13,6 +13,7 @@ import { User } from '@/lib/types';
 import { HabitCell } from '../habits/HabitCell';
 import { Habit, HabitLogStatus } from '@/lib/habitTypes';
 import { ChallengeEvidenceModal } from './ChallengeEvidenceModal';
+import { isPhysicalChallenge, getValidLogCalories } from '@/lib/challengeCalculations';
 import {
   Flame,
   Settings2,
@@ -54,6 +55,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
   onToggleLog,
   memberCompliances,
 }) => {
+  const isPhysical = isPhysicalChallenge(challenge);
   const [viewMode, setViewMode] = useState<MatrixViewMode>('standard');
   const [showMetrics, setShowMetrics] = useState<boolean>(true);
   const [memberColStyle, setMemberColStyle] = useState<'full' | 'avatar' | 'hidden'>('full');
@@ -481,7 +483,9 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                     const hasEvidence = Boolean(
                       log && (log.evidenceStatus === 'uploaded' || log.evidenceFileId || log.evidenceUrl)
                     );
-                    const canInteract = isCurrentUser || hasEvidence;
+                    const cellCalories = isPhysical && log ? getValidLogCalories(log) : null;
+                    const hasCalories = cellCalories !== null && cellCalories > 0;
+                    const canInteract = isCurrentUser || hasEvidence || hasCalories;
 
                     return (
                       <td
@@ -495,7 +499,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                           className={`flex items-center justify-center ${
                             !canInteract || isOutside
                               ? 'pointer-events-none cursor-default opacity-90'
-                              : hasEvidence && !isCurrentUser
+                              : (hasEvidence || hasCalories) && !isCurrentUser
                               ? 'cursor-pointer'
                               : ''
                           }`}
@@ -503,7 +507,9 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                             isOutside
                               ? 'Fecha fuera del período del reto'
                               : hasEvidence
-                              ? `${user.name} adjuntó evidencia fotográfica · Clic para ver foto`
+                              ? `${user.name} adjuntó evidencia fotográfica${hasCalories ? ` · 🔥 ${cellCalories} kcal` : ''} · Clic para ver`
+                              : hasCalories
+                              ? `${user.name} registró 🔥 ${cellCalories} kcal · Clic para ver`
                               : !isCurrentUser
                               ? `${user.name}: Solo lectura (protegido por RLS)`
                               : undefined
@@ -518,6 +524,8 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
                             isFuture={day.isFuture}
                             hasEvidence={hasEvidence}
                             evidenceStatus={log?.evidenceStatus}
+                            calories={hasCalories ? cellCalories : undefined}
+                            isReadOnlyViewer={!isCurrentUser}
                             onOpenEvidence={() => {
                               setActiveEvidenceTarget({
                                 challengeId: challenge.id,
@@ -567,7 +575,7 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
         </table>
       </div>
 
-      {/* Modal de Evidencias Fotográficas (Drive Privado + Auditor) */}
+      {/* Modal de Evidencias Fotográficas (Drive Privado + Auditor + Calorías en retos físicos) */}
       {activeEvidenceTarget && (
         <ChallengeEvidenceModal
           isOpen={true}
@@ -580,11 +588,26 @@ export const ChallengeMatrix: React.FC<ChallengeMatrixProps> = ({
           targetUser={activeEvidenceTarget.targetUser}
           currentUser={currentUser}
           log={activeEvidenceTarget.log}
+          isPhysical={isPhysical}
           onEvidenceUpdated={(updatedLog) => {
             setActiveEvidenceTarget((prev) => (prev ? { ...prev, log: updatedLog } : null));
           }}
           onEvidenceDeleted={() => {
-            setActiveEvidenceTarget((prev) => (prev ? { ...prev, log: undefined } : null));
+            setActiveEvidenceTarget((prev) =>
+              prev && prev.log
+                ? {
+                    ...prev,
+                    log: {
+                      ...prev.log,
+                      evidenceUrl: null,
+                      evidenceFileId: null,
+                      evidenceUploadedAt: null,
+                      evidenceUploadedBy: null,
+                      evidenceStatus: 'none',
+                    },
+                  }
+                : null
+            );
           }}
         />
       )}

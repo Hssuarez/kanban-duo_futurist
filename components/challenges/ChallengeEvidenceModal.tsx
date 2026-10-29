@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChallengeLog, EvidenceStatus } from '@/lib/challengeTypes';
+import { ChallengeLog } from '@/lib/challengeTypes';
 import { User } from '@/lib/types';
-import { updateLocalChallengeLogEvidence } from '@/lib/challengeStorage';
+import { updateLocalChallengeLogEvidence, updateChallengeLogCalories } from '@/lib/challengeStorage';
+import { validateCaloriesInput } from '@/lib/challengeCalculations';
 import {
   X,
   Camera,
@@ -12,14 +13,13 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
-  Eye,
   RefreshCw,
-  Image as ImageIcon,
   HardDrive,
   Calendar,
   Lock,
   Maximize2,
   Sparkles,
+  Flame,
 } from 'lucide-react';
 
 interface ChallengeEvidenceModalProps {
@@ -33,9 +33,12 @@ interface ChallengeEvidenceModalProps {
   targetUser: User;
   currentUser: User;
   log?: ChallengeLog;
+  isPhysical?: boolean;
   onEvidenceUpdated?: (updatedLog: ChallengeLog) => void;
   onEvidenceDeleted?: () => void;
 }
+
+const QUICK_CALORIE_PRESETS = [150, 300, 500, 750];
 
 export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
   isOpen,
@@ -48,6 +51,7 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
   targetUser,
   currentUser,
   log,
+  isPhysical = false,
   onEvidenceUpdated,
   onEvidenceDeleted,
 }) => {
@@ -65,12 +69,20 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
     height: number;
   } | null>(null);
 
+  // Estados de calorías (solo para retos físicos)
+  const [caloriesInput, setCaloriesInput] = useState<string>('');
+  const [caloriesTouched, setCaloriesTouched] = useState(false);
+  const [isSavingCalories, setIsSavingCalories] = useState(false);
+
   // Estados de red y UI
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [successSubtitle, setSuccessSubtitle] = useState<string>(
+    'Guardada en tu Google Drive privado y propagada a todo el equipo.'
+  );
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -94,8 +106,15 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
       setImageError(false);
       setIsFullscreen(false);
       setUploadProgress(0);
+      setIsSavingCalories(false);
+      setCaloriesTouched(false);
+      if (log?.numericValue !== undefined && log?.numericValue !== null && Number.isFinite(Number(log.numericValue))) {
+        setCaloriesInput(String(Math.round(Number(log.numericValue))));
+      } else {
+        setCaloriesInput('');
+      }
     }
-  }, [isOpen, log?.id, log?.evidenceFileId]);
+  }, [isOpen, log?.id, log?.evidenceFileId, log?.numericValue]);
 
   // Cerrar con Escape
   useEffect(() => {
@@ -216,10 +235,95 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
     }
   };
 
-  // Subir evidencia a Google Drive mediante backend seguro
+  // Sumar rápido calorías (+150, +300, +500, +750)
+  const handleQuickAddCalories = (delta: number) => {
+    if (!isOwner || !isPhysical) return;
+    setErrorMsg(null);
+    setCaloriesTouched(true);
+    const currentParsed = parseInt(caloriesInput.trim(), 10);
+    const base = Number.isFinite(currentParsed) && currentParsed >= 0 ? currentParsed : 0;
+    const nextValue = Math.min(10000, base + delta);
+    setCaloriesInput(String(nextValue));
+  };
+
+  // Limpiar calorías (pone a 0 si ya existía valor registrado, o limpia el campo)
+  const handleClearCalories = () => {
+    if (!isOwner || !isPhysical) return;
+    setErrorMsg(null);
+    setCaloriesTouched(true);
+    const hadPreviousCalories =
+      log?.numericValue !== undefined && log?.numericValue !== null && Number(log.numericValue) > 0;
+    setCaloriesInput(hadPreviousCalories ? '0' : '');
+  };
+
+  // Guardar únicamente calorías (sin requerir subir o resubir foto)
+  const handleSaveCaloriesOnly = async () => {
+    if (!isOwner || !isPhysical) return;
+    setErrorMsg(null);
+
+    const trimmed = caloriesInput.trim();
+    const hadPreviousCalories = log?.numericValue !== undefined && log?.numericValue !== null;
+    const effectiveRaw: unknown = trimmed === '' ? (hadPreviousCalories ? 0 : null) : trimmed;
+
+    const validation = validateCaloriesInput(effectiveRaw);
+    if (!validation.valid) {
+      setErrorMsg(validation.error || 'Ingresa un valor entero entre 0 y 10.000 kcal.');
+      return;
+    }
+
+    setIsSavingCalories(true);
+    try {
+      const result = await updateChallengeLogCalories(
+        challengeId,
+        challengeHabitId,
+        currentUser.id,
+        dateKey,
+        validation.value,
+        currentUser.id
+      );
+
+      if (!result.ok || !result.log) {
+        throw new Error(result.error || 'No se pudieron guardar las calorías.');
+      }
+
+      setSuccessSubtitle('Calorías registradas y sincronizadas con el equipo.');
+      setIsSuccess(true);
+      setCaloriesTouched(false);
+
+      if (onEvidenceUpdated) {
+        onEvidenceUpdated(result.log);
+      }
+
+      setTimeout(() => {
+        setIsSavingCalories(false);
+        setIsSuccess(false);
+        onClose();
+      }, 350);
+    } catch (err: any) {
+      setIsSavingCalories(false);
+      setErrorMsg(err.message || 'Error al guardar las calorías.');
+    }
+  };
+
+  // Subir evidencia a Google Drive mediante backend seguro (con calorías opcionales en la misma operación)
   const handleUploadConfirm = async () => {
     if (!compressedBlob && !selectedFile) return;
     if (!isOwner) return;
+
+    let validatedCaloriesForUpload: number | null | undefined = undefined;
+    if (isPhysical) {
+      const trimmed = caloriesInput.trim();
+      if (trimmed !== '') {
+        const calValidation = validateCaloriesInput(trimmed);
+        if (!calValidation.valid) {
+          setErrorMsg(calValidation.error || 'Valor de calorías inválido.');
+          return;
+        }
+        validatedCaloriesForUpload = calValidation.value;
+      } else if (caloriesTouched && log?.numericValue !== undefined && log?.numericValue !== null) {
+        validatedCaloriesForUpload = 0;
+      }
+    }
 
     setIsUploading(true);
     setErrorMsg(null);
@@ -238,6 +342,10 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
 
       if (log?.evidenceFileId) {
         formData.append('previousFileId', log.evidenceFileId);
+      }
+
+      if (isPhysical && validatedCaloriesForUpload !== undefined && validatedCaloriesForUpload !== null) {
+        formData.append('calories', String(validatedCaloriesForUpload));
       }
 
       setUploadProgress(45);
@@ -259,9 +367,10 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
       }
 
       setUploadProgress(100);
+      setSuccessSubtitle('Guardada en tu Google Drive privado y propagada a todo el equipo.');
       setIsSuccess(true);
 
-      // Actualizar estado local y sincronizar
+      // Actualizar estado local y sincronizar conservando calorías existentes o nuevas
       const updatedLog = updateLocalChallengeLogEvidence(
         challengeId,
         challengeHabitId,
@@ -273,6 +382,7 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
           evidenceUploadedAt: data.evidence.uploadedAt,
           evidenceUploadedBy: currentUser.id,
           evidenceStatus: 'uploaded',
+          ...(validatedCaloriesForUpload !== undefined ? { numericValue: validatedCaloriesForUpload } : {}),
         }
       );
 
@@ -284,7 +394,7 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
         setIsUploading(false);
         setIsSuccess(false);
         onClose();
-      }, 1200);
+      }, 450);
     } catch (err: any) {
       console.error('Fallo en subida de evidencia:', err);
       setIsUploading(false);
@@ -292,10 +402,10 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
     }
   };
 
-  // Eliminar evidencia existente
+  // Eliminar evidencia existente (conservando el check-in y las calorías)
   const handleDeleteEvidence = async () => {
     if (!isOwner) return;
-    if (!confirm('¿Estás seguro de eliminar esta evidencia fotográfica? La foto se borrará de Google Drive.')) {
+    if (!confirm('¿Estás seguro de eliminar esta evidencia fotográfica? La foto se borrará de Google Drive (tu check-in y calorías se conservarán).')) {
       return;
     }
 
@@ -324,8 +434,8 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
         throw new Error(data.error || 'No se pudo eliminar la evidencia.');
       }
 
-      // Actualizar local
-      updateLocalChallengeLogEvidence(challengeId, challengeHabitId, currentUser.id, dateKey, {
+      // Actualizar local (conserva automáticamente numericValue existente)
+      const updatedAfterDelete = updateLocalChallengeLogEvidence(challengeId, challengeHabitId, currentUser.id, dateKey, {
         evidenceUrl: null,
         evidenceFileId: null,
         evidenceUploadedAt: null,
@@ -333,6 +443,9 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
         evidenceStatus: 'none',
       });
 
+      if (updatedAfterDelete && onEvidenceUpdated) {
+        onEvidenceUpdated(updatedAfterDelete);
+      }
       if (onEvidenceDeleted) {
         onEvidenceDeleted();
       }
@@ -354,6 +467,11 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
     (log?.evidenceStatus === 'uploaded' || existingPhotoUrl) && !selectedFile
   );
 
+  const existingCalories =
+    log?.numericValue !== undefined && log?.numericValue !== null && Number.isFinite(Number(log.numericValue))
+      ? Math.round(Number(log.numericValue))
+      : null;
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in font-sans">
       <div className="bg-[#070c18] border border-cyan-500/30 rounded-2xl w-full max-w-lg overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.95)] max-h-[92vh] flex flex-col relative text-zinc-200">
@@ -367,9 +485,9 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
               <Camera className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-mono font-bold text-white text-base truncate">
-                  Evidencia Fotográfica
+                  {isPhysical ? 'Evidencia y Calorías' : 'Evidencia Fotográfica'}
                 </h3>
                 <span
                   className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
@@ -378,8 +496,13 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
                       : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
                   }`}
                 >
-                  {hasExistingEvidence ? '📷 ADJUNTA' : 'PENDIENTE'}
+                  {hasExistingEvidence ? '📷 ADJUNTA' : 'SIN FOTO'}
                 </span>
+                {isPhysical && existingCalories !== null && existingCalories > 0 && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border bg-orange-950/60 border-orange-500/40 text-orange-300">
+                    🔥 {existingCalories} kcal
+                  </span>
+                )}
               </div>
               <p className="text-xs text-zinc-400 truncate">
                 {habitTitle} · <span className="text-cyan-400 font-mono">{dateKey}</span>
@@ -403,7 +526,7 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
             <div className="flex items-center gap-2">
               <Lock className="w-3.5 h-3.5 text-cyan-400" />
               <span>
-                Modo Auditor: Evidencia de <strong className="text-white">{targetUser.name}</strong>
+                Modo Auditor: Registro de <strong className="text-white">{targetUser.name}</strong>
               </span>
             </div>
             <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider">
@@ -437,11 +560,96 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
             <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2.5 animate-scale-in">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               <div>
-                <div className="font-semibold text-emerald-300">¡Evidencia Sincronizada!</div>
+                <div className="font-semibold text-emerald-300">¡Sincronización Completada!</div>
                 <div className="text-[11px] text-emerald-400/90">
-                  Guardada en tu Google Drive privado y propagada a todo el equipo.
+                  {successSubtitle}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* SECCIÓN DE CALORÍAS (Exclusiva para Retos Físicos / Deportivos) */}
+          {isPhysical && (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-orange-950/25 via-zinc-900/80 to-zinc-950 border border-orange-500/30 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-orange-950/70 border border-orange-500/40 flex items-center justify-center text-orange-400">
+                    <Flame className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-mono font-bold text-white">
+                      Calorías Registradas (kcal)
+                    </div>
+                    <div className="text-[10px] text-zinc-400">
+                      {isOwner
+                        ? 'Entero entre 0 y 10.000 kcal · Ayuda de entrada rápida'
+                        : `Energía registrada por ${targetUser.name}`}
+                    </div>
+                  </div>
+                </div>
+                {existingCalories !== null && existingCalories > 0 && (
+                  <span className="text-xs font-mono font-bold text-orange-300 bg-orange-950/60 border border-orange-500/30 px-2.5 py-1 rounded-lg">
+                    🔥 {existingCalories.toLocaleString()} kcal
+                  </span>
+                )}
+              </div>
+
+              {isOwner ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={10000}
+                        step={1}
+                        value={caloriesInput}
+                        onChange={(e) => {
+                          setErrorMsg(null);
+                          setCaloriesTouched(true);
+                          setCaloriesInput(e.target.value);
+                        }}
+                        placeholder="Ej. 450"
+                        className="w-full bg-zinc-950/90 border border-white/[0.1] focus:border-orange-400 text-white font-mono text-sm rounded-xl pl-3 pr-14 py-2 focus:outline-none transition-colors"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-mono text-zinc-400 pointer-events-none">
+                        kcal
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Botones de entrada rápida (+150, +300, +500, +750, Limpiar) */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {QUICK_CALORIE_PRESETS.map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => handleQuickAddCalories(preset)}
+                        className="px-2.5 py-1 rounded-lg bg-orange-950/40 hover:bg-orange-900/50 border border-orange-500/30 text-orange-300 text-[11px] font-mono font-semibold transition-all cursor-pointer active:scale-95"
+                      >
+                        +{preset} kcal
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={handleClearCalories}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/[0.08] text-zinc-400 hover:text-zinc-200 text-[11px] font-mono transition-all cursor-pointer ml-auto"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-zinc-950/70 border border-white/[0.06] text-xs font-mono text-zinc-300 flex items-center justify-between">
+                  <span>Gasto energético reportado en la sesión:</span>
+                  <span className="font-bold text-orange-300">
+                    {existingCalories !== null && existingCalories > 0
+                      ? `🔥 ${existingCalories.toLocaleString()} kcal`
+                      : 'Sin registro calórico'}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -585,7 +793,7 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
                 </div>
                 <div className="mt-3">
                   <div className="text-sm font-semibold text-white group-hover:text-cyan-300 transition-colors">
-                    {hasExistingEvidence ? 'Reemplazar fotografía' : 'Adjuntar fotografía'}
+                    {hasExistingEvidence ? 'Reemplazar fotografía' : 'Adjuntar fotografía (Opcional)'}
                   </div>
                   <div className="text-xs text-zinc-400 mt-1">
                     Selecciona una imagen de tu galería o archivos (JPG, PNG o WEBP)
@@ -624,7 +832,7 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
           {isOwner && hasExistingEvidence && !previewUrl ? (
             <button
               type="button"
-              disabled={isDeleting || isUploading}
+              disabled={isDeleting || isUploading || isSavingCalories}
               onClick={handleDeleteEvidence}
               className="px-3 py-2 rounded-xl text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 border border-rose-500/30 text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
@@ -635,16 +843,38 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
             <div />
           )}
 
-          {/* Lado derecho: Botones de Confirmar o Cerrar */}
+          {/* Lado derecho: Botones de Guardar Calorías, Confirmar Subida o Cerrar */}
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              disabled={isUploading}
+              disabled={isUploading || isSavingCalories}
               className="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-medium border border-white/[0.08] transition-colors cursor-pointer disabled:opacity-50"
             >
               Cerrar
             </button>
+
+            {/* Botón Guardar Calorías (cuando es reto físico y no hay foto nueva en espera de subida) */}
+            {isOwner && isPhysical && !previewUrl && (
+              <button
+                type="button"
+                disabled={isSavingCalories || isUploading}
+                onClick={handleSaveCaloriesOnly}
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold text-xs shadow-[0_0_18px_rgba(249,115,22,0.35)] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
+              >
+                {isSavingCalories ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Flame className="w-3.5 h-3.5" />
+                    <span>Guardar Calorías</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {isOwner && previewUrl && (
               <button
@@ -661,7 +891,7 @@ export const ChallengeEvidenceModal: React.FC<ChallengeEvidenceModalProps> = ({
                 ) : (
                   <>
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Confirmar y Subir</span>
+                    <span>{isPhysical && caloriesInput.trim() !== '' ? 'Subir Foto y Kcal' : 'Confirmar y Subir'}</span>
                   </>
                 )}
               </button>

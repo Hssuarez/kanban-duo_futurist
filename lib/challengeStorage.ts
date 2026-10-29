@@ -5,6 +5,7 @@
 
 import {
   Challenge,
+  ChallengeType,
   ChallengeMember,
   ChallengeHabit,
   ChallengeLog,
@@ -17,6 +18,7 @@ import { getOrInitSupabase } from './supabaseClient';
 import { notifySync } from './storage';
 import { HabitLogStatus } from './habitTypes';
 import { getBogotaToday } from './habitCalculations';
+import { validateCaloriesInput } from './challengeCalculations';
 
 const STORAGE_KEYS = {
   CHALLENGES: 'kanban_duo_challenges_v2',
@@ -29,6 +31,7 @@ const STORAGE_KEYS = {
   LAST_SELECTED: 'kanban_duo_last_selected_challenge_id_v1',
   PENDING_UPLOADS: 'kanban_duo_pending_upload_challenges_v1',
   PENDING_UPLOAD_LOG_IDS: 'kanban_duo_pending_upload_challenge_logs_v1',
+  DELETED_LOG_IDS: 'kanban_duo_deleted_challenge_log_ids_v2',
 };
 
 export const LEGACY_DELETED_DEMO_IDS = [
@@ -199,7 +202,7 @@ export function handleRemoteChallengeDeleted(challengeId: string): void {
 }
 
 // --------------------------------------------------------
-// SINCRONIZACIÓN REALTIME Y COLA OFFLINE DE LOGS / CHECK-INS
+// SINCRONIZACIÓN REALTIME, TOMBSTONES Y COLA OFFLINE DE LOGS
 // --------------------------------------------------------
 
 export function getPendingUploadLogIds(): string[] {
@@ -235,6 +238,107 @@ export function removePendingUploadLogId(logId: string): void {
   }
 }
 
+export function getDeletedChallengeLogIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.DELETED_LOG_IDS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markChallengeLogAsDeleted(logId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getDeletedChallengeLogIds();
+    if (!list.includes(logId)) {
+      list.push(logId);
+      localStorage.setItem(STORAGE_KEYS.DELETED_LOG_IDS, JSON.stringify(list));
+    }
+    removePendingUploadLogId(logId);
+  } catch (e) {
+    console.warn('Error guardando deleted challenge log id:', e);
+  }
+}
+
+export function removeDeletedChallengeLogId(logId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getDeletedChallengeLogIds().filter((id) => id !== logId);
+    localStorage.setItem(STORAGE_KEYS.DELETED_LOG_IDS, JSON.stringify(list));
+  } catch (e) {
+    console.warn('Error removiendo deleted challenge log id:', e);
+  }
+}
+
+export function normalizeCloudNumericValue(rawVal: unknown): number | null | undefined {
+  if (rawVal === undefined) return undefined;
+  if (rawVal === null) return null;
+  const num = Number(rawVal);
+  return Number.isFinite(num) ? Math.round(num) : undefined;
+}
+
+/**
+ * Reconcilia de forma determinística e idempotente un registro local y uno de la nube:
+ * - Compara updatedAt para resolver cuál versión de calorías/notas prevalece.
+ * - Evita que una actualización independiente de calorías sobrescriba o elimine
+ *   campos de evidencia fotográfica válidos existentes en el otro lado.
+ */
+export function mergeChallengeLogRecords(
+  localLog: ChallengeLog,
+  cloudLog: ChallengeLog,
+  isLocalPending: boolean = false
+): { merged: ChallengeLog; needsCloudPush: boolean } {
+  const localTime = localLog.updatedAt ? new Date(localLog.updatedAt).getTime() : 0;
+  const cloudTime = cloudLog.updatedAt ? new Date(cloudLog.updatedAt).getTime() : 0;
+
+  const localIsNewer = isLocalPending && localTime >= cloudTime ? true : localTime > cloudTime;
+
+  const base = localIsNewer ? { ...localLog } : { ...cloudLog };
+  const other = localIsNewer ? cloudLog : localLog;
+
+  // Preservar evidencia fotográfica si la versión ganadora no tenía evidencia adjunta
+  // pero la otra versión sí tenía evidencia subida (y la versión ganadora no fue un borrado explícito de evidencia)
+  const baseHasEvidence = Boolean(base.evidenceFileId || base.evidenceUrl);
+  const otherHasEvidence = Boolean(other.evidenceFileId || other.evidenceUrl);
+  const baseExplicitlyClearedEvidence =
+    base.evidenceStatus === 'none' &&
+    base.evidenceFileId === null &&
+    base.evidenceUrl === null &&
+    localIsNewer;
+
+  if (!baseHasEvidence && otherHasEvidence && !baseExplicitlyClearedEvidence) {
+    base.evidenceUrl = other.evidenceUrl;
+    base.evidenceFileId = other.evidenceFileId;
+    base.evidenceUploadedAt = other.evidenceUploadedAt;
+    base.evidenceUploadedBy = other.evidenceUploadedBy;
+    base.evidenceStatus = other.evidenceStatus || 'uploaded';
+  }
+
+  // Si la versión ganadora fue una subida de evidencia en el servidor que no incluía numericValue,
+  // preservar el numericValue existente del otro lado.
+  if (
+    (base.numericValue === undefined || base.numericValue === null) &&
+    other.numericValue !== undefined &&
+    other.numericValue !== null &&
+    !localIsNewer
+  ) {
+    // Si en nube es más reciente por subida de foto pero local tenía pendiente calorías, respetar si no fue puesto a null intencionalmente
+    if (isLocalPending) {
+      base.numericValue = other.numericValue;
+    }
+  }
+
+  const needsCloudPush =
+    localIsNewer &&
+    (localLog.numericValue !== cloudLog.numericValue ||
+      localLog.notes !== cloudLog.notes ||
+      localLog.status !== cloudLog.status);
+
+  return { merged: base, needsCloudPush };
+}
+
 // Manejador centralizado de eventos Realtime de Postgres para check-ins
 export function handleRemoteChallengeLogRealtime(payload: {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -250,12 +354,21 @@ export function handleRemoteChallengeLogRealtime(payload: {
     if (!oldLog) return;
     const deletedId = oldLog.id;
     const chId = oldLog.challenge_id;
+    const hId = oldLog.challenge_habit_id;
     const uId = oldLog.user_id;
     const dKey = oldLog.date_key;
 
     const updated = currentLogs.filter((l) => {
       if (deletedId && l.id === deletedId) return false;
-      if (chId && uId && dKey && l.challengeId === chId && l.userId === uId && l.dateKey === dKey) {
+      if (
+        chId &&
+        uId &&
+        dKey &&
+        l.challengeId === chId &&
+        (!hId || l.challengeHabitId === hId) &&
+        l.userId === uId &&
+        l.dateKey === dKey
+      ) {
         return false;
       }
       return true;
@@ -269,6 +382,8 @@ export function handleRemoteChallengeLogRealtime(payload: {
     const raw = payload.new;
     if (!raw || !raw.id || !raw.challenge_id) return;
 
+    removeDeletedChallengeLogId(raw.id);
+
     const incomingLog: ChallengeLog = {
       id: raw.id,
       challengeId: raw.challenge_id,
@@ -276,7 +391,7 @@ export function handleRemoteChallengeLogRealtime(payload: {
       userId: raw.user_id,
       dateKey: raw.date_key,
       status: raw.status || 'completed',
-      numericValue: raw.numeric_value,
+      numericValue: normalizeCloudNumericValue(raw.numeric_value),
       notes: raw.notes,
       evidenceUrl: raw.evidence_url || null,
       evidenceFileId: raw.evidence_file_id || null,
@@ -291,14 +406,22 @@ export function handleRemoteChallengeLogRealtime(payload: {
       (l) =>
         l.id === incomingLog.id ||
         (l.challengeId === incomingLog.challengeId &&
+          (l.challengeHabitId === incomingLog.challengeHabitId ||
+            (!l.challengeHabitId && !incomingLog.challengeHabitId)) &&
           l.userId === incomingLog.userId &&
           l.dateKey === incomingLog.dateKey)
     );
 
     let updated: ChallengeLog[];
     if (index >= 0) {
+      const pendingIds = getPendingUploadLogIds();
+      const { merged } = mergeChallengeLogRecords(
+        currentLogs[index],
+        incomingLog,
+        pendingIds.includes(currentLogs[index].id)
+      );
       updated = [...currentLogs];
-      updated[index] = incomingLog;
+      updated[index] = merged;
     } else {
       updated = [...currentLogs, incomingLog];
     }
@@ -404,17 +527,29 @@ export async function saveChallenge(challenge: Challenge): Promise<Challenge> {
   removeDeletedChallengeId(challenge.id);
   saveLastSelectedChallengeId(challenge.id);
 
+  const nowIso = new Date().toISOString();
   const current = getLocalChallenges();
   const index = current.findIndex((c) => c.id === challenge.id);
+
+  const normalizedChallenge: Challenge = {
+    ...challenge,
+    challengeType:
+      challenge.challengeType === 'physical' || challenge.challengeType === 'general'
+        ? challenge.challengeType
+        : index >= 0
+        ? current[index].challengeType
+        : undefined,
+    updatedAt: nowIso,
+  };
 
   let updatedList: Challenge[];
   if (index >= 0) {
     updatedList = [...current];
-    updatedList[index] = { ...challenge, updatedAt: new Date().toISOString() };
+    updatedList[index] = normalizedChallenge;
   } else {
     updatedList = [
       ...current,
-      { ...challenge, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { ...normalizedChallenge, createdAt: challenge.createdAt || nowIso },
     ];
   }
 
@@ -424,58 +559,78 @@ export async function saveChallenge(challenge: Challenge): Promise<Challenge> {
   const client = await getOrInitSupabase();
   if (client) {
     try {
-      const { error } = await client.from('challenges').upsert({
-        id: challenge.id,
-        created_by: challenge.createdBy,
-        title: challenge.title,
-        description: challenge.description || null,
-        icon: challenge.icon || '🏆',
-        color: challenge.color || '#06b6d4',
-        start_date: challenge.startDate,
-        end_date: challenge.endDate,
-        duration_days: challenge.durationDays,
-        mode: challenge.mode,
-        status: challenge.status,
-        target_goal: challenge.targetGoal || null,
-        updated_at: new Date().toISOString(),
-      });
+      const payload: Record<string, any> = {
+        id: normalizedChallenge.id,
+        created_by: normalizedChallenge.createdBy,
+        title: normalizedChallenge.title,
+        description: normalizedChallenge.description || null,
+        icon: normalizedChallenge.icon || '🏆',
+        color: normalizedChallenge.color || '#06b6d4',
+        start_date: normalizedChallenge.startDate,
+        end_date: normalizedChallenge.endDate,
+        duration_days: normalizedChallenge.durationDays,
+        mode: normalizedChallenge.mode,
+        status: normalizedChallenge.status,
+        target_goal: normalizedChallenge.targetGoal || null,
+        updated_at: nowIso,
+      };
+
+      if (normalizedChallenge.challengeType) {
+        payload.challenge_type = normalizedChallenge.challengeType;
+      }
+
+      let { error } = await (client.from('challenges') as any).upsert(payload);
+
+      // Fallback compatible si la columna aditiva challenge_type aún no se ha ejecutado en Supabase
+      if (
+        error &&
+        payload.challenge_type !== undefined &&
+        (error.code === '42703' ||
+          error.code === 'PGRST204' ||
+          String(error.message || '').includes('challenge_type'))
+      ) {
+        delete payload.challenge_type;
+        const retry = await (client.from('challenges') as any).upsert(payload);
+        error = retry.error;
+      }
+
       if (error) {
         console.error('❌ Error al sincronizar reto con Supabase:', error);
-        markChallengeAsPendingUpload(challenge.id);
+        markChallengeAsPendingUpload(normalizedChallenge.id);
         _challengeCloudSyncStatus = {
           isConfigured: true,
           isSynced: false,
           statusText: 'Error al sincronizar reto con Supabase',
           errorMessage: error.message,
           errorCode: error.code,
-          lastSyncTime: new Date().toISOString(),
+          lastSyncTime: nowIso,
         };
       } else {
-        console.log('✅ Reto sincronizado exitosamente con Supabase:', challenge.title);
-        removePendingUploadChallengeId(challenge.id);
+        console.log('✅ Reto sincronizado exitosamente con Supabase:', normalizedChallenge.title);
+        removePendingUploadChallengeId(normalizedChallenge.id);
         _challengeCloudSyncStatus = {
           isConfigured: true,
           isSynced: true,
           statusText: 'Sincronizado con Supabase',
-          lastSyncTime: new Date().toISOString(),
+          lastSyncTime: nowIso,
         };
       }
     } catch (e: any) {
       console.warn('Sync saveChallenge Supabase exception:', e);
-      markChallengeAsPendingUpload(challenge.id);
+      markChallengeAsPendingUpload(normalizedChallenge.id);
       _challengeCloudSyncStatus = {
         isConfigured: true,
         isSynced: false,
         statusText: 'Excepción al conectar con Supabase',
         errorMessage: e?.message,
-        lastSyncTime: new Date().toISOString(),
+        lastSyncTime: nowIso,
       };
     }
   } else {
-    markChallengeAsPendingUpload(challenge.id);
+    markChallengeAsPendingUpload(normalizedChallenge.id);
   }
 
-  return challenge;
+  return normalizedChallenge;
 }
 
 // Eliminar Reto permanentemente y en cascada (Local-First + Supabase + Lápida persistente)
@@ -1002,14 +1157,19 @@ export function getLocalChallengeLogs(challengeId?: string): ChallengeLog[] {
 export function saveLocalChallengeLogs(logs: ChallengeLog[]): void {
   if (typeof window === 'undefined') return;
   try {
+    const deletedLogIds = new Set(getDeletedChallengeLogIds());
     // Deduplicación estricta por (challengeId, challengeHabitId, userId, dateKey)
     const uniqueMap = new Map<string, ChallengeLog>();
     logs.forEach((l) => {
       if (LEGACY_DELETED_DEMO_IDS.includes(l.challengeId)) return;
+      if (deletedLogIds.has(l.id)) return;
       const dedupeKey = `${l.challengeId}_${l.challengeHabitId || 'h'}_${l.userId}_${l.dateKey}`;
       const existing = uniqueMap.get(dedupeKey);
-      if (!existing || l.status === 'completed') {
+      if (!existing) {
         uniqueMap.set(dedupeKey, l);
+      } else {
+        const { merged } = mergeChallengeLogRecords(existing, l, false);
+        uniqueMap.set(dedupeKey, merged);
       }
     });
 
@@ -1035,6 +1195,7 @@ export async function toggleChallengeLog(
   }
 
   const currentLogs = getLocalChallengeLogs();
+  const canonicalId = `clog-${challengeId}-${challengeHabitId}-${userId}-${dateKey}`;
 
   // Búsqueda específica por reto, hábito concreto, usuario y fecha
   const matchingLogs = currentLogs.filter(
@@ -1050,9 +1211,15 @@ export async function toggleChallengeLog(
   let newStatus: HabitLogStatus | 'removed';
 
   if (isCurrentlyCompleted) {
-    // ACCIÓN: DESMARCAR (Eliminación definitiva de este hábito específico)
+    // ACCIÓN: DESMARCAR (Eliminación definitiva de este hábito específico y sus calorías asociadas)
     newStatus = 'removed';
-    const removedIds = matchingLogs.map((l) => l.id);
+    const removedIds = Array.from(new Set([...matchingLogs.map((l) => l.id), canonicalId]));
+
+    // Registrar tombstones para impedir resurrecciones durante sincronizaciones en vuelo
+    removedIds.forEach((id) => {
+      markChallengeLogAsDeleted(id);
+      removePendingUploadLogId(id);
+    });
 
     // 1. Filtrar localmente de inmediato conservando los demás hábitos del mismo día
     const remainingLogs = currentLogs.filter(
@@ -1066,9 +1233,6 @@ export async function toggleChallengeLog(
     );
     saveLocalChallengeLogs(remainingLogs);
 
-    // 2. Limpiar de la cola pendiente si estaba
-    removedIds.forEach((id) => removePendingUploadLogId(id));
-
     // 3. Purgar de Supabase solo este hábito específico
     const client = await getOrInitSupabase();
     if (client) {
@@ -1076,13 +1240,17 @@ export async function toggleChallengeLog(
         if (removedIds.length > 0) {
           await client.from('challenge_logs').delete().in('id', removedIds);
         }
-        await client
+        const { error: delErr } = await client
           .from('challenge_logs')
           .delete()
           .eq('challenge_id', challengeId)
           .eq('challenge_habit_id', challengeHabitId)
           .eq('user_id', userId)
           .eq('date_key', dateKey);
+
+        if (!delErr) {
+          removedIds.forEach((id) => removeDeletedChallengeLogId(id));
+        }
       } catch (e) {
         console.warn('Sync toggleChallengeLog delete Supabase error:', e);
       }
@@ -1090,9 +1258,10 @@ export async function toggleChallengeLog(
   } else {
     // ACCIÓN: MARCAR (Nuevo check-in)
     newStatus = 'completed';
+    removeDeletedChallengeLogId(canonicalId);
 
     resultingLog = {
-      id: `clog-${challengeId}-${challengeHabitId}-${userId}-${dateKey}`,
+      id: canonicalId,
       challengeId,
       challengeHabitId,
       userId,
@@ -1136,7 +1305,7 @@ export async function toggleChallengeLog(
 
 /**
  * Actualiza de forma atómica y local el estado de la evidencia en un log de reto,
- * notificando a todos los componentes suscriptos mediante notifySync('challenge_logs').
+ * preservando las calorías (numericValue) salvo que se especifique explícitamente.
  */
 export function updateLocalChallengeLogEvidence(
   challengeId: string,
@@ -1149,8 +1318,12 @@ export function updateLocalChallengeLogEvidence(
     evidenceUploadedAt?: string | null;
     evidenceUploadedBy?: string | null;
     evidenceStatus: EvidenceStatus;
+    numericValue?: number | null;
   }
 ): ChallengeLog | null {
+  const canonicalId = `clog-${challengeId}-${challengeHabitId}-${userId}-${dateKey}`;
+  removeDeletedChallengeLogId(canonicalId);
+
   const currentLogs = getLocalChallengeLogs();
   const logIndex = currentLogs.findIndex(
     (l) =>
@@ -1173,18 +1346,20 @@ export function updateLocalChallengeLogEvidence(
       evidenceUploadedBy:
         evidence.evidenceUploadedBy !== undefined ? evidence.evidenceUploadedBy : existing.evidenceUploadedBy,
       evidenceStatus: evidence.evidenceStatus,
+      numericValue: evidence.numericValue !== undefined ? evidence.numericValue : existing.numericValue,
       updatedAt: new Date().toISOString(),
     };
     currentLogs[logIndex] = updatedLog;
   } else {
     // Si no existía el log pero se subió evidencia, crearlo como completado
     updatedLog = {
-      id: `clog-${challengeId}-${challengeHabitId}-${userId}-${dateKey}`,
+      id: canonicalId,
       challengeId,
       challengeHabitId,
       userId,
       dateKey,
       status: 'completed',
+      numericValue: evidence.numericValue !== undefined ? evidence.numericValue : undefined,
       evidenceUrl: evidence.evidenceUrl || null,
       evidenceFileId: evidence.evidenceFileId || null,
       evidenceUploadedAt: evidence.evidenceUploadedAt || new Date().toISOString(),
@@ -1198,6 +1373,136 @@ export function updateLocalChallengeLogEvidence(
 
   saveLocalChallengeLogs(currentLogs);
   return updatedLog;
+}
+
+/**
+ * Registra, edita o pone en cero las calorías (numericValue) de un día/hábito/participante
+ * de forma determinística e idempotente, sin sobrescribir la evidencia fotográfica existente.
+ */
+export async function updateChallengeLogCalories(
+  challengeId: string,
+  challengeHabitId: string,
+  userId: string,
+  dateKey: string,
+  rawCalories: unknown,
+  requestingUserId?: string
+): Promise<{ ok: boolean; log: ChallengeLog | null; error?: string }> {
+  // Protección de autoría: solo el propietario del registro puede modificar sus calorías
+  if (requestingUserId && requestingUserId !== userId) {
+    return {
+      ok: false,
+      log: null,
+      error: 'No tienes permisos para modificar las calorías de otro participante.',
+    };
+  }
+
+  if (dateKey > getBogotaToday()) {
+    return {
+      ok: false,
+      log: null,
+      error: 'No se permite registrar calorías en fechas futuras.',
+    };
+  }
+
+  const validation = validateCaloriesInput(rawCalories);
+  if (!validation.valid) {
+    return {
+      ok: false,
+      log: null,
+      error: validation.error,
+    };
+  }
+
+  const canonicalId = `clog-${challengeId}-${challengeHabitId}-${userId}-${dateKey}`;
+  removeDeletedChallengeLogId(canonicalId);
+
+  const currentLogs = getLocalChallengeLogs();
+  const logIndex = currentLogs.findIndex(
+    (l) =>
+      l.challengeId === challengeId &&
+      l.userId === userId &&
+      l.dateKey === dateKey &&
+      (l.challengeHabitId === challengeHabitId || (!l.challengeHabitId && !challengeHabitId))
+  );
+
+  const nowIso = new Date().toISOString();
+  let updatedLog: ChallengeLog;
+
+  if (logIndex >= 0) {
+    const existing = currentLogs[logIndex];
+    updatedLog = {
+      ...existing,
+      status: 'completed',
+      numericValue: validation.value,
+      updatedAt: nowIso,
+    };
+    currentLogs[logIndex] = updatedLog;
+  } else {
+    updatedLog = {
+      id: canonicalId,
+      challengeId,
+      challengeHabitId,
+      userId,
+      dateKey,
+      status: 'completed',
+      numericValue: validation.value,
+      evidenceStatus: 'none',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    currentLogs.push(updatedLog);
+  }
+
+  markLogAsPendingUpload(updatedLog.id);
+  saveLocalChallengeLogs(currentLogs);
+
+  const client = await getOrInitSupabase();
+  if (client) {
+    try {
+      // 1. Intentar actualización selectiva de numeric_value para no pisar cambios concurrentes de evidencia
+      const { data: updatedRows, error: updErr } = await (client.from('challenge_logs') as any)
+        .update({
+          numeric_value: validation.value,
+          status: 'completed',
+          updated_at: nowIso,
+        })
+        .eq('id', updatedLog.id)
+        .eq('user_id', userId)
+        .select('id');
+
+      if (!updErr && Array.isArray(updatedRows) && updatedRows.length > 0) {
+        removePendingUploadLogId(updatedLog.id);
+      } else {
+        // 2. Si el registro aún no existía en Supabase, hacer upsert completo incluyendo evidencia local si la hubiera
+        const { error: upErr } = await (client.from('challenge_logs') as any).upsert({
+          id: updatedLog.id,
+          challenge_id: updatedLog.challengeId,
+          challenge_habit_id: updatedLog.challengeHabitId,
+          user_id: updatedLog.userId,
+          date_key: updatedLog.dateKey,
+          status: updatedLog.status,
+          numeric_value: validation.value,
+          notes: updatedLog.notes || null,
+          evidence_url: updatedLog.evidenceUrl || null,
+          evidence_file_id: updatedLog.evidenceFileId || null,
+          evidence_uploaded_at: updatedLog.evidenceUploadedAt || null,
+          evidence_uploaded_by: updatedLog.evidenceUploadedBy || null,
+          evidence_status: updatedLog.evidenceStatus || 'none',
+          created_at: updatedLog.createdAt || nowIso,
+          updated_at: nowIso,
+        });
+        if (!upErr) {
+          removePendingUploadLogId(updatedLog.id);
+        } else {
+          console.warn('Sync updateChallengeLogCalories upsert error:', upErr);
+        }
+      }
+    } catch (e) {
+      console.warn('Sync updateChallengeLogCalories exception:', e);
+    }
+  }
+
+  return { ok: true, log: updatedLog };
 }
 
 // ========================================================
@@ -1540,36 +1845,42 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
     };
 
     if (cloudChallenges) {
-      // 1.1. Mapear los retos válidos que existen en Supabase (sin purgas destructivas automáticas)
+      const currentLocal = getLocalChallenges();
+      const localChallengeById = new Map<string, Challenge>(currentLocal.map((lc) => [lc.id, lc]));
 
       // 1.2. Mapear los retos válidos que existen en Supabase
       const validCloud = cloudChallenges.filter(
         (c: any) => !deletedIds.includes(c.id) && !LEGACY_DELETED_DEMO_IDS.includes(c.id)
       );
 
-      const mappedCloud: Challenge[] = validCloud.map((c: any) => ({
-        id: c.id,
-        createdBy: c.created_by,
-        title: c.title,
-        description: c.description || '',
-        icon: c.icon || '🏆',
-        color: c.color || '#06b6d4',
-        startDate: c.start_date,
-        endDate: c.end_date,
-        durationDays: c.duration_days || 30,
-        mode: c.mode || 'competitive',
-        status: c.status || 'active',
-        targetGoal: c.target_goal || undefined,
-        createdAt: c.created_at || new Date().toISOString(),
-        updatedAt: c.updated_at || new Date().toISOString(),
-      }));
+      const mappedCloud: Challenge[] = validCloud.map((c: any) => {
+        const localMatch = localChallengeById.get(c.id);
+        const cloudType: ChallengeType | undefined =
+          c.challenge_type === 'physical' || c.challenge_type === 'general' ? c.challenge_type : undefined;
+
+        return {
+          id: c.id,
+          createdBy: c.created_by,
+          title: c.title,
+          description: c.description || '',
+          icon: c.icon || '🏆',
+          color: c.color || '#06b6d4',
+          challengeType: cloudType ?? localMatch?.challengeType,
+          startDate: c.start_date,
+          endDate: c.end_date,
+          durationDays: c.duration_days || 30,
+          mode: c.mode || 'competitive',
+          status: c.status || 'active',
+          targetGoal: c.target_goal || undefined,
+          createdAt: c.created_at || new Date().toISOString(),
+          updatedAt: c.updated_at || new Date().toISOString(),
+        };
+      });
 
       const mergedMap = new Map<string, Challenge>();
       mappedCloud.forEach((c) => mergedMap.set(c.id, c));
 
       // 1.3. Subir ÚNICAMENTE retos locales que estén explícitamente marcados como pendientes de subida
-      const currentLocal = getLocalChallenges();
-
       for (const c of currentLocal) {
         if (deletedIds.includes(c.id) || LEGACY_DELETED_DEMO_IDS.includes(c.id)) {
           continue;
@@ -1577,18 +1888,18 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
 
         const isPending = pendingUploadIds.includes(c.id);
 
-        // NUNCA resucitar retos ausentes en la nube que no estén pendientes de subida,
-        // ya que si no están en la nube y no están pendientes, significa que fueron eliminados en otro dispositivo.
-        if (!mergedMap.has(c.id) && isPending) {
+        // NUNCA resucitar retos ausentes en la nube que no estén pendientes de subida
+        if (isPending) {
           mergedMap.set(c.id, c);
           try {
-            const { error: upErr } = await (client.from('challenges') as any).upsert({
+            const payload: Record<string, any> = {
               id: c.id,
               created_by: c.createdBy,
               title: c.title,
               description: c.description || null,
               icon: c.icon,
               color: c.color,
+              challenge_type: c.challengeType || null,
               start_date: c.startDate,
               end_date: c.endDate,
               duration_days: c.durationDays,
@@ -1596,7 +1907,14 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
               status: c.status,
               target_goal: c.targetGoal || null,
               updated_at: c.updatedAt,
-            });
+            };
+            let { error: upErr } = await (client.from('challenges') as any).upsert(payload);
+            if (upErr && (upErr.code === '42703' || String(upErr.message || '').includes('challenge_type'))) {
+              const fallbackPayload = { ...payload };
+              delete fallbackPayload.challenge_type;
+              const retryRes = await (client.from('challenges') as any).upsert(fallbackPayload);
+              upErr = retryRes.error;
+            }
             if (upErr) {
               console.error('Error subiendo reto local a Supabase:', upErr);
             } else {
@@ -1788,9 +2106,26 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
     if (!lErr && cloudLogs) {
       const activeChallengeIds = new Set(getLocalChallenges().map((c) => c.id));
       const pendingLogIds = new Set(getPendingUploadLogIds());
+      const deletedLogIds = new Set(getDeletedChallengeLogIds());
+
+      // Si hay logs marcados como eliminados localmente que aún están en la nube, purgarlos de Supabase
+      const zombieCloudIds = cloudLogs
+        .filter((l: any) => deletedLogIds.has(l.id))
+        .map((l: any) => l.id as string);
+
+      if (zombieCloudIds.length > 0) {
+        try {
+          const { error: purgeErr } = await client.from('challenge_logs').delete().in('id', zombieCloudIds);
+          if (!purgeErr) {
+            zombieCloudIds.forEach((id) => removeDeletedChallengeLogId(id));
+          }
+        } catch (e) {
+          console.warn('Sync purge deleted logs error:', e);
+        }
+      }
 
       const mappedLogs: ChallengeLog[] = cloudLogs
-        .filter((l: any) => activeChallengeIds.has(l.challenge_id))
+        .filter((l: any) => activeChallengeIds.has(l.challenge_id) && !deletedLogIds.has(l.id))
         .map((l: any) => ({
           id: l.id,
           challengeId: l.challenge_id,
@@ -1798,7 +2133,7 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
           userId: l.user_id,
           dateKey: l.date_key,
           status: l.status || 'completed',
-          numericValue: l.numeric_value,
+          numericValue: normalizeCloudNumericValue(l.numeric_value),
           notes: l.notes,
           evidenceUrl: l.evidence_url || null,
           evidenceFileId: l.evidence_file_id || null,
@@ -1812,10 +2147,15 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
       const logMap = new Map<string, ChallengeLog>();
       mappedLogs.forEach((l) => logMap.set(l.id, l));
 
-      // Solo subir logs locales que estén explícitamente en pendingLogIds (creados offline)
+      // Reconciliar logs locales pendientes o más recientes sin pisar evidencia/calorías independientes
       const currentLogs = getLocalChallengeLogs();
       for (const l of currentLogs) {
-        if (activeChallengeIds.has(l.challengeId) && pendingLogIds.has(l.id) && !logMap.has(l.id)) {
+        if (!activeChallengeIds.has(l.challengeId) || deletedLogIds.has(l.id)) continue;
+
+        const isPending = pendingLogIds.has(l.id);
+        const cloudExisting = logMap.get(l.id);
+
+        if (!cloudExisting && isPending) {
           logMap.set(l.id, l);
           try {
             const { error: upErr } = await (client.from('challenge_logs') as any).upsert({
@@ -1825,8 +2165,13 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
               user_id: l.userId,
               date_key: l.dateKey,
               status: l.status,
-              numeric_value: l.numericValue || null,
+              numeric_value: l.numericValue !== undefined ? l.numericValue : null,
               notes: l.notes || null,
+              evidence_url: l.evidenceUrl || null,
+              evidence_file_id: l.evidenceFileId || null,
+              evidence_uploaded_at: l.evidenceUploadedAt || null,
+              evidence_uploaded_by: l.evidenceUploadedBy || null,
+              evidence_status: l.evidenceStatus || 'none',
               updated_at: l.updatedAt,
             });
             if (!upErr) {
@@ -1834,6 +2179,36 @@ export async function syncCloudChallenges(): Promise<Challenge[]> {
             }
           } catch (e) {
             console.warn('Sync pending log exception:', e);
+          }
+        } else if (cloudExisting) {
+          const { merged, needsCloudPush } = mergeChallengeLogRecords(l, cloudExisting, isPending);
+          logMap.set(l.id, merged);
+          if (needsCloudPush) {
+            try {
+              const { error: upErr } = await (client.from('challenge_logs') as any).upsert({
+                id: merged.id,
+                challenge_id: merged.challengeId,
+                challenge_habit_id: merged.challengeHabitId,
+                user_id: merged.userId,
+                date_key: merged.dateKey,
+                status: merged.status,
+                numeric_value: merged.numericValue !== undefined ? merged.numericValue : null,
+                notes: merged.notes || null,
+                evidence_url: merged.evidenceUrl || null,
+                evidence_file_id: merged.evidenceFileId || null,
+                evidence_uploaded_at: merged.evidenceUploadedAt || null,
+                evidence_uploaded_by: merged.evidenceUploadedBy || null,
+                evidence_status: merged.evidenceStatus || 'none',
+                updated_at: merged.updatedAt,
+              });
+              if (!upErr) {
+                removePendingUploadLogId(merged.id);
+              }
+            } catch (e) {
+              console.warn('Sync merged log push exception:', e);
+            }
+          } else if (isPending) {
+            removePendingUploadLogId(l.id);
           }
         }
       }

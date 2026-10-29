@@ -44,6 +44,7 @@ import {
   getChallengeDays,
   calculateChallengeLeaderboard,
   calculateChallengeSummaryKpis,
+  isPhysicalChallenge,
 } from '@/lib/challengeCalculations';
 import { getBogotaToday, getBogotaYearMonth, MONTH_NAMES_ES } from '@/lib/habitCalculations';
 import { subscribeToSync } from '@/lib/storage';
@@ -314,6 +315,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
         totalMembersCount: 0,
         activeMembersCount: 0,
         mostConsistentMember: null,
+        totalTeamCalories: 0,
       };
     }
     return calculateChallengeSummaryKpis(
@@ -351,16 +353,26 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
       return;
     }
 
-    // Actualización optimista inmediata en la UI local
+    // Actualización optimista inmediata en la UI local (por hábito específico)
     const existingLogs = logs.filter(
-      (l) => l.challengeId === challengeId && l.userId === userId && l.dateKey === dateKey
+      (l) =>
+        l.challengeId === challengeId &&
+        (l.challengeHabitId === challengeHabitId || (!l.challengeHabitId && !challengeHabitId)) &&
+        l.userId === userId &&
+        l.dateKey === dateKey
     );
     const isCurrentlyChecked = existingLogs.some((l) => l.status === 'completed') || existingLogs.length > 0;
 
     if (isCurrentlyChecked) {
       setLogs((prev) =>
         prev.filter(
-          (l) => !(l.challengeId === challengeId && l.userId === userId && l.dateKey === dateKey)
+          (l) =>
+            !(
+              l.challengeId === challengeId &&
+              (l.challengeHabitId === challengeHabitId || (!l.challengeHabitId && !challengeHabitId)) &&
+              l.userId === userId &&
+              l.dateKey === dateKey
+            )
         )
       );
     } else {
@@ -418,6 +430,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
       description: challengeData.description || '',
       icon: challengeData.icon || '🏆',
       color: challengeData.color || '#06b6d4',
+      challengeType: challengeData.challengeType,
       startDate: challengeData.startDate || todayKey,
       endDate: challengeData.endDate || todayKey,
       durationDays: challengeData.durationDays || 30,
@@ -890,7 +903,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
         onSyncSuccess={loadChallengeData}
       />
 
-      {/* Modal Centralizado de Evidencias Fotográficas (Google Drive) */}
+      {/* Modal Centralizado de Evidencias Fotográficas (Google Drive + Calorías en retos físicos) */}
       {dashboardEvidenceTarget && (
         <ChallengeEvidenceModal
           isOpen={true}
@@ -903,6 +916,7 @@ export const ChallengeDashboard: React.FC<ChallengeDashboardProps> = ({
           targetUser={dashboardEvidenceTarget.targetUser}
           currentUser={currentUser}
           log={dashboardEvidenceTarget.log}
+          isPhysical={currentChallenge ? isPhysicalChallenge(currentChallenge) : false}
           onEvidenceUpdated={(updatedLog) => {
             setDashboardEvidenceTarget((prev) => (prev ? { ...prev, log: updatedLog } : null));
             loadChallengeData();

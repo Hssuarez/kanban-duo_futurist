@@ -7,6 +7,7 @@
 import { User } from './types';
 import {
   Challenge,
+  ChallengeType,
   ChallengeMember,
   ChallengeHabit,
   ChallengeLog,
@@ -18,6 +19,236 @@ import { getBogotaToday } from './habitCalculations';
 
 // Iniciales de días en español
 const DAY_LETTERS_ES = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
+// ========================================================
+// CLASIFICACIÓN DE RETOS (FÍSICO / DEPORTIVO VS. GENERAL)
+// ========================================================
+
+export const PHYSICAL_CHALLENGE_ICONS = new Set([
+  '🏋️',
+  '🏃',
+  '🧘',
+  '⚡',
+  '🚴',
+  '🏊',
+  '🥊',
+  '⚽',
+  '🏀',
+  '💪',
+  '🔥',
+]);
+
+const PHYSICAL_KEYWORDS_REGEX =
+  /\b(gym|gimnasio|entrenar|entrenamiento|fitness|cardio|correr|running|crossfit|pesas|fuerza|calor[ií]as|kcal|deporte|ejercicio|workout|trotar|ciclismo|bicicleta|nataci[oó]n|hiit|boxeo|yoga|pilates|marat[oó]n)\b/i;
+
+/**
+ * Sugiere un tipo inicial ('physical' | 'general') a partir de título, icono o descripción.
+ * Se utiliza únicamente como sugerencia inicial al crear un reto o como fallback no destructivo
+ * para retos históricos que aún no tienen `challengeType` persistido.
+ */
+export function inferChallengeTypeFromMetadata(
+  title?: string,
+  icon?: string,
+  description?: string
+): ChallengeType {
+  if (icon && PHYSICAL_CHALLENGE_ICONS.has(icon.trim())) {
+    return 'physical';
+  }
+  const combinedText = `${title || ''} ${description || ''}`.trim();
+  if (combinedText && PHYSICAL_KEYWORDS_REGEX.test(combinedText)) {
+    return 'physical';
+  }
+  return 'general';
+}
+
+/**
+ * Resuelve el tipo efectivo del reto:
+ * 1. Si `challengeType` está definido ('physical' | 'general'), es la fuente única de verdad.
+ * 2. Si es un reto anterior sin `challengeType`, aplica inferencia no destructiva.
+ */
+export function resolveChallengeType(
+  challenge?: Pick<Challenge, 'challengeType' | 'title' | 'icon' | 'description'> | null
+): ChallengeType {
+  if (!challenge) return 'general';
+  if (challenge.challengeType === 'physical' || challenge.challengeType === 'general') {
+    return challenge.challengeType;
+  }
+  return inferChallengeTypeFromMetadata(challenge.title, challenge.icon, challenge.description);
+}
+
+/**
+ * Determina si el reto tiene habilitadas las funciones y métricas de calorías.
+ */
+export function isPhysicalChallenge(
+  challenge?: Pick<Challenge, 'challengeType' | 'title' | 'icon' | 'description'> | null
+): boolean {
+  return resolveChallengeType(challenge) === 'physical';
+}
+
+// ========================================================
+// VALIDACIÓN Y EXTRACCIÓN DETERMINÍSTICA DE CALORÍAS
+// ========================================================
+
+export const MAX_CALORIES_PER_LOG = 10000;
+export const MIN_CALORIES_PER_LOG = 0;
+
+export interface CaloriesValidationResult {
+  valid: boolean;
+  value: number | null; // null = ausente / sin registro, 0..10000 = entero válido
+  error?: string;
+}
+
+/**
+ * Valida la entrada de calorías distinguiendo estrictamente entre:
+ * - Valor ausente ('' | null | undefined) -> { valid: true, value: null }
+ * - Cero explícito ('0' | 0) -> { valid: true, value: 0 }
+ * - Entero positivo [1..10000] -> { valid: true, value: n }
+ * Rechaza negativos, decimales, NaN y valores > 10000.
+ */
+export function validateCaloriesInput(raw: unknown): CaloriesValidationResult {
+  if (raw === null || raw === undefined) {
+    return { valid: true, value: null };
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed === '') {
+      return { valid: true, value: null };
+    }
+    // Rechazar notación decimal o caracteres no numéricos (excepto signo para dar mensaje claro)
+    if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      return {
+        valid: false,
+        value: null,
+        error: 'Ingresa un número entero válido de calorías (0 a 10.000 kcal).',
+      };
+    }
+    if (trimmed.includes('.')) {
+      return {
+        valid: false,
+        value: null,
+        error: 'No se permiten decimales. Ingresa calorías enteras (0 a 10.000 kcal).',
+      };
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isSafeInteger(parsed)) {
+      return {
+        valid: false,
+        value: null,
+        error: 'Valor numérico inválido.',
+      };
+    }
+    if (parsed < MIN_CALORIES_PER_LOG) {
+      return {
+        valid: false,
+        value: null,
+        error: 'No se permiten calorías negativas (mínimo 0 kcal).',
+      };
+    }
+    if (parsed > MAX_CALORIES_PER_LOG) {
+      return {
+        valid: false,
+        value: null,
+        error: 'El límite máximo por registro es de 10.000 kcal.',
+      };
+    }
+    return { valid: true, value: parsed };
+  }
+
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw)) {
+      return { valid: false, value: null, error: 'Valor numérico inválido.' };
+    }
+    if (!Number.isInteger(raw)) {
+      return {
+        valid: false,
+        value: null,
+        error: 'No se permiten decimales. Ingresa calorías enteras (0 a 10.000 kcal).',
+      };
+    }
+    if (raw < MIN_CALORIES_PER_LOG) {
+      return {
+        valid: false,
+        value: null,
+        error: 'No se permiten calorías negativas (mínimo 0 kcal).',
+      };
+    }
+    if (raw > MAX_CALORIES_PER_LOG) {
+      return {
+        valid: false,
+        value: null,
+        error: 'El límite máximo por registro es de 10.000 kcal.',
+      };
+    }
+    return { valid: true, value: raw };
+  }
+
+  return { valid: false, value: null, error: 'Formato de calorías no válido.' };
+}
+
+/**
+ * Extrae las calorías válidas de un ChallengeLog.
+ * Retorna null si el registro no está completado, si numericValue está ausente o fuera de rango.
+ * Retorna 0 si fue puesto explícitamente en 0, o el entero [1..10000].
+ */
+export function getValidLogCalories(
+  log?: Pick<ChallengeLog, 'status' | 'numericValue'> | null
+): number | null {
+  if (!log || log.status !== 'completed') return null;
+  if (log.numericValue === null || log.numericValue === undefined) return null;
+  const num = Number(log.numericValue);
+  if (!Number.isFinite(num) || !Number.isInteger(num)) return null;
+  if (num < MIN_CALORIES_PER_LOG || num > MAX_CALORIES_PER_LOG) return null;
+  return num;
+}
+
+export interface CalorieThermalRank {
+  id: 'spark' | 'reactor' | 'supernova' | 'fusion';
+  label: string;
+  shortLabel: string;
+  icon: string;
+  badgeClass: string;
+}
+
+/**
+ * Determina el rango visual gamificado según el total de calorías registradas en el reto.
+ */
+export function getCalorieThermalRank(totalCalories: number): CalorieThermalRank | null {
+  if (!Number.isFinite(totalCalories) || totalCalories <= 0) return null;
+  if (totalCalories >= 15000) {
+    return {
+      id: 'fusion',
+      label: 'Fusión Nuclear (15.000+ kcal)',
+      shortLabel: 'Fusión',
+      icon: '💎',
+      badgeClass: 'bg-violet-500/20 text-violet-300 border-violet-500/40',
+    };
+  }
+  if (totalCalories >= 7500) {
+    return {
+      id: 'supernova',
+      label: 'Modo Supernova (7.500+ kcal)',
+      shortLabel: 'Supernova',
+      icon: '☄️',
+      badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+    };
+  }
+  if (totalCalories >= 2500) {
+    return {
+      id: 'reactor',
+      label: 'Reactor Térmico (2.500+ kcal)',
+      shortLabel: 'Reactor',
+      icon: '⚡',
+      badgeClass: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
+    };
+  }
+  return {
+    id: 'spark',
+    label: 'Chispa Activa (1+ kcal)',
+    shortLabel: 'Chispa',
+    icon: '🔥',
+    badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+  };
+}
 
 // Genera los días del reto o del mes del calendario con respecto al reto
 export function getChallengeDays(
@@ -159,21 +390,61 @@ export function calculateMemberCompliance(
     challengeDays.push({ dateKey: todayKey, isToday: true });
   }
 
-  // Mapa rápido de logs del miembro para este reto
+  // Deduplicación determinística de logs completados del miembro por (challengeHabitId, dateKey)
+  // Si existen duplicados en memoria, prevalece el que tenga updatedAt más reciente.
   const memberLogSet = new Set<string>();
-  const completedHabitCheckSet = new Set<string>();
+  const completedHabitCheckMap = new Map<string, ChallengeLog>();
+
   logs.forEach((l) => {
     if (l.challengeId === challenge.id && l.userId === member.userId && l.status === 'completed') {
+      // No contabilizar fechas futuras
+      if (l.dateKey > todayKey) return;
+
       memberLogSet.add(`${l.challengeHabitId}_${l.dateKey}`);
-      // Indexar también por dateKey para matching infalible de check-ins del reto
       memberLogSet.add(l.dateKey);
-      completedHabitCheckSet.add(`${l.challengeHabitId || 'h'}_${l.dateKey}`);
+
+      const dedupeKey = `${l.challengeHabitId || 'h'}_${l.dateKey}`;
+      const existing = completedHabitCheckMap.get(dedupeKey);
+      if (!existing) {
+        completedHabitCheckMap.set(dedupeKey, l);
+      } else {
+        const existingTime = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+        const incomingTime = l.updatedAt ? new Date(l.updatedAt).getTime() : 0;
+        if (incomingTime >= existingTime) {
+          completedHabitCheckMap.set(dedupeKey, l);
+        }
+      }
     }
   });
 
-  const points = completedHabitCheckSet.size;
+  const points = completedHabitCheckMap.size;
 
-  const habitsToTrack = challengeHabits.length > 0 ? challengeHabits : [{ id: 'default', challengeId: challenge.id, title: 'Hábito', icon: '🎯', displayOrder: 1, createdAt: '' }];
+  // Cálculo determinístico de calorías (sin doble conteo, solo en retos físicos)
+  const isPhysical = isPhysicalChallenge(challenge);
+  let totalCalories = 0;
+  let bestCalorieDay = 0;
+  let calorieLogsCount = 0;
+
+  if (isPhysical) {
+    completedHabitCheckMap.forEach((log) => {
+      const cal = getValidLogCalories(log);
+      if (cal !== null && cal > 0) {
+        totalCalories += cal;
+        calorieLogsCount += 1;
+        if (cal > bestCalorieDay) {
+          bestCalorieDay = cal;
+        }
+      }
+    });
+  }
+
+  const avgCaloriesPerSession =
+    isPhysical && calorieLogsCount > 0 ? Math.round(totalCalories / calorieLogsCount) : 0;
+
+  const habitsToTrack =
+    challengeHabits.length > 0
+      ? challengeHabits
+      : [{ id: 'default', challengeId: challenge.id, title: 'Hábito', icon: '🎯', displayOrder: 1, createdAt: '' }];
 
   let completedDays = 0;
   let expectedDays = 0;
@@ -245,6 +516,10 @@ export function calculateMemberCompliance(
     rankPosition: 1,
     isTied: false,
     points,
+    totalCalories,
+    avgCaloriesPerSession,
+    bestCalorieDay,
+    calorieLogsCount,
   };
 }
 
@@ -387,10 +662,12 @@ export function calculateChallengeSummaryKpis(
 
   let totalCompleted = 0;
   let totalExpected = 0;
+  let totalTeamCalories = 0;
 
   leaderboard.forEach((m) => {
     totalCompleted += m.completedDays;
     totalExpected += m.expectedDays;
+    totalTeamCalories += m.totalCalories || 0;
   });
 
   const completionRate =
@@ -459,5 +736,6 @@ export function calculateChallengeSummaryKpis(
     totalMembersCount: members.length,
     activeMembersCount: members.length,
     mostConsistentMember,
+    totalTeamCalories,
   };
 }

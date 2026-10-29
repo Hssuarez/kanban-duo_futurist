@@ -8,6 +8,7 @@ import {
   sanitizeName,
 } from '@/lib/googleDriveServer';
 import { getServerSupabase } from '@/lib/supabaseServer';
+import { validateCaloriesInput } from '@/lib/challengeCalculations';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
     const challengeHabitId = formData.get('challengeHabitId') as string | null;
     const dateKey = formData.get('dateKey') as string | null;
     const previousFileId = (formData.get('previousFileId') as string | null) || undefined;
+    const rawCalories = formData.get('calories');
     const headerUserId = req.headers.get('x-user-id');
     const formUserId = formData.get('userId') as string | null;
     const requestingUserId = headerUserId || formUserId;
@@ -42,6 +44,21 @@ export async function POST(req: NextRequest) {
         { success: false, error: 'Faltan parámetros requeridos (file, challengeId, challengeHabitId, dateKey).' },
         { status: 400 }
       );
+    }
+
+    // Validación opcional de calorías si vienen en la petición
+    let hasCaloriesParam = false;
+    let validatedCalories: number | null = null;
+    if (rawCalories !== null && rawCalories !== undefined && String(rawCalories).trim() !== '') {
+      const calValidation = validateCaloriesInput(rawCalories);
+      if (!calValidation.valid) {
+        return NextResponse.json(
+          { success: false, error: calValidation.error || 'Valor de calorías inválido.' },
+          { status: 400 }
+        );
+      }
+      hasCaloriesParam = true;
+      validatedCalories = calValidation.value;
     }
 
     if (!requestingUserId) {
@@ -171,8 +188,7 @@ export async function POST(req: NextRequest) {
       const mockFileId = `mock-${Date.now()}`;
       const mockUrl = `/api/drive/file/${mockFileId}`;
 
-      // Actualizar en Supabase de todos modos para pruebas de flujo
-      await supabase.from('challenge_logs').upsert({
+      const mockPayload: Record<string, any> = {
         id: logId,
         challenge_id: challengeId,
         challenge_habit_id: challengeHabitId,
@@ -185,7 +201,13 @@ export async function POST(req: NextRequest) {
         evidence_uploaded_by: dbUser.id,
         evidence_status: 'uploaded',
         updated_at: nowIso,
-      });
+      };
+      if (hasCaloriesParam) {
+        mockPayload.numeric_value = validatedCalories;
+      }
+
+      // Actualizar en Supabase de todos modos para pruebas de flujo
+      await supabase.from('challenge_logs').upsert(mockPayload);
 
       return NextResponse.json({
         success: true,
@@ -198,6 +220,7 @@ export async function POST(req: NextRequest) {
           status: 'uploaded',
           uploadedAt: nowIso,
           uploadedBy: dbUser.id,
+          ...(hasCaloriesParam ? { numericValue: validatedCalories } : {}),
         },
       });
     }
@@ -248,7 +271,7 @@ export async function POST(req: NextRequest) {
     const evidenceUrl = `/api/drive/file/${encodeURIComponent(uploadResult.fileId)}`;
 
     // 9. Actualizar Supabase (Atomicidad)
-    const { error: upsertErr } = await supabase.from('challenge_logs').upsert({
+    const upsertPayload: Record<string, any> = {
       id: logId,
       challenge_id: challengeId,
       challenge_habit_id: challengeHabitId,
@@ -261,7 +284,12 @@ export async function POST(req: NextRequest) {
       evidence_uploaded_by: dbUser.id,
       evidence_status: 'uploaded',
       updated_at: nowIso,
-    });
+    };
+    if (hasCaloriesParam) {
+      upsertPayload.numeric_value = validatedCalories;
+    }
+
+    const { error: upsertErr } = await supabase.from('challenge_logs').upsert(upsertPayload);
 
     // 10. COMPENSACIÓN / ROLLBACK SI SUPABASE FALLA
     if (upsertErr) {
@@ -297,6 +325,7 @@ export async function POST(req: NextRequest) {
         status: 'uploaded',
         uploadedAt: nowIso,
         uploadedBy: dbUser.id,
+        ...(hasCaloriesParam ? { numericValue: validatedCalories } : {}),
       },
     });
   } catch (error: any) {

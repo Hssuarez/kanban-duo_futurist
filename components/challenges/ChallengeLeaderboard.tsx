@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Challenge, ChallengeMemberCompliance } from '@/lib/challengeTypes';
+import { isPhysicalChallenge, getCalorieThermalRank } from '@/lib/challengeCalculations';
 import {
   Trophy,
   Flame,
@@ -10,9 +11,6 @@ import {
   Handshake,
   Star,
   Zap,
-  ShieldCheck,
-  Target,
-  Sparkles,
 } from 'lucide-react';
 
 interface ChallengeLeaderboardProps {
@@ -25,16 +23,32 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
   leaderboard,
 }) => {
   const isCompetitive = challenge.mode === 'competitive';
-  const [sortBy, setSortBy] = useState<'compliance' | 'points' | 'streak'>('compliance');
+  const isPhysical = isPhysicalChallenge(challenge);
+  const [sortBy, setSortBy] = useState<'compliance' | 'points' | 'streak' | 'calories'>('compliance');
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
 
-  // Máximo puntaje y racha para normalizar barras de progreso visuales
+  // Si el reto cambia a general y estaba en la pestaña calories, volver a compliance
+  useEffect(() => {
+    if (!isPhysical && sortBy === 'calories') {
+      setSortBy('compliance');
+    }
+  }, [isPhysical, sortBy]);
+
+  // Máximo puntaje, racha y calorías para normalizar barras de progreso visuales sin división entre cero
   const maxPoints = useMemo(
     () => Math.max(...leaderboard.map((m) => m.points || 0), 1),
     [leaderboard]
   );
   const maxStreak = useMemo(
     () => Math.max(...leaderboard.map((m) => m.currentStreak || 0), 1),
+    [leaderboard]
+  );
+  const maxCalories = useMemo(
+    () => Math.max(...leaderboard.map((m) => m.totalCalories || 0), 0),
+    [leaderboard]
+  );
+  const totalTeamCalories = useMemo(
+    () => leaderboard.reduce((acc, m) => acc + (m.totalCalories || 0), 0),
     [leaderboard]
   );
 
@@ -62,6 +76,13 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
           b.points - a.points ||
           b.percentage - a.percentage
       );
+    } else if (sortBy === 'calories') {
+      list.sort(
+        (a, b) =>
+          (b.totalCalories || 0) - (a.totalCalories || 0) ||
+          b.percentage - a.percentage ||
+          b.points - a.points
+      );
     }
 
     let curRank = 1;
@@ -73,6 +94,8 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
             ? prev.points === item.points
             : sortBy === 'streak'
             ? prev.currentStreak === item.currentStreak
+            : sortBy === 'calories'
+            ? (prev.totalCalories || 0) === (item.totalCalories || 0)
             : prev.percentage === item.percentage;
         if (!isTied) {
           curRank = idx + 1;
@@ -109,12 +132,16 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
           </span>
         </div>
 
-        {/* Segmented Control de 3 Pestañas que ocupa 100% del ancho con padding generoso */}
-        <div className="grid grid-cols-3 gap-1.5 bg-zinc-950/90 p-1 rounded-xl border border-white/[0.08] text-xs font-mono">
+        {/* Segmented Control (3 pestañas en retos generales, 4 pestañas en retos físicos) */}
+        <div
+          className={`grid ${
+            isPhysical ? 'grid-cols-4' : 'grid-cols-3'
+          } gap-1 bg-zinc-950/90 p-1 rounded-xl border border-white/[0.08] text-xs font-mono`}
+        >
           <button
             type="button"
             onClick={() => setSortBy('compliance')}
-            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center ${
+            className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg transition-all cursor-pointer text-center ${
               sortBy === 'compliance'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-[0_0_12px_rgba(6,182,212,0.25)]'
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
@@ -127,7 +154,7 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
           <button
             type="button"
             onClick={() => setSortBy('points')}
-            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center ${
+            className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg transition-all cursor-pointer text-center ${
               sortBy === 'points'
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold shadow-[0_0_12px_rgba(245,158,11,0.25)]'
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
@@ -140,7 +167,7 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
           <button
             type="button"
             onClick={() => setSortBy('streak')}
-            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center ${
+            className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg transition-all cursor-pointer text-center ${
               sortBy === 'streak'
                 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold shadow-[0_0_12px_rgba(244,63,94,0.25)]'
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
@@ -149,6 +176,21 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
             <Flame className="w-3.5 h-3.5 text-rose-400 shrink-0" />
             <span className="truncate">Racha</span>
           </button>
+
+          {isPhysical && (
+            <button
+              type="button"
+              onClick={() => setSortBy('calories')}
+              className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-lg transition-all cursor-pointer text-center ${
+                sortBy === 'calories'
+                  ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40 font-bold shadow-[0_0_12px_rgba(249,115,22,0.25)]'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+              <span className="truncate">Kcal</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -161,6 +203,8 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
         <div className="space-y-2.5 flex-1">
           {sortedLeaderboard.map((item) => {
             const isExpanded = expandedMemberId === item.member.id;
+            const memberCalories = item.totalCalories || 0;
+            const thermalRank = isPhysical ? getCalorieThermalRank(memberCalories) : null;
 
             // Medalla o posición
             let badgeColor = 'bg-zinc-800 text-zinc-400 border-white/[0.08]';
@@ -176,9 +220,11 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
               }
             }
 
-            // Normalización de barras según modo
+            // Normalización de barras según modo (evitando divisiones entre cero)
             const pointsBarPercent = Math.min(100, Math.round(((item.points || 0) / maxPoints) * 100));
             const streakBarPercent = Math.min(100, Math.round(((item.currentStreak || 0) / maxStreak) * 100));
+            const caloriesBarPercent =
+              maxCalories > 0 ? Math.min(100, Math.round((memberCalories / maxCalories) * 100)) : 0;
 
             // Gradiente de barra dinámico
             let barGradient = 'from-cyan-500 to-emerald-400';
@@ -186,6 +232,8 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
               barGradient = 'from-amber-500 via-amber-400 to-yellow-300';
             } else if (sortBy === 'streak') {
               barGradient = 'from-rose-500 to-amber-400';
+            } else if (sortBy === 'calories') {
+              barGradient = 'from-orange-500 via-amber-400 to-yellow-300';
             } else {
               if (item.percentage < 75) barGradient = 'from-amber-500 to-cyan-400';
               if (item.percentage < 60) barGradient = 'from-rose-500 to-amber-400';
@@ -196,7 +244,18 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
                 ? pointsBarPercent
                 : sortBy === 'streak'
                 ? streakBarPercent
+                : sortBy === 'calories'
+                ? caloriesBarPercent
                 : item.percentage;
+
+            const isLeaderPositive =
+              sortBy === 'points'
+                ? item.points > 0
+                : sortBy === 'streak'
+                ? item.currentStreak > 0
+                : sortBy === 'calories'
+                ? memberCalories > 0
+                : item.percentage > 0;
 
             return (
               <div
@@ -243,23 +302,32 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
                     {/* Name, Metric and Progress */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                           <span className="text-xs sm:text-sm font-semibold text-white truncate block">
                             {item.user.name}
                           </span>
 
                           {/* Leader icon badge */}
-                          {item.rankPosition === 1 &&
-                            (sortBy === 'points' ? item.points > 0 : item.percentage > 0) &&
-                            isCompetitive && (
-                              <span
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0"
-                                title="Líder del Reto"
-                              >
-                                <Zap className="w-2.5 h-2.5 fill-amber-300 mr-0.5" />
-                                1°
-                              </span>
-                            )}
+                          {item.rankPosition === 1 && isLeaderPositive && isCompetitive && (
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0"
+                              title="Líder del Reto"
+                            >
+                              <Zap className="w-2.5 h-2.5 fill-amber-300 mr-0.5" />
+                              1°
+                            </span>
+                          )}
+
+                          {/* Rango Térmico Sutil (en retos físicos con calorías registradas) */}
+                          {isPhysical && thermalRank && (sortBy === 'calories' || isExpanded) && (
+                            <span
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold border shrink-0 ${thermalRank.badgeClass}`}
+                              title={`Rango térmico: ${thermalRank.label}`}
+                            >
+                              <span>{thermalRank.icon}</span>
+                              <span>{thermalRank.shortLabel}</span>
+                            </span>
+                          )}
                         </div>
 
                         {/* Métrica principal según la pestaña activa */}
@@ -275,6 +343,12 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
                               <Flame className="w-3 h-3 text-rose-400" />
                               <span>{item.currentStreak}</span>
                               <span className="text-[10px] text-rose-500/80 font-normal">d</span>
+                            </span>
+                          ) : sortBy === 'calories' ? (
+                            <span className="text-xs sm:text-sm font-mono font-bold text-orange-300 flex items-center gap-1">
+                              <Flame className="w-3 h-3 text-orange-400" />
+                              <span>{memberCalories.toLocaleString()}</span>
+                              <span className="text-[10px] text-orange-400/80 font-normal">kcal</span>
                             </span>
                           ) : (
                             <span className="text-xs sm:text-sm font-mono font-bold text-cyan-300">
@@ -326,7 +400,7 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
                   </div>
                 </div>
 
-                {/* Expanded Member Stats Breakdown (Grid 2x2 Perfectly Spaced) */}
+                {/* Expanded Member Stats Breakdown */}
                 {isExpanded && (
                   <div className="p-3 pt-2 border-t border-white/[0.06] bg-black/50 text-xs font-mono grid grid-cols-2 gap-2 animate-fade-in">
                     <div className="bg-zinc-950/90 p-2.5 rounded-lg border border-white/[0.06]">
@@ -365,11 +439,50 @@ export const ChallengeLeaderboard: React.FC<ChallengeLeaderboardProps> = ({
                       <span className="text-zinc-400 block text-[10px] uppercase tracking-wider mb-1">Mejor Racha</span>
                       <span className="text-amber-300 font-bold text-sm">{item.bestStreak} días</span>
                     </div>
+
+                    {isPhysical && (
+                      <>
+                        <div className="bg-zinc-950/90 p-2.5 rounded-lg border border-orange-500/20">
+                          <span className="text-zinc-400 block text-[10px] uppercase tracking-wider mb-1">
+                            Total Registrado
+                          </span>
+                          <span className="text-orange-300 font-bold text-sm">
+                            🔥 {(item.totalCalories || 0).toLocaleString()}{' '}
+                            <span className="text-zinc-500 text-xs font-normal">kcal</span>
+                          </span>
+                        </div>
+
+                        <div className="bg-zinc-950/90 p-2.5 rounded-lg border border-orange-500/20">
+                          <span className="text-zinc-400 block text-[10px] uppercase tracking-wider mb-1">
+                            Promedio / Récord
+                          </span>
+                          <span className="text-orange-200 font-bold text-xs sm:text-sm">
+                            {item.avgCaloriesPerSession || 0} kcal{' '}
+                            <span className="text-zinc-500 text-[11px] font-normal">
+                              (Máx: {item.bestCalorieDay || 0})
+                            </span>
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Footer de Calorías Colectivas del Equipo (Solo en Retos Físicos) */}
+      {isPhysical && (
+        <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2 text-xs font-mono">
+          <div className="flex items-center gap-2 text-zinc-400">
+            <Flame className="w-4 h-4 text-orange-400 shrink-0" />
+            <span>Calorías registradas por el equipo:</span>
+          </div>
+          <span className="font-bold text-orange-300 bg-orange-950/40 border border-orange-500/30 px-2.5 py-1 rounded-lg">
+            {totalTeamCalories.toLocaleString()} kcal
+          </span>
         </div>
       )}
     </div>

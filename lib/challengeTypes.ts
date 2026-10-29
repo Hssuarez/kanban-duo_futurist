@@ -6,6 +6,7 @@ import { User } from './types';
 import { HabitLogStatus } from './habitTypes';
 
 export type ChallengeMode = 'collaborative' | 'competitive';
+export type ChallengeType = 'physical' | 'general';
 export type ChallengeStatus = 'upcoming' | 'active' | 'completed' | 'archived';
 export type ChallengeRole = 'owner' | 'member';
 export type ChallengeMemberStatus = 'pending' | 'accepted' | 'declined';
@@ -22,6 +23,7 @@ export interface Challenge {
   endDate: string;             // 'YYYY-MM-DD'
   durationDays: number;        // 7, 14, 21, 30, o personalizado
   mode: ChallengeMode;         // 'collaborative' | 'competitive'
+  challengeType?: ChallengeType; // 'physical' (habilita kcal) | 'general' (sin kcal)
   status: ChallengeStatus;     // 'upcoming' | 'active' | 'completed' | 'archived'
   targetGoal?: string;         // e.g. '20 sesiones de entrenamiento'
   createdAt: string;           // ISO UTC
@@ -57,7 +59,7 @@ export interface ChallengeLog {
   userId: string;
   dateKey: string;             // 'YYYY-MM-DD' en hora Bogotá
   status: HabitLogStatus;      // 'completed' | 'empty' | 'not_applicable'
-  numericValue?: number;
+  numericValue?: number | null;// En retos físicos: calorías enteras registradas (0..10000), null/undefined si no registrado
   notes?: string;
   // Campos de Evidencia Fotográfica (Google Drive)
   evidenceUrl?: string | null;        // Referencia interna o enlace de visualización (/api/drive/file/[fileId])
@@ -104,6 +106,10 @@ export interface ChallengeMemberCompliance {
   rankPosition: number;        // 1, 2, 3... (empates reciben el mismo número)
   isTied: boolean;             // True si comparte la posición con otro participante
   points: number;              // Total de checks completados en el reto (1 check = 1 punto exacto)
+  totalCalories: number;       // Total de calorías válidas registradas en el reto (0 si no hay o en retos generales)
+  avgCaloriesPerSession: number; // Promedio de calorías por sesión con registro > 0
+  bestCalorieDay: number;      // Mayor registro calórico en una sesión individual
+  calorieLogsCount: number;    // Cantidad de registros válidos con calorías > 0
 }
 
 // Resumen analítico global del reto (KPIs para cabecera HUD)
@@ -117,6 +123,7 @@ export interface ChallengeSummaryKpis {
   totalMembersCount: number;
   activeMembersCount: number;
   mostConsistentMember: ChallengeMemberCompliance | null;
+  totalTeamCalories: number;           // Suma colectiva de calorías registradas por los participantes
 }
 
 // Día dentro de la matriz de un reto

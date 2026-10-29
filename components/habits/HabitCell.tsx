@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Slash, X, Camera } from 'lucide-react';
+import { Check, Slash, X, Camera, Flame } from 'lucide-react';
 import { Habit, HabitLogStatus } from '@/lib/habitTypes';
 
 interface HabitCellProps {
@@ -15,6 +15,8 @@ interface HabitCellProps {
   onSetStatus?: (habitId: string, dateKey: string, status: HabitLogStatus) => void;
   hasEvidence?: boolean;
   evidenceStatus?: 'none' | 'uploading' | 'uploaded' | 'failed';
+  calories?: number;
+  isReadOnlyViewer?: boolean;
   onOpenEvidence?: (habitId: string, dateKey: string) => void;
 }
 
@@ -29,19 +31,24 @@ export const HabitCell: React.FC<HabitCellProps> = ({
   onSetStatus,
   hasEvidence,
   evidenceStatus,
+  calories,
+  isReadOnlyViewer = false,
   onOpenEvidence,
 }) => {
   const [animating, setAnimating] = useState(false);
+  const hasValidCalories = typeof calories === 'number' && Number.isFinite(calories) && calories > 0;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isFuture) return;
 
-    // Si ya tiene evidencia y hay callback, abrir modal de evidencia
-    if (hasEvidence && onOpenEvidence) {
+    // Si ya tiene evidencia fotográfica o es espectador consultando calorías, abrir modal
+    if ((hasEvidence || (isReadOnlyViewer && hasValidCalories)) && onOpenEvidence) {
       onOpenEvidence(habit.id, dateKey);
       return;
     }
+
+    if (isReadOnlyViewer) return;
 
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {
       try {
@@ -92,6 +99,8 @@ export const HabitCell: React.FC<HabitCellProps> = ({
     cellStyle = 'bg-zinc-950/30 border-white/[0.03] text-zinc-700 opacity-40 cursor-not-allowed';
   }
 
+  const calorieTooltipSuffix = hasValidCalories ? ` · 🔥 ${calories} kcal` : '';
+
   return (
     <button
       type="button"
@@ -100,9 +109,7 @@ export const HabitCell: React.FC<HabitCellProps> = ({
       disabled={isFuture}
       title={`${habit.title} · ${dateKey} (${
         isCompleted
-          ? hasEvidence
-            ? 'Completado · 📷 Con evidencia fotográfica (Clic para ver)'
-            : 'Completado'
+          ? `${hasEvidence ? 'Completado · 📷 Con evidencia fotográfica' : 'Completado'}${calorieTooltipSuffix}`
           : isFailed
           ? 'Fallido'
           : isSkipped
@@ -127,15 +134,31 @@ export const HabitCell: React.FC<HabitCellProps> = ({
         </span>
       )}
 
-      {/* Botón flotante para adjuntar evidencia si está completado pero no tiene evidencia */}
-      {isCompleted && !hasEvidence && onOpenEvidence && (
+      {/* Badge de calorías registradas (solo retos físicos con kcal > 0) */}
+      {isCompleted && hasValidCalories && (
+        <span
+          onClick={(e) => {
+            if (onOpenEvidence) {
+              e.stopPropagation();
+              onOpenEvidence(habit.id, dateKey);
+            }
+          }}
+          className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center shadow-[0_0_8px_rgba(249,115,22,0.9)] z-10 cursor-pointer"
+          title={`🔥 ${calories} kcal registradas`}
+        >
+          <Flame className="w-2 h-2 stroke-[2.5]" />
+        </span>
+      )}
+
+      {/* Botón flotante para adjuntar evidencia / calorías si está completado pero no tiene foto */}
+      {isCompleted && !hasEvidence && !isReadOnlyViewer && onOpenEvidence && (
         <span
           onClick={(e) => {
             e.stopPropagation();
             onOpenEvidence(habit.id, dateKey);
           }}
           className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-zinc-800 text-zinc-400 hover:text-cyan-300 hover:bg-cyan-950 border border-white/20 hover:border-cyan-400 opacity-0 group-hover/cell:opacity-100 flex items-center justify-center cursor-pointer transition-all z-10"
-          title="Adjuntar evidencia fotográfica"
+          title="Adjuntar evidencia o registrar calorías"
         >
           <Camera className="w-2 h-2" />
         </span>

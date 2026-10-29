@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Challenge, ChallengeMember, ChallengeHabit, ChallengeLog } from '@/lib/challengeTypes';
+import { isPhysicalChallenge, getValidLogCalories } from '@/lib/challengeCalculations';
 import { User } from '@/lib/types';
 import {
   Camera,
@@ -14,6 +15,7 @@ import {
   MessageSquare,
   Cloud,
   CheckCircle2,
+  Flame,
 } from 'lucide-react';
 
 interface ChallengeEvidenceGalleryProps {
@@ -37,6 +39,7 @@ export const ChallengeEvidenceGallery: React.FC<ChallengeEvidenceGalleryProps> =
   onOpenEvidence,
   onGoToMatrix,
 }) => {
+  const isPhysical = isPhysicalChallenge(challenge);
   const [selectedUserId, setSelectedUserId] = useState<string>('all');
   const [selectedHabitId, setSelectedHabitId] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
@@ -245,6 +248,8 @@ export const ChallengeEvidenceGallery: React.FC<ChallengeEvidenceGalleryProps> =
               (log.evidenceFileId
                 ? `/api/drive/file/${encodeURIComponent(log.evidenceFileId)}`
                 : null);
+            const cardCalories = isPhysical ? getValidLogCalories(log) : null;
+            const hasCardCalories = cardCalories !== null && cardCalories > 0;
 
             return (
               <div
@@ -292,6 +297,14 @@ export const ChallengeEvidenceGallery: React.FC<ChallengeEvidenceGalleryProps> =
                     </div>
                   )}
 
+                  {/* Badge de calorías en esquina superior derecha (solo retos físicos con kcal > 0) */}
+                  {hasCardCalories && (
+                    <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-orange-950/85 border border-orange-500/50 text-orange-300 text-[11px] font-mono font-bold shadow-[0_0_10px_rgba(0,0,0,0.6)] backdrop-blur-sm flex items-center gap-1">
+                      <Flame className="w-3 h-3 text-orange-400" />
+                      <span>{cardCalories.toLocaleString()} kcal</span>
+                    </div>
+                  )}
+
                   {/* Overlay en Hover */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3">
                     <span className="inline-flex items-center gap-1 text-[11px] font-mono text-cyan-300 bg-black/60 px-2 py-1 rounded-md backdrop-blur-sm border border-cyan-500/30">
@@ -306,21 +319,25 @@ export const ChallengeEvidenceGallery: React.FC<ChallengeEvidenceGalleryProps> =
                   </div>
                 </div>
 
-                {/* Footer de Tarjeta: Fecha y Notas */}
+                {/* Footer de Tarjeta: Fecha, Calorías y Notas */}
                 <div className="p-3 space-y-1.5 flex-1 flex flex-col justify-between bg-zinc-950/40">
                   <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
                     <span className="flex items-center gap-1 text-zinc-400">
                       <Calendar className="w-3 h-3 text-cyan-400" />
                       <span>{log.dateKey}</span>
                     </span>
-                    {log.evidenceUploadedAt && (
+                    {hasCardCalories ? (
+                      <span className="text-[11px] font-mono font-bold text-orange-300">
+                        🔥 {cardCalories.toLocaleString()} kcal
+                      </span>
+                    ) : log.evidenceUploadedAt ? (
                       <span className="text-[10px] text-zinc-500">
                         {new Date(log.evidenceUploadedAt).toLocaleTimeString([], {
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
                   {log.notes && (

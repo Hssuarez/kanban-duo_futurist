@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Challenge, ChallengeMode } from '@/lib/challengeTypes';
+import { Challenge, ChallengeMode, ChallengeType } from '@/lib/challengeTypes';
+import { inferChallengeTypeFromMetadata, resolveChallengeType } from '@/lib/challengeCalculations';
 import { User } from '@/lib/types';
-import { X, Trophy, Handshake, Calendar, Check, Sparkles, Trash2, AlertTriangle, Search, UserPlus, Users } from 'lucide-react';
+import { X, Trophy, Handshake, Calendar, Check, Sparkles, Trash2, AlertTriangle, Search, UserPlus, Users, Flame, Brain } from 'lucide-react';
 import { getBogotaToday } from '@/lib/habitCalculations';
 
 interface ChallengeModalProps {
@@ -52,6 +53,8 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('🏆');
+  const [challengeType, setChallengeType] = useState<ChallengeType>('general');
+  const [hasManualTypeSelection, setHasManualTypeSelection] = useState(false);
   const [mode, setMode] = useState<ChallengeMode>('competitive');
   const [durationDays, setDurationDays] = useState(30);
   const [startDate, setStartDate] = useState(getBogotaToday());
@@ -70,6 +73,9 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
       setTitle(editingChallenge.title);
       setDescription(editingChallenge.description || '');
       setIcon(editingChallenge.icon || '🏆');
+      setChallengeType(resolveChallengeType(editingChallenge));
+      // En edición, nunca recalcular automáticamente a partir del título: respetar el tipo persistido o sugerido inicial
+      setHasManualTypeSelection(true);
       setMode(editingChallenge.mode || 'competitive');
       const sDate = editingChallenge.startDate || getBogotaToday();
       const eDate =
@@ -85,6 +91,8 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
       setTitle('');
       setDescription('');
       setIcon('🏆');
+      setChallengeType('general');
+      setHasManualTypeSelection(false);
       setMode('competitive');
       setStartDate(today);
       setEndDate(calculateEndDate(today, 30));
@@ -95,6 +103,13 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingChallenge, isOpen]);
+
+  // Sugerencia inteligente solo al crear un reto nuevo y mientras el usuario no haya elegido manualmente el tipo
+  useEffect(() => {
+    if (!isOpen || editingChallenge || hasManualTypeSelection) return;
+    const inferred = inferChallengeTypeFromMetadata(title, icon, description);
+    setChallengeType(inferred);
+  }, [title, description, icon, isOpen, editingChallenge, hasManualTypeSelection]);
 
   // Lista de usuarios disponibles para invitar (excluye al creador actual ya que es añadido automáticamente como owner)
   const availableUsers = useMemo(() => {
@@ -166,6 +181,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
         title: title.trim(),
         description: description.trim(),
         icon,
+        challengeType,
         mode,
         durationDays: Math.max(1, durationDays),
         startDate,
@@ -256,6 +272,61 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({
               rows={2}
               className="w-full bg-zinc-900/90 border border-white/[0.08] focus:border-cyan-400 text-white rounded-xl p-2.5 text-xs focus:outline-none transition-colors"
             />
+          </div>
+
+          {/* Challenge Type Selector: Físico/Deportivo vs Hábito General/Mental */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-mono font-medium text-zinc-300 block">
+                Categoría del Reto *
+              </label>
+              <span className="text-[10px] font-mono text-zinc-400">
+                {challengeType === 'physical' ? '⚡ Métricas Kcal activas' : '🧠 Sin métricas calóricas'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setChallengeType('physical');
+                  setHasManualTypeSelection(true);
+                }}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  challengeType === 'physical'
+                    ? 'bg-orange-950/40 border-orange-500/60 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/30'
+                    : 'bg-zinc-900/50 border-white/[0.06] text-zinc-400 hover:bg-zinc-900'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Flame className="w-4 h-4 text-orange-400" />
+                  <span className="text-xs font-bold text-white font-mono">Físico / Deportivo</span>
+                </div>
+                <p className="text-[10px] text-zinc-400 leading-tight">
+                  Habilita registro de calorías (kcal), badges térmicos y pestaña ⚡ Kcal en el Leaderboard.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setChallengeType('general');
+                  setHasManualTypeSelection(true);
+                }}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  challengeType === 'general'
+                    ? 'bg-cyan-950/40 border-cyan-500/60 shadow-[0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/30'
+                    : 'bg-zinc-900/50 border-white/[0.06] text-zinc-400 hover:bg-zinc-900'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Brain className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs font-bold text-white font-mono">Hábito General</span>
+                </div>
+                <p className="text-[10px] text-zinc-400 leading-tight">
+                  Lectura, estudio o bienestar. Interfaz limpia enfocada en consistencia, puntos y racha.
+                </p>
+              </button>
+            </div>
           </div>
 
           {/* Mode Selector: Competitivo vs Colaborativo */}
